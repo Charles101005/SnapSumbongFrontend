@@ -1,7 +1,7 @@
-export default function App(){
-    return(
-        <>
-        <h1>SnapSumbong</h1>
-        </>
-    )
+import LoginPage from "./pages/Login/LoginPage";
+
+function App() {
+    return <LoginPage />;
 }
+
+export default App
