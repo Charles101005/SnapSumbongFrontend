@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import "./LoginPage.css";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -29,7 +31,6 @@ export default function LoginPage() {
                     Email Address
                     </label>
                     <div className="input-wrapper">
-                        <AtIcon className="input-icon" />
                         <input
                             id="email"
                             type="email"
@@ -45,22 +46,29 @@ export default function LoginPage() {
                         Password
                     </label>
                     <div className="input-wrapper">
-                        <LockIcon className="input-icon" />
                         <input
                             id="password"
-                            type="password"
+                            type={showPassword ? "text" : "password"}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="Enter your password"
                             className="form-input"
                         />
+                        <button
+                            type="button"
+                            className="toggle-password-btn"
+                            onClick={() => setShowPassword((prev) => !prev)}
+                            aria-label={showPassword ? "Hide password" : "Show password"}
+                        >
+                            {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                        </button>
                     </div>
                 </div>
 
                 <div className="forgot-password">
-                    <a href="/forgot-password" className="forgot-password-link">
+                    <Link to="/forgot-password" className="forgot-password-link">
                         Forgot Password?
-                    </a>
+                    </Link>
                 </div>
                 <button type="submit" className="submit-btn">
                     Log In
@@ -70,7 +78,7 @@ export default function LoginPage() {
         </div>
 
         <p className="signup-text">
-            Don't have an account? <a href="#">Sign up for an account</a>
+            Don't have an account? <Link to="/register">Sign up for an account</Link>
         </p>
     </div>
     </div>
@@ -88,22 +96,22 @@ function RocketIcon() {
     )        
 }
 
-function AtIcon({ className }) {
-    return (
-        <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="4" />
-            <path d="M16 12v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-5.5 8.28" />
-        </svg>
-    );
+function EyeIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
 }
 
-function LockIcon({ className }) {
-    return (
-        <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-        </svg>
-    );
+function EyeOffIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.62 21.62 0 0 1 5.06-6.06M9.9 4.24A10.4 10.4 0 0 1 12 4c7 0 11 8 11 8a21.6 21.6 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  );
 }
 
 function LogInIcon() {
