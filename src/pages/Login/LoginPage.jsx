@@ -6,10 +6,31 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  const validate = () => {
+    const newErrors = {};
+    if (!email) {
+      newErrors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = "Enter a valid email address.";
+    }
+
+    if (!password) {
+      newErrors.password = "Password is required";
+    }
+
+    return newErrors;
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log({ email, password });
+    const validationErrors = validate();
+    setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length === 0) {
+      console.log({ email, password });
+    }
   };
 
   return (
@@ -25,7 +46,7 @@ export default function LoginPage() {
         </div>
 
     <div className="login-card">
-        <form onSubmit={handleSubmit} className="login-form">
+        <form onSubmit={handleSubmit} className="login-form" noValidate>
             <div className="form-group">
                 <label htmlFor="email" className="form-label">
                     Email Address
@@ -37,9 +58,10 @@ export default function LoginPage() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="Enter your email"
-                            className="form-input"
+                            className={`form-input ${errors.email ? "input-error" : ""}`}
                         />
                     </div>
+                    {errors.email && <p className="error-text">{errors.email}</p>}
                 </div>
                 <div className="form-group">
                     <label htmlFor="password" className="form-label">
@@ -52,7 +74,7 @@ export default function LoginPage() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="Enter your password"
-                            className="form-input"
+                            className={`form-input ${errors.password ? "input-error" : ""}`}
                         />
                         <button
                             type="button"
@@ -63,6 +85,7 @@ export default function LoginPage() {
                             {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                         </button>
                     </div>
+                    {errors.password && <p className="error-text">{errors.password}</p>}
                 </div>
 
                 <div className="forgot-password">

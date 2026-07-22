@@ -9,10 +9,36 @@ export default function Register() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [errors, setErrors] = useState({});
+
+    const validate = () => {
+        const newErrors = {};
+        if (!firstName) {
+            newErrors.firstName = "First name is required";
+        }
+        if (!lastName) {
+            newErrors.lastName = "Last name is required";
+        }
+        if (!email) {
+            newErrors.email = "Email is required";
+        } else if (!/\S+@\S+\.\S+/.test(email)) {
+            newErrors.email = "Enter a valid email address.";
+        }
+        if (!password) {
+            newErrors.password = "Password is required";
+        } else if (password.length < 6) {
+            newErrors.password = "Password must be at least 6 characters long.";
+        }
+        return newErrors;
+        }
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        console.log({ firstName, lastName, middleName, email, password });
+        const newErrors = validate();
+        setErrors(newErrors);
+        if (Object.keys(newErrors).length === 0) {
+            console.log({ firstName, lastName, middleName, email, password });
+        }
     };
 
     return (
@@ -30,7 +56,7 @@ export default function Register() {
                 <div className="register-card">
                     <h2 className="register-card-title">Create Account</h2>
 
-                    <form onSubmit={handleSubmit} className="register-form">
+                    <form onSubmit={handleSubmit} className="register-form" noValidate>
                         <div className="form-group">
                             <label htmlFor="firstName" className="form-label">
                                 First Name
@@ -41,8 +67,9 @@ export default function Register() {
                                 value={firstName}
                                 onChange={(e) => setFirstName(e.target.value)}
                                 placeholder="Enter your first name"
-                                className="form-input"
+                                className={`form-input ${errors.firstName ? "input-error" : ""}`}
                             />
+                            {errors.firstName && <p className="error-text">{errors.firstName}</p>}
                         </div>
                         <div className="form-group">
                             <label htmlFor="lastName" className="form-label">
@@ -54,12 +81,13 @@ export default function Register() {
                                 value={lastName}
                                 onChange={(e) => setLastName(e.target.value)}
                                 placeholder="Enter your last name"
-                                className="form-input"
+                                className={`form-input ${errors.lastName ? "input-error" : ""}`}
                             />
+                            {errors.lastName && <p className="error-text">{errors.lastName}</p>}
                         </div>
                         <div className="form-group">
                             <label htmlFor="middleName" className="form-label">
-                                Middle Name
+                                Middle Name (optional)
                             </label>
                             <input
                                 id="middleName"
@@ -80,8 +108,9 @@ export default function Register() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="Enter your email"
-                                className="form-input"
+                                className={`form-input ${errors.email ? "input-error" : ""}`}
                             />
+                            {errors.email && <p className="error-text">{errors.email}</p>}
                         </div>
                         <div className="form-group">
                             <label htmlFor="password" className="form-label">
@@ -94,7 +123,7 @@ export default function Register() {
                                   value={password}
                                   onChange={(e) => setPassword(e.target.value)}
                                   placeholder="Enter your password"
-                                  className="form-input"
+                                  className={`form-input ${errors.password ? "input-error" : ""}`}
                                 />
                                 <button
                                   type="button"
@@ -105,7 +134,8 @@ export default function Register() {
                                   {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                                 </button>
                               </div>
-                            </div>
+                            {errors.password && <p className="error-text">{errors.password}</p>}
+                        </div>
 
                         <button type="submit" className="submit-btn">
                             Create Account
@@ -116,8 +146,8 @@ export default function Register() {
                 <p className="login-text">
                     Already have an account? <Link to="/">Log in</Link>
                 </p>
-                </div>
             </div>
+        </div>
     );
 }
 

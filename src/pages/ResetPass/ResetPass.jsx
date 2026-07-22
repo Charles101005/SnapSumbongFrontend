@@ -4,10 +4,25 @@ import "./ResetPass.css";
 
 export default function ResetPass() {
     const [email, setEmail] = useState("");
+    const [errors, setErrors] = useState({});
+
+    const validate = () => {
+        const newErrors = {};
+        if (!email) {
+            newErrors.email = "Email is required";
+        } else if (!/\S+@\S+\.\S+/.test(email)) {
+            newErrors.email = "Enter a valid email address.";
+        }
+        return newErrors;
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        console.log({ email });
+        const newErrors = validate();
+        setErrors(newErrors);
+        if (Object.keys(newErrors).length === 0) {
+            console.log({ email });
+        }
     };
 
     return (
@@ -23,7 +38,7 @@ export default function ResetPass() {
                 </div>
                 <div className="resetpass-card">
                     <h2 className="resetpass-card-title">Forgot Password</h2>
-                    <form onSubmit={handleSubmit} className="resetpass-form">
+                    <form onSubmit={handleSubmit} className="resetpass-form" noValidate>
                         <div className="form-group">
                             <label htmlFor="email" className="form-label">
                                 Email
@@ -34,8 +49,9 @@ export default function ResetPass() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="Enter your email"
-                                className="form-input"
+                                className={`form-input ${errors.email ? "input-error" : ""}`}
                             />
+                            {errors.email && <p className="error-text">{errors.email}</p>}
                         </div>
                         <button type="submit" className="resetpass-button">
                             Verify Email

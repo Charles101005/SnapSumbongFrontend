@@ -180,3 +180,17 @@
 .signup-text a:hover {
   color: #2563eb;
 }
+
+.input-error {
+  border-color: #ef4444 !important;
+}
+
+.input-error:focus {
+  box-shadow: 0 0 0 2px #fca5a5 !important;
+}
+
+.error-text {
+  color: #ef4444;
+  font-size: 0.8rem;
+  margin: 0.35rem 0 0;
+}
