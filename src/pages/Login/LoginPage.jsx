@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "./LoginPage.css";
 
 export default function LoginPage() {
@@ -7,6 +7,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const navigate = useNavigate();
 
   const validate = () => {
     const newErrors = {};
@@ -29,7 +30,7 @@ export default function LoginPage() {
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length === 0) {
-      console.log({ email, password });
+      navigate("/monitoring");
     }
   };
 
