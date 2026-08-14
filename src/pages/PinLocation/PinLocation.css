@@ -1,0 +1,265 @@
+.pin-location-container {
+ display: flex;
+ flex-direction: column;
+ gap: 20px;
+ width: 100%;
+ max-width: 900px;
+ margin: 0 auto;
+}
+
+
+/* Header */
+.pin-header h2 {
+ font-size: 22px;
+ font-weight: 700;
+ margin: 0 0 6px 0;
+ color: var(--text-dark);
+}
+
+
+.pin-header p {
+ font-size: 14px;
+ color: var(--text-mid);
+ margin: 0;
+}
+
+
+/* Map Card & Viewport */
+.pin-map-card {
+ background: var(--bg-card);
+ border-radius: var(--radius);
+ border: 1px solid var(--border);
+ overflow: hidden;
+ box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+
+.pin-map-viewport {
+ position: relative;
+ width: 100%;
+ height: 420px;
+ background-color: #a4c2db;
+ overflow: hidden;
+ cursor: grab;
+}
+
+
+.pin-map-viewport:active {
+ cursor: grabbing;
+}
+
+
+.pin-map-bg {
+ width: 100%;
+ height: 100%;
+ transition: transform 0.2s ease-out;
+}
+
+
+.map-vector {
+ width: 100%;
+ height: 100%;
+}
+
+
+.map-label {
+ font-family: inherit;
+ fill: #334155;
+ user-select: none;
+}
+
+
+.city-label {
+ font-size: 26px;
+ font-weight: 800;
+ letter-spacing: 1px;
+}
+
+
+.sub-label {
+ font-size: 13px;
+ font-weight: 600;
+ fill: #475569;
+}
+
+
+/* Center Pin Marker */
+.pin-marker {
+ position: absolute;
+ top: 50%;
+ left: 50%;
+ transform: translate(-50%, -100%);
+ width: 38px;
+ height: 38px;
+ pointer-events: none;
+ filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+ z-index: 10;
+}
+
+
+/* Zoom Controls */
+.zoom-controls {
+ position: absolute;
+ bottom: 20px;
+ right: 20px;
+ display: flex;
+ flex-direction: column;
+ background: #ffffff;
+ border-radius: 8px;
+ box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+ overflow: hidden;
+ z-index: 10;
+}
+
+
+.zoom-btn {
+ width: 36px;
+ height: 36px;
+ border: none;
+ background: #ffffff;
+ font-size: 20px;
+ font-weight: 600;
+ color: var(--text-dark);
+ cursor: pointer;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+}
+
+
+.zoom-btn:first-child {
+ border-bottom: 1px solid var(--border);
+}
+
+
+.zoom-btn:hover {
+ background: #f8fafc;
+}
+
+
+/* Selected Location Card */
+.location-card {
+ background: #ffffff;
+ border: 1px solid var(--border);
+ border-radius: var(--radius);
+ padding: 16px 20px;
+ display: flex;
+ align-items: center;
+ gap: 16px;
+}
+
+
+.location-icon {
+ color: var(--blue);
+ display: flex;
+ align-items: center;
+ justify-content: center;
+}
+
+
+.location-icon svg {
+ width: 22px;
+ height: 22px;
+}
+
+
+.location-details {
+ flex: 1;
+ display: flex;
+ flex-direction: column;
+ gap: 4px;
+}
+
+
+.location-label {
+ font-size: 11px;
+ font-weight: 700;
+ letter-spacing: 0.05em;
+ color: var(--text-muted);
+}
+
+
+.location-address {
+ font-size: 14.5px;
+ font-weight: 600;
+ color: var(--text-dark);
+}
+
+
+.location-input {
+ font-size: 14px;
+ font-weight: 500;
+ padding: 6px 10px;
+ border: 1px solid var(--blue);
+ border-radius: var(--radius-sm);
+ width: 100%;
+}
+
+
+.btn-edit-address {
+ background: none;
+ border: none;
+ color: var(--blue);
+ font-size: 13.5px;
+ font-weight: 600;
+ cursor: pointer;
+ padding: 4px 8px;
+}
+
+
+.btn-edit-address:hover {
+ text-decoration: underline;
+}
+
+
+/* Actions Footer */
+.pin-actions {
+ display: flex;
+ justify-content: space-between;
+ align-items: center;
+ margin-top: 8px;
+}
+
+
+.btn-back {
+ display: flex;
+ align-items: center;
+ gap: 8px;
+ background: none;
+ border: none;
+ font-size: 14px;
+ font-weight: 600;
+ color: var(--text-mid);
+ cursor: pointer;
+ padding: 8px 0;
+}
+
+
+.btn-back svg {
+ width: 18px;
+ height: 18px;
+}
+
+
+.btn-back:hover {
+ color: var(--text-dark);
+}
+
+
+.btn-confirm {
+ background: var(--blue);
+ color: #ffffff;
+ border: none;
+ padding: 10px 28px;
+ border-radius: var(--radius-sm);
+ font-size: 14px;
+ font-weight: 600;
+ cursor: pointer;
+ box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+}
+
+
+.btn-confirm:hover {
+ background: #1d4ed8;
+}
+

@@ -1,0 +1,184 @@
+/* Modal Backdrop Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+/* Modal Box */
+.modal-card {
+  background: #ffffff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 400px;
+  padding: 28px 24px 24px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  box-sizing: border-box;
+}
+
+/* Top Icon Badge */
+.modal-icon-badge {
+  width: 42px;
+  height: 42px;
+  background-color: #eff6ff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.modal-icon-badge svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Titles */
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+}
+
+.modal-subtitle {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0 0 20px 0;
+  line-height: 1.4;
+}
+
+/* Option Cards Group */
+.options-group {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.option-card {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background-color: #f8fafc;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.option-card:hover {
+  background-color: #f1f5f9;
+}
+
+.option-card.selected {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+/* Hide native radio input */
+.option-card input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Custom Radio Indicator */
+.custom-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.option-card.selected .custom-radio {
+  border-color: #1d82f5;
+  background-color: #1d82f5;
+  box-shadow: inset 0 0 0 3px #ffffff;
+}
+
+/* Option Texts */
+.option-text {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.option-label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.option-sublabel {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.option-icon {
+  width: 18px;
+  height: 18px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.option-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Action Buttons */
+.btn-confirm {
+  width: 100%;
+  padding: 12px;
+  background-color: #1d82f5;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-confirm:hover {
+  background-color: #1565c0;
+}
+
+.btn-modal-cancel {
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  color: #64748b;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 6px;
+}
+
+.btn-modal-cancel:hover {
+  color: #0f172a;
+}
