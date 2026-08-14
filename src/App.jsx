@@ -4,6 +4,9 @@ import Register from "./pages/Register/Register";
 import ResetPass from "./pages/ResetPass/ResetPass";
 import VerifyEmail from "./pages/ResetPassVerify/VerifyEmail";
 import NewPass from "./pages/NewPass/NewPass";
+import MonitoringDashboard from "./pages/Monitoring/MonitoringDashboard";
+import ReportManagement from "./pages/ReportManagement/ReportManagement";
+import ReportsHistory from "./pages/Monitoring/ReportsHistory";
 
 import ReportHazards from "./pages/ReportHazards/ReportHazards";
 import PinLocation from "./pages/PinLocation/PinLocation"; 
@@ -21,6 +24,9 @@ function App() {
             <Route path="/report-hazards" element={<ReportHazards />} />
             <Route path="/pin-location" element={<PinLocation />} />
             <Route path="/report-submitted" element={<ReportSubmitted />} /> {/* Added route */}
+            <Route path="/monitoring" element={<MonitoringDashboard />} />
+            <Route path="/report-management" element={<ReportManagement />} />
+            <Route path="/monitoring/history" element={<ReportsHistory />} />
         </Routes>
     );
 }
