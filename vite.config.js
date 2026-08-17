@@ -7,5 +7,10 @@ export default defineConfig({
   plugins: [
     react(),
     babel({ presets: [reactCompilerPreset()] })
+    
   ],
+  server: {
+    host: '127.0.0.1', // Forces Vite to run on http://127.0.0.1:5173/
+    port: 5173,
+  },
 })
