@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { loginUser } from "../../api/login";
+import { setAccessToken } from "../../api/authToken";
 import "./LoginPage.css";
 
 export default function LoginPage() {
@@ -8,7 +10,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
-
+  const [submitting, setSubmitting] = useState(false);
 
   const validate = () => {
     const newErrors = {};
@@ -17,30 +19,33 @@ export default function LoginPage() {
     } else if (!/\S+@\S+\.\S+/.test(email)) {
       newErrors.email = "Enter a valid email address.";
     }
-
     if (!password) {
       newErrors.password = "Password is required";
     }
-
     return newErrors;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validate();
     setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) return;
 
-    if (Object.keys(validationErrors).length === 0) {
-      console.log({ email, password });
-      // Redirect to the report hazards page upon successful validation
-      navigate("/report-hazards");
+    setSubmitting(true);
+    try {
+      const data = await loginUser(email, password);
+      setAccessToken(data.access);
+      navigate("/monitoring");
+    } catch (err) {
+      setErrors({ form: err?.message || err?.detail || "Invalid email or password." });
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
     <div className="login-page">
       <div className="login-wrapper">
-        {/* Logo + heading */}
         <div className="login-header">
           <div className="login-logo">
             <RocketIcon />
@@ -93,13 +98,15 @@ export default function LoginPage() {
               {errors.password && <p className="error-text">{errors.password}</p>}
             </div>
 
+            {errors.form && <p className="error-text">{errors.form}</p>}
+
             <div className="forgot-password">
               <Link to="/forgot-password" className="forgot-password-link">
                 Forgot Password?
               </Link>
             </div>
-            <button type="submit" className="submit-btn">
-              Log In
+            <button type="submit" className="submit-btn" disabled={submitting}>
+              {submitting ? "Logging In..." : "Log In"}
               <LogInIcon />
             </button>
           </form>

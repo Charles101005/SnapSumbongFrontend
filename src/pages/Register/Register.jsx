@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { registerUser } from "../../api/register";
 import "./Register.css";
 
 export default function Register() {
+    const navigate = useNavigate();
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [middleName, setMiddleName] = useState("");
@@ -10,34 +12,34 @@ export default function Register() {
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [errors, setErrors] = useState({});
+    const [submitting, setSubmitting] = useState(false);
 
     const validate = () => {
         const newErrors = {};
-        if (!firstName) {
-            newErrors.firstName = "First name is required";
-        }
-        if (!lastName) {
-            newErrors.lastName = "Last name is required";
-        }
-        if (!email) {
-            newErrors.email = "Email is required";
-        } else if (!/\S+@\S+\.\S+/.test(email)) {
-            newErrors.email = "Enter a valid email address.";
-        }
-        if (!password) {
-            newErrors.password = "Password is required";
-        } else if (password.length < 6) {
-            newErrors.password = "Password must be at least 6 characters long.";
-        }
+        if (!firstName) newErrors.firstName = "First name is required";
+        if (!lastName) newErrors.lastName = "Last name is required";
+        if (!email) newErrors.email = "Email is required";
+        else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = "Enter a valid email address.";
+        if (!password) newErrors.password = "Password is required";
+        else if (password.length < 8) newErrors.password = "Password must be at least 8 characters long.";
         return newErrors;
-        }
+    };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         const newErrors = validate();
         setErrors(newErrors);
-        if (Object.keys(newErrors).length === 0) {
-            console.log({ firstName, lastName, middleName, email, password });
+        if (Object.keys(newErrors).length > 0) return;
+
+        setSubmitting(true);
+        try {
+            await registerUser(email, password, lastName, firstName, middleName || null);
+            // account is created as "pending" until OTP verification
+            navigate("/verify-email", { state: { email } });
+        } catch (err) {
+            setErrors({ form: err?.message || err?.detail || "Registration failed. Please try again." });
+        } finally {
+            setSubmitting(false);
         }
     };
 

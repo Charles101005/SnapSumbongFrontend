@@ -1,11 +1,29 @@
 import { useState, useRef } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate, useLocation } from "react-router-dom"
+import { verifyEmail, resendOTP } from "../../api/register"
 import "./VerifyEmail.css"
 
 export default function VerifyEmail() {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const email = location.state?.email;
+
     const [digits, setDigits] = useState(["", "", "", ""]);
     const [error, setError] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+    const [resending, setResending] = useState(false);
     const inputRefs = useRef([]);
+
+    if (!email) {
+        return (
+            <div className="verify-page">
+                <div className="verify-wrapper">
+                    <p className="error-text">No email to verify. Please register again.</p>
+                    <Link to="/register">Back to Register</Link>
+                </div>
+            </div>
+        );
+    }
 
     const handleChange = (index, value) => {
         if (value && !/^[0-9]$/.test(value)) return;
@@ -41,21 +59,37 @@ export default function VerifyEmail() {
         inputRefs.current[nextIndex]?.focus();
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         const code = digits.join("");
 
-        if (code.lenght < 4) {
-            setError("Please enter all 4 digits.")
+        if (code.length < 4) {
+            setError("Please enter all 4 digits.");
             return;
         }
 
-        console.log("Verification code:", code);
+        setSubmitting(true);
+        try {
+            await verifyEmail(email, code);
+            navigate("/", { state: { justVerified: true } });
+        } catch (err) {
+            setError(err?.message || err?.detail || "Invalid or expired code.");
+        } finally {
+            setSubmitting(false);
+        }
     };
 
-    const handleResend = (e) => {
+    const handleResend = async (e) => {
         e.preventDefault();
-        console.log("Resend code requested");
+        setResending(true);
+        setError("");
+        try {
+            await resendOTP(email);
+        } catch (err) {
+            setError(err?.message || err?.detail || "Couldn't resend the code. Try again.");
+        } finally {
+            setResending(false);
+        }
     };
 
     return (
@@ -94,15 +128,15 @@ export default function VerifyEmail() {
                 </div>
                 {error && <p className="error-text otp-error">{error}</p>}
      
-                <button type="submit" className="verify-button">
-                  Confirm
+                <button type="submit" className="verify-button" disabled={submitting}>
+                  {submitting ? "Verifying..." : "Confirm"}
                 </button>
               </form>
      
               <p className="resend-text">
                 Didn't receive the code?{" "}
                 <Link to="#" onClick={handleResend}>
-                  Resend Code
+                  {resending ? "Resending..." : "Resend Code"}
                 </Link>
               </p>
             </div>
