@@ -1,17 +1,31 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PinLocationPage from "../PinLocation/PinLocation";
 import SubmitReportModal from "../SubmitReport/SubmitReportModal";
+import UploadPhoto from "../UploadPhoto/UploadPhoto";
+import MyReport from "../MyReport/MyReport";
+import AccountSettings from "../AccountSettings/AccountSettings";
+import CategorySelection from "../CategorySelection/CategorySelection";
 import "./ReportHazards.css";
 
 export default function HazardReportForm() {
   const navigate = useNavigate();
 
-  // Navigation / View State
-  const [currentView, setCurrentView] = useState("form"); // 'form' | 'pin-location'
+  // Navigation / View State ('form' | 'pin-location' | 'my-reports' | 'account-settings' | 'category-selection')
+  const [currentView, setCurrentView] = useState("form");
 
-  // Modal State
+  // User Profile State
+  const [user, setUser] = useState({
+    firstName: "Marcus",
+    middleName: "Hue",
+    lastName: "Chen",
+    email: "marcus.chen@email.com",
+    role: "Verified Citizen",
+  });
+
+  // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   // Location State
   const [locationData, setLocationData] = useState({
@@ -24,33 +38,25 @@ export default function HazardReportForm() {
   const [selectedCategory, setSelectedCategory] = useState("pothole");
   const [description, setDescription] = useState("");
 
-  const fileInputRef = useRef(null);
+  // Dynamic Full Name derived from state
+  const fullName = `${user.firstName} ${user.lastName}`.trim();
 
-  // --- Photo Upload Handlers ---
-  const handlePhotoChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setPhotoPreview(event.target.result);
-    };
-    reader.readAsDataURL(file);
-  };
-
+  // --- Photo Handlers ---
   const handleRemovePhoto = (e) => {
     e.preventDefault();
     e.stopPropagation();
     setPhotoPreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
   };
 
-  const handleUploadBoxKeyDown = (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      fileInputRef.current?.click();
+  const handleUploadSuccess = (imageSrc) => {
+    setPhotoPreview(imageSrc);
+  };
+
+  // --- Category Click Handler ---
+  const handleCategoryClick = (categoryKey) => {
+    setSelectedCategory(categoryKey);
+    if (categoryKey === "other") {
+      setCurrentView("category-selection");
     }
   };
 
@@ -59,14 +65,12 @@ export default function HazardReportForm() {
     if (window.confirm("Discard this hazard report?")) {
       setDescription("");
       setPhotoPreview(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
       setSelectedCategory("pothole");
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Triggers the Submit Report modal popup
     setIsModalOpen(true);
   };
 
@@ -81,21 +85,22 @@ export default function HazardReportForm() {
       description,
       hasPhoto: Boolean(photoPreview),
       location: locationData,
-      submissionType, // 'named' or 'anonymous'
+      submissionType,
     };
 
     console.log("Hazard report submitted:", payload);
 
-    // Reset form state before navigating
     setDescription("");
     setPhotoPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
     setSelectedCategory("pothole");
 
-    // Redirect to success page
     navigate("/report-submitted", {
       state: { referenceNumber: refNum },
     });
+  };
+
+  const handleUpdateUser = (updatedData) => {
+    setUser((prev) => ({ ...prev, ...updatedData }));
   };
 
   return (
@@ -114,7 +119,12 @@ export default function HazardReportForm() {
           </div>
 
           <nav className="nav">
-            <button className="nav-item" type="button">
+            {/* My Reports Option */}
+            <button
+              className={`nav-item ${currentView === "my-reports" ? "active" : ""}`}
+              type="button"
+              onClick={() => setCurrentView("my-reports")}
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
@@ -124,24 +134,19 @@ export default function HazardReportForm() {
               </svg>
               My Reports
             </button>
-            <button className="nav-item active" type="button" onClick={() => setCurrentView("form")}>
+
+            {/* Report Hazard Option */}
+            <button
+              className={`nav-item ${currentView === "form" || currentView === "pin-location" || currentView === "category-selection" ? "active" : ""}`}
+              type="button"
+              onClick={() => setCurrentView("form")}
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
                 <line x1="12" y1="8" x2="12" y2="16"></line>
                 <line x1="8" y1="12" x2="16" y2="12"></line>
               </svg>
               Report Hazard
-            </button>
-            <button className="nav-item" type="button">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="8" y1="6" x2="21" y2="6"></line>
-                <line x1="8" y1="12" x2="21" y2="12"></line>
-                <line x1="8" y1="18" x2="21" y2="18"></line>
-                <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                <line x1="3" y1="18" x2="3.01" y2="18"></line>
-              </svg>
-              List of Reports
             </button>
           </nav>
         </div>
@@ -154,9 +159,13 @@ export default function HazardReportForm() {
             </svg>
           </div>
           <div className="user-meta">
-            <span className="user-name">Marcus Chen</span>
-            <span className="user-role">Verified Citizen</span>
-            <button className="account-settings" type="button">
+            <span className="user-name">{fullName}</span>
+            <span className="user-role">{user.role}</span>
+            <button
+              className={`account-settings ${currentView === "account-settings" ? "active" : ""}`}
+              type="button"
+              onClick={() => setCurrentView("account-settings")}
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3"></circle>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -169,11 +178,24 @@ export default function HazardReportForm() {
 
       {/* Main Content Pane */}
       <main className="main">
-        {currentView === "pin-location" ? (
+        {currentView === "account-settings" ? (
+          <AccountSettings user={user} onUpdateUser={handleUpdateUser} />
+        ) : currentView === "my-reports" ? (
+          <MyReport />
+        ) : currentView === "pin-location" ? (
           <PinLocationPage
             initialLocation={locationData}
             onConfirm={(updatedLocation) => {
               setLocationData(updatedLocation);
+              setCurrentView("form");
+            }}
+            onBack={() => setCurrentView("form")}
+          />
+        ) : currentView === "category-selection" ? (
+          <CategorySelection
+            initialCategory={selectedCategory}
+            onSelectCategory={(chosenCategoryLabel) => {
+              setSelectedCategory(chosenCategoryLabel);
               setCurrentView("form");
             }}
             onBack={() => setCurrentView("form")}
@@ -253,9 +275,8 @@ export default function HazardReportForm() {
 
                 <div
                   className="upload-box"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => setIsUploadModalOpen(true)}
                   tabIndex="0"
-                  onKeyDown={handleUploadBoxKeyDown}
                 >
                   {!photoPreview ? (
                     <>
@@ -281,13 +302,6 @@ export default function HazardReportForm() {
                       </button>
                     </>
                   )}
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden-file-input"
-                    accept="image/*"
-                    onChange={handlePhotoChange}
-                  />
                 </div>
               </section>
 
@@ -303,7 +317,7 @@ export default function HazardReportForm() {
                 <div className="category-grid">
                   <div
                     className={`category-card ${selectedCategory === "pothole" ? "selected" : ""}`}
-                    onClick={() => setSelectedCategory("pothole")}
+                    onClick={() => handleCategoryClick("pothole")}
                   >
                     <div className="category-icon">
                       <div className="icon-circle-fill"></div>
@@ -313,7 +327,7 @@ export default function HazardReportForm() {
 
                   <div
                     className={`category-card ${selectedCategory === "uneven-roads" ? "selected" : ""}`}
-                    onClick={() => setSelectedCategory("uneven-roads")}
+                    onClick={() => handleCategoryClick("uneven-roads")}
                   >
                     <div className="category-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -325,7 +339,7 @@ export default function HazardReportForm() {
 
                   <div
                     className={`category-card ${selectedCategory === "road-debris" ? "selected" : ""}`}
-                    onClick={() => setSelectedCategory("road-debris")}
+                    onClick={() => handleCategoryClick("road-debris")}
                   >
                     <div className="category-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -339,8 +353,8 @@ export default function HazardReportForm() {
                   </div>
 
                   <div
-                    className={`category-card ${selectedCategory === "other" ? "selected" : ""}`}
-                    onClick={() => setSelectedCategory("other")}
+                    className={`category-card ${selectedCategory === "other" || !["pothole", "uneven-roads", "road-debris"].includes(selectedCategory) ? "selected" : ""}`}
+                    onClick={() => handleCategoryClick("other")}
                   >
                     <div className="category-icon">
                       <svg viewBox="0 0 24 24" fill="currentColor">
@@ -349,7 +363,11 @@ export default function HazardReportForm() {
                         <circle cx="19" cy="12" r="2" />
                       </svg>
                     </div>
-                    <span>Other</span>
+                    <span>
+                      {["pothole", "uneven-roads", "road-debris"].includes(selectedCategory)
+                        ? "Others"
+                        : selectedCategory}
+                    </span>
                   </div>
                 </div>
               </section>
@@ -395,12 +413,19 @@ export default function HazardReportForm() {
         )}
       </main>
 
-      {/* Modal Container */}
+      {/* Upload Photo Modal */}
+      <UploadPhoto
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onUploadSuccess={handleUploadSuccess}
+      />
+
+      {/* Submit Report Modal */}
       <SubmitReportModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onConfirm={handleFinalSubmit}
-        userName="Marcus Chen"
+        userName={fullName}
       />
     </div>
   );

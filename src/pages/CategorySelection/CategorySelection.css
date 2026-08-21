@@ -1,0 +1,172 @@
+/* Full Viewport Overlay to Hide Sidebar Completely */
+.category-selection-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #f8fafc;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Centered White Card Container */
+.category-selection-card {
+  width: 100%;
+  max-width: 980px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px 28px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+}
+
+/* Header */
+.category-selection-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.category-selection-header .header-icon {
+  width: 22px;
+  height: 22px;
+  color: #1d82f5;
+}
+
+.category-selection-header h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+/* 4x4 Grid */
+.extended-category-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.extended-category-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 105px;
+  padding: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  text-align: center;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.extended-category-card:hover {
+  border-color: #cbd5e1;
+  background-color: #f8fafc;
+}
+
+.extended-category-card.selected {
+  border: 2px solid #1d82f5;
+  background-color: #ffffff;
+}
+
+.extended-icon-wrapper {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #eef5ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.extended-icon-wrapper svg {
+  width: 18px;
+  height: 18px;
+  color: #1d82f5;
+}
+
+.extended-category-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+/* Action Bar with Exact-Sized Buttons */
+.category-selection-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #475569;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 14px;
+  border-radius: 6px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-back:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.btn-back svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Sized Confirm Button */
+.btn-confirm {
+  background-color: #1d82f5;
+  color: #ffffff;
+  border: none;
+  width: 160px;
+  height: 42px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.btn-confirm:hover {
+  background-color: #166bd6;
+}
+
+@media (max-width: 860px) {
+  .extended-category-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

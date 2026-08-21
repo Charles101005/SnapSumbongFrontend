@@ -1,0 +1,100 @@
+.deactivate-account-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.deactivate-card {
+  width: 100%;
+  max-width: 440px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+  padding: 36px 32px 32px 32px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.warning-icon-wrapper {
+  width: 64px;
+  height: 64px;
+  background-color: #fee2e2;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.warning-icon-wrapper svg {
+  width: 28px;
+  height: 28px;
+  color: #dc2626;
+}
+
+.deactivate-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 12px 0;
+}
+
+.deactivate-description {
+  font-size: 0.9rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0 0 28px 0;
+}
+
+.deactivate-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.btn-deactivate-cancel {
+  flex: 1;
+  height: 44px;
+  background-color: #ffffff;
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.btn-deactivate-cancel:hover {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.btn-deactivate-confirm {
+  flex: 1;
+  height: 44px;
+  background-color: #dc2626;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-deactivate-confirm:hover {
+  background-color: #b91c1c;
+}
