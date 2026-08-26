@@ -1,21 +1,45 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { resetPassword } from "../../api/passwordReset";
+import { getAuthFlow, clearAuthFlow } from "../../shared/authFlowStorage";
 import "./NewPass.css";
 
 export default function NewPass() {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const flow = getAuthFlow();
+    const email = flow?.email ?? location.state?.email;
+    const otp = flow?.otp ?? location.state?.otp;
+
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const [error, setError] = useState({});
+    const [errors, setErrors] = useState({});
+    const [submitting, setSubmitting] = useState(false);
+
+    if (!email || !otp) {
+        return (
+            <div className="newpass-page">
+                <div className="newpass-wrapper">
+                    <div className="newpass-card">
+                        <p className="error-text">
+                            No reset session found. Please start over.
+                        </p>
+                        <Link to="/forgot-password">Back to Forgot Password</Link>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     const validateForm = () => {
         const newErrors = {};
 
-        if(!password) {
+        if (!newPassword) {
             newErrors.password = "Password is required";
-        } else if (password.length < 6) {
-            newErrors.password = "Password must be at least 6 characters long";
+        } else if (newPassword.length < 8) {
+            newErrors.password = "Password must be at least 8 characters long";
         }
 
         if (!confirmPassword) {
@@ -27,13 +51,26 @@ export default function NewPass() {
         return newErrors;
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        const newErrors = validate();
-        setError(newErrors);
+        const newErrors = validateForm();
+        setErrors(newErrors);
 
-        if (Object.keys(newErrors).length === 0) {
-            console.log({ password });
+        if (Object.keys(newErrors).length > 0) {
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            await resetPassword(email, otp, newPassword);
+            clearAuthFlow();
+            navigate("/", { state: { justResetPassword: true } });
+        } catch (err) {
+            setErrors({
+                form: err?.detail || err?.message || "Couldn't reset your password. Please try again.",
+            });
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -59,8 +96,8 @@ export default function NewPass() {
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Enter new password"
                   className={`form-input ${errors.password ? "input-error" : ""}`}
                 />
@@ -103,8 +140,10 @@ export default function NewPass() {
               )}
             </div>
  
-            <button type="submit" className="continue-btn">
-              Continue
+            {errors.form && <p className="error-text">{errors.form}</p>}
+
+            <button type="submit" className="continue-btn" disabled={submitting}>
+              {submitting ? "Saving..." : "Continue"}
               <ArrowRightIcon />
             </button>
           </form>
