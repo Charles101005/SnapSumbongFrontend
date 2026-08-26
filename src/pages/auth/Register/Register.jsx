@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { registerUser } from "../../../api/register";
+import { setAuthFlow } from "../../shared/authFlowStorage";
 import "./Register.css";
 
 export default function Register() {
@@ -35,6 +36,7 @@ export default function Register() {
         try {
             await registerUser(email, password, lastName, firstName, middleName || null);
             // account is created as "pending" until OTP verification
+            setAuthFlow({ email, purpose: "register", otp: null });
             navigate("/verify-email", { state: { email } });
         } catch (err) {
             setErrors({ form: err?.message || err?.detail || "Registration failed. Please try again." });

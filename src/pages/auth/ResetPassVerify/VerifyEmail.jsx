@@ -1,12 +1,17 @@
 import { useState, useRef } from "react"
 import { Link, useNavigate, useLocation } from "react-router-dom"
 import { verifyEmail, resendOTP } from "../../../api/register"
+import { verifyResetPasswordCode, resendResetPasswordCode } from "../../api/passwordReset"
+import { getAuthFlow, setAuthFlow, clearAuthFlow } from "../../shared/authFlowStorage"
 import "./VerifyEmail.css"
 
 export default function VerifyEmail() {
     const navigate = useNavigate();
     const location = useLocation();
-    const email = location.state?.email;
+
+    const flow = getAuthFlow();
+    const email = flow?.email ?? location.state?.email;
+    const isPasswordReset = (flow?.purpose ?? location.state?.purpose) === "reset-password";
 
     const [digits, setDigits] = useState(["", "", "", ""]);
     const [error, setError] = useState("");
@@ -18,8 +23,14 @@ export default function VerifyEmail() {
         return (
             <div className="verify-page">
                 <div className="verify-wrapper">
-                    <p className="error-text">No email to verify. Please register again.</p>
-                    <Link to="/register">Back to Register</Link>
+                    <p className="error-text">
+                        {isPasswordReset
+                            ? "No email to verify. Please request a new reset code."
+                            : "No email to verify. Please register again."}
+                    </p>
+                    <Link to={isPasswordReset ? "/forgot-password" : "/register"} onClick={clearAuthFlow}>
+                        {isPasswordReset ? "Back to Forgot Password" : "Back to Register"}
+                    </Link>
                 </div>
             </div>
         );
@@ -70,8 +81,15 @@ export default function VerifyEmail() {
 
         setSubmitting(true);
         try {
-            await verifyEmail(email, code);
-            navigate("/", { state: { justVerified: true } });
+            if (isPasswordReset) {
+                await verifyResetPasswordCode(email, code);
+                setAuthFlow({ email, purpose: "reset-password", otp: code });
+                navigate("/new-password", { state: { email, otp: code } });
+            } else {
+                await verifyEmail(email, code);
+                clearAuthFlow();
+                navigate("/", { state: { justVerified: true } });
+            }
         } catch (err) {
             setError(err?.message || err?.detail || "Invalid or expired code.");
         } finally {
@@ -84,7 +102,11 @@ export default function VerifyEmail() {
         setResending(true);
         setError("");
         try {
-            await resendOTP(email);
+            if (isPasswordReset) {
+                await resendResetPasswordCode(email);
+            } else {
+                await resendOTP(email);
+            }
         } catch (err) {
             setError(err?.message || err?.detail || "Couldn't resend the code. Try again.");
         } finally {

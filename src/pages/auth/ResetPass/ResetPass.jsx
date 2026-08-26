@@ -1,10 +1,14 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { requestPasswordReset } from "../../api/passwordReset";
+import { setAuthFlow } from "../../shared/authFlowStorage";
 import "./ResetPass.css";
 
 export default function ResetPass() {
+    const navigate = useNavigate();
     const [email, setEmail] = useState("");
     const [errors, setErrors] = useState({});
+    const [submitting, setSubmitting] = useState(false);
 
     const validate = () => {
         const newErrors = {};
@@ -16,12 +20,23 @@ export default function ResetPass() {
         return newErrors;
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         const newErrors = validate();
         setErrors(newErrors);
-        if (Object.keys(newErrors).length === 0) {
-            console.log({ email });
+        if (Object.keys(newErrors).length > 0) {
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            await requestPasswordReset(email);
+            setAuthFlow({ email, purpose: "reset-password", otp: null });
+            navigate("/verify-email", { state: { email, purpose: "reset-password" } });
+        } catch (err) {
+            setErrors({ email: err?.detail || err?.message || "Couldn't send the reset code. Try again." });
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -53,8 +68,8 @@ export default function ResetPass() {
                             />
                             {errors.email && <p className="error-text">{errors.email}</p>}
                         </div>
-                        <button type="submit" className="resetpass-button">
-                            Verify Email
+                        <button type="submit" className="resetpass-button" disabled={submitting}>
+                            {submitting ? "Sending..." : "Verify Email"}
                         </button>
                     </form>
                 </div>
