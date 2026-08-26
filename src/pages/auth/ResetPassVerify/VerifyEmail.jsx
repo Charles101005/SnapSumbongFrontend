@@ -1,8 +1,8 @@
 import { useState, useRef } from "react"
 import { Link, useNavigate, useLocation } from "react-router-dom"
 import { verifyEmail, resendOTP } from "../../../api/register"
-import { verifyResetPasswordCode, resendResetPasswordCode } from "../../api/passwordReset"
-import { getAuthFlow, setAuthFlow, clearAuthFlow } from "../../shared/authFlowStorage"
+import { verifyResetPasswordCode, resendResetPasswordCode } from "../../../api/passwordReset"
+import { getAuthFlow, setAuthFlow, clearAuthFlow } from "../../../shared/authFlowStorage"
 import "./VerifyEmail.css"
 
 export default function VerifyEmail() {

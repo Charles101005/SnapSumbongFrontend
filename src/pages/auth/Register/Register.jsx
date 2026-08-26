@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { registerUser } from "../../../api/register";
-import { setAuthFlow } from "../../shared/authFlowStorage";
+import { setAuthFlow } from "../../../shared/authFlowStorage";
 import "./Register.css";
 
 export default function Register() {

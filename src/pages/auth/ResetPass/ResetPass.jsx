@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { requestPasswordReset } from "../../api/passwordReset";
-import { setAuthFlow } from "../../shared/authFlowStorage";
+import { requestPasswordReset } from "../../../api/passwordReset";
+import { setAuthFlow } from "../../../shared/authFlowStorage";
 import "./ResetPass.css";
 
 export default function ResetPass() {
