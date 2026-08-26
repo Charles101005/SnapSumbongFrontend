@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import './MyReport.css';
 
 const MOCK_REPORTS = [
@@ -75,24 +75,31 @@ const MOCK_REPORTS = [
   },
 ];
 
+const ROWS_PER_PAGE = 4;
+
 export default function MyReport() {
   const [selectedReport, setSelectedReport] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Temporary control states (bound to form controls)
   const [tempCategory, setTempCategory] = useState('All Categories');
   const [tempStatus, setTempStatus] = useState('All Statuses');
   const [tempDate, setTempDate] = useState('');
+  const [tempSearch, setTempSearch] = useState('');
 
   // Applied filter states (used to actually filter the data table)
   const [appliedCategory, setAppliedCategory] = useState('All Categories');
   const [appliedStatus, setAppliedStatus] = useState('All Statuses');
   const [appliedDate, setAppliedDate] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
 
   // Handle click on "Apply Filters"
   const handleApplyFilters = () => {
     setAppliedCategory(tempCategory);
     setAppliedStatus(tempStatus);
     setAppliedDate(tempDate);
+    setAppliedSearch(tempSearch);
+    setCurrentPage(1);
   };
 
   // Handle click on "Reset"
@@ -100,29 +107,46 @@ export default function MyReport() {
     setTempCategory('All Categories');
     setTempStatus('All Statuses');
     setTempDate('');
+    setTempSearch('');
     
     setAppliedCategory('All Categories');
     setAppliedStatus('All Statuses');
     setAppliedDate('');
+    setAppliedSearch('');
+    setCurrentPage(1);
   };
 
   // Filter based ONLY on applied states
-  const filteredReports = MOCK_REPORTS.filter((report) => {
-    if (appliedCategory !== 'All Categories' && report.category !== appliedCategory) {
-      return false;
-    }
-    if (
-      appliedStatus !== 'All Statuses' &&
-      report.status.replaceAll(' ', '') !== appliedStatus.replaceAll(' ', '')
-    ) {
-      return false;
-    }
-    // Simple date filter check if date input matches submitted date (adjust formatting if needed)
-    if (appliedDate && !report.dateSubmitted.includes(appliedDate)) {
-      return false;
-    }
-    return true;
-  });
+  const filteredReports = useMemo(() => {
+    return MOCK_REPORTS.filter((report) => {
+      if (appliedCategory !== 'All Categories' && report.category !== appliedCategory) {
+        return false;
+      }
+      if (
+        appliedStatus !== 'All Statuses' &&
+        report.status.replaceAll(' ', '') !== appliedStatus.replaceAll(' ', '')
+      ) {
+        return false;
+      }
+      if (appliedDate && !report.dateSubmitted.includes(appliedDate)) {
+        return false;
+      }
+      if (appliedSearch) {
+        const q = appliedSearch.toLowerCase();
+        const match =
+          report.id.toLowerCase().includes(q) ||
+          report.category.toLowerCase().includes(q);
+        if (!match) return false;
+      }
+      return true;
+    });
+  }, [appliedCategory, appliedStatus, appliedDate, appliedSearch]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredReports.length / ROWS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedReports = filteredReports.slice((safePage - 1) * ROWS_PER_PAGE, safePage * ROWS_PER_PAGE);
+  const startRow = filteredReports.length === 0 ? 0 : (safePage - 1) * ROWS_PER_PAGE + 1;
+  const endRow = Math.min(safePage * ROWS_PER_PAGE, filteredReports.length);
 
   const getStatusBadgeClass = (status) => {
     switch (status) {
@@ -355,6 +379,19 @@ export default function MyReport() {
           />
         </div>
 
+        <div className="filter-group search-filter-group">
+          <label>Search</label>
+          <div className="search-input-wrapper">
+            <SearchIcon />
+            <input
+              type="text"
+              placeholder="Search by Report ID or Category"
+              value={tempSearch}
+              onChange={(e) => setTempSearch(e.target.value)}
+            />
+          </div>
+        </div>
+
         <div className="filter-actions">
           <button className="btn-apply" onClick={handleApplyFilters}>
             Apply Filters
@@ -378,40 +415,68 @@ export default function MyReport() {
             </tr>
           </thead>
           <tbody>
-            {filteredReports.map((report) => (
-              <tr key={report.id}>
-                <td className="report-id-cell">{report.id}</td>
-                <td>{report.category}</td>
-                <td>{report.dateSubmitted}</td>
-                <td>
-                  <span className={getStatusBadgeClass(report.status)}>
-                    {report.status}
-                  </span>
-                </td>
-                <td>
-                  <button
-                    className="action-view-btn"
-                    onClick={() => setSelectedReport(report)}
-                  >
-                    View Details
-                  </button>
-                </td>
+            {paginatedReports.length > 0 ? (
+              paginatedReports.map((report) => (
+                <tr key={report.id}>
+                  <td className="report-id-cell">{report.id}</td>
+                  <td>{report.category}</td>
+                  <td>{report.dateSubmitted}</td>
+                  <td>
+                    <span className={getStatusBadgeClass(report.status)}>
+                      {report.status}
+                    </span>
+                  </td>
+                  <td>
+                    <button
+                      className="action-view-btn"
+                      onClick={() => setSelectedReport(report)}
+                    >
+                      View Details
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="5" className="empty-table-message">No reports found matching your filters.</td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
+      </div>
 
-        {/* Table Footer Pagination */}
-        <div className="table-footer">
-          <span>Showing 1 to {filteredReports.length} of 12 results</span>
-          <div className="pagination">
-            <button className="page-btn active">1</button>
-            <button className="page-btn">2</button>
-            <button className="page-btn">3</button>
-            <button className="page-btn">&gt;</button>
-          </div>
+      {/* Pagination */}
+      <div className="pagination">
+        <span className="pagination-info">
+          Showing {startRow} to {endRow} of {filteredReports.length} reports
+        </span>
+        <div className="pagination-buttons">
+          <button className="pagination-btn" disabled={safePage <= 1} onClick={() => setCurrentPage((p) => p - 1)}>
+            Previous
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            <button
+              key={page}
+              className={`pagination-btn ${page === safePage ? 'active' : ''}`}
+              onClick={() => setCurrentPage(page)}
+            >
+              {page}
+            </button>
+          ))}
+          <button className="pagination-btn" disabled={safePage >= totalPages} onClick={() => setCurrentPage((p) => p + 1)}>
+            Next
+          </button>
         </div>
       </div>
     </div>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
   );
 }

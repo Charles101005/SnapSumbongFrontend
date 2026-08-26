@@ -1,6 +1,6 @@
 import { useState, useRef } from "react"
 import { Link, useNavigate, useLocation } from "react-router-dom"
-import { verifyEmail, resendOTP } from "../../api/register"
+import { verifyEmail, resendOTP } from "../../../api/register"
 import "./VerifyEmail.css"
 
 export default function VerifyEmail() {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { loginUser } from "../../api/login";
-import { setAccessToken } from "../../api/authToken";
+import { loginUser } from "../../../api/login";
+import { setAccessToken } from "../../../api/authToken";
 import "./LoginPage.css";
 
 export default function LoginPage() {

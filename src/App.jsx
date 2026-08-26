@@ -2,18 +2,18 @@ import { useEffect, useState } from "react";
 import { Routes, Route } from "react-router-dom";
 import { refreshToken } from "./api/login";
 import { setAccessToken } from "./api/authToken";
-import LoginPage from "./pages/Login/LoginPage";
-import Register from "./pages/Register/Register";
-import ResetPass from "./pages/ResetPass/ResetPass";
-import VerifyEmail from "./pages/ResetPassVerify/VerifyEmail";
-import NewPass from "./pages/NewPass/NewPass";
-import MonitoringDashboard from "./pages/Monitoring/MonitoringDashboard";
-import ReportManagement from "./pages/ReportManagement/ReportManagement";
-import ReportsHistory from "./pages/Monitoring/ReportsHistory";
+import LoginPage from "./pages/auth/Login/LoginPage";
+import Register from "./pages/auth/Register/Register";
+import ResetPass from "./pages/auth/ResetPass/ResetPass";
+import VerifyEmail from "./pages/auth/ResetPassVerify/VerifyEmail";
+import NewPass from "./pages/auth/NewPass/NewPass";
+import MonitoringDashboard from "./pages/officer/Monitoring/MonitoringDashboard";
+import ReportManagement from "./pages/officer/ReportManagement/ReportManagement";
+import ReportsHistory from "./pages/officer/Monitoring/ReportsHistory";
 
-import ReportHazards from "./pages/ReportHazards/ReportHazards";
-import PinLocation from "./pages/PinLocation/PinLocation";
-import ReportSubmitted from "./pages/SubmitReport/ReportSubmitted";
+import ReportHazards from "./pages/citizen/ReportHazards/ReportHazards";
+import PinLocation from "./pages/citizen/PinLocation/PinLocation";
+import ReportSubmitted from "./pages/citizen/SubmitReport/ReportSubmitted";
 
 function App() {
     const [authChecked, setAuthChecked] = useState(false);
@@ -41,7 +41,8 @@ function App() {
 
     return (
         <Routes>
-            <Route path="/" element={<LoginPage />} />
+            {/*<Route path="/" element={<LoginPage />} /> /*/}
+            <Route path="/" element={<MonitoringDashboard />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ResetPass />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
