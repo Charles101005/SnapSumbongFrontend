@@ -4,7 +4,7 @@ import PinLocationPage from "../PinLocation/PinLocation";
 import SubmitReportModal from "../SubmitReport/SubmitReportModal";
 import UploadPhoto from "../UploadPhoto/UploadPhoto";
 import MyReport from "../MyReport/MyReport";
-import AccountSettings from "../AccountSettings/AccountSettings";
+import AccountSettings from "../../shared/AccountSettings/AccountSettings";
 import CategorySelection from "../CategorySelection/CategorySelection";
 import "./ReportHazards.css";
 
