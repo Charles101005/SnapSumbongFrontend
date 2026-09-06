@@ -9,7 +9,7 @@ export default function NewPass() {
     const location = useLocation();
     const flow = getAuthFlow();
     const email = flow?.email ?? location.state?.email;
-    const otp = flow?.otp ?? location.state?.otp;
+    const resetToken = flow?.resetToken ?? location.state?.resetToken;
 
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -18,7 +18,7 @@ export default function NewPass() {
     const [errors, setErrors] = useState({});
     const [submitting, setSubmitting] = useState(false);
 
-    if (!email || !otp) {
+    if (!email || !resetToken) {
         return (
             <div className="newpass-page">
                 <div className="newpass-wrapper">
@@ -62,7 +62,7 @@ export default function NewPass() {
 
         setSubmitting(true);
         try {
-            await resetPassword(email, otp, newPassword);
+            await resetPassword(email, resetToken, newPassword);
             clearAuthFlow();
             navigate("/", { state: { justResetPassword: true } });
         } catch (err) {

@@ -82,9 +82,9 @@ export default function VerifyEmail() {
         setSubmitting(true);
         try {
             if (isPasswordReset) {
-                await verifyResetPasswordCode(email, code);
-                setAuthFlow({ email, purpose: "reset-password", otp: code });
-                navigate("/new-password", { state: { email, otp: code } });
+                const result = await verifyResetPasswordCode(email, code);
+                setAuthFlow({ email, purpose: "reset-password", resetToken: result.reset_token });
+                navigate("/new-password", { state: { email, resetToken: result.reset_token } });
             } else {
                 await verifyEmail(email, code);
                 clearAuthFlow();
