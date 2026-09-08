@@ -7,9 +7,12 @@ import Register from "./pages/auth/Register/Register";
 import ResetPass from "./pages/auth/ResetPass/ResetPass";
 import VerifyEmail from "./pages/auth/ResetPassVerify/VerifyEmail";
 import NewPass from "./pages/auth/NewPass/NewPass";
-import MonitoringDashboard from "./pages/officer/Monitoring/MonitoringDashboard";
-import ReportManagement from "./pages/officer/ReportManagement/ReportManagement";
-import ReportsHistory from "./pages/officer/Monitoring/ReportsHistory";
+import MonitoringDashboard from "./pages/dashboard/Monitoring/MonitoringDashboard";
+import ReportManagement from "./pages/dashboard/ReportManagement/ReportManagement";
+import ReportsHistory from "./pages/dashboard/Monitoring/ReportsHistory";
+import Analytics from "./pages/dashboard/Monitoring/Analytics";
+import UserManagement from "./pages/dashboard/UserManagement/UserManagement";
+import AuditTrail from "./pages/dashboard/AuditTrail/AuditTrail";
 
 import ReportHazards from "./pages/citizen/ReportHazards/ReportHazards";
 import PinLocation from "./pages/citizen/PinLocation/PinLocation";
@@ -41,7 +44,7 @@ function App() {
 
     return (
         <Routes>
-            <Route path="/" element={<LoginPage />} /> 
+            <Route path="/" element={<LoginPage />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ResetPass />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
@@ -50,9 +53,12 @@ function App() {
             <Route path="/report-hazards" element={<ReportHazards />} />
             <Route path="/pin-location" element={<PinLocation />} />
             <Route path="/report-submitted" element={<ReportSubmitted />} />
-            <Route path="/monitoring" element={<MonitoringDashboard />} />
-            <Route path="/report-management" element={<ReportManagement />} />
-            <Route path="/monitoring/history" element={<ReportsHistory />} />
+            <Route path="/dashboard/users" element={<UserManagement />} />
+            <Route path="/dashboard/report-management" element={<ReportManagement />} />
+            <Route path="/dashboard/monitoring" element={<MonitoringDashboard />} />
+            <Route path="/dashboard/monitoring/history" element={<ReportsHistory />} />
+            <Route path="/dashboard/monitoring/analytics" element={<Analytics />} />
+            <Route path="/dashboard/audit-trail" element={<AuditTrail />} />
         </Routes>
     );
 }

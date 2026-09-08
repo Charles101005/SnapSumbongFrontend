@@ -1,32 +1,34 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
+import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
+import ReportDetail from "./ReportDetail";
 import "./MonitoringDashboard.css";
 
 const MOCK_REPORTS = [
-  { id: "RZ-4421", category: "Uneven Roads", location: "Sampaloc, Manila", dateReported: "Oct 14, 2025", status: "PENDING", severity: "P5" },
-  { id: "RZ-4422", category: "Road Debris", location: "Ermita, Manila", dateReported: "Oct 15, 2025", status: "RESOLVED", severity: "P4" },
-  { id: "RZ-4423", category: "Potholes", location: "Brgy 724, Manila", dateReported: "Oct 16, 2025", status: "PENDING", severity: "P3" },
-  { id: "RZ-4424", category: "Uneven Roads", location: "Binondo, Manila", dateReported: "Oct 17, 2025", status: "PENDING", severity: "P2" },
-  { id: "RZ-4425", category: "Flooding", location: "Tondo, Manila", dateReported: "Oct 18, 2025", status: "RESOLVED", severity: "P5" },
-  { id: "RZ-4426", category: "Fallen Tree", location: "Quiapo, Manila", dateReported: "Oct 18, 2025", status: "IN_PROGRESS", severity: "P4" },
-  { id: "RZ-4427", category: "Garbage Buildup", location: "San Andres, Manila", dateReported: "Oct 19, 2025", status: "PENDING", severity: "P3" },
-  { id: "RZ-4428", category: "Road Debris", location: "Malate, Manila", dateReported: "Oct 19, 2025", status: "RESOLVED", severity: "P5" },
-  { id: "RZ-4429", category: "Potholes", location: "Paco, Manila", dateReported: "Oct 20, 2025", status: "IN_PROGRESS", severity: "P4" },
-  { id: "RZ-4430", category: "Flooding", location: "Sampaloc, Manila", dateReported: "Oct 20, 2025", status: "RESOLVED", severity: "P3" },
-  { id: "RZ-4431", category: "Uneven Roads", location: "Ermita, Manila", dateReported: "Oct 21, 2025", status: "PENDING", severity: "P2" },
-  { id: "RZ-4432", category: "Fallen Tree", location: "Binondo, Manila", dateReported: "Oct 21, 2025", status: "RESOLVED", severity: "P5" },
-  { id: "RZ-4433", category: "Garbage Buildup", location: "Tondo, Manila", dateReported: "Oct 22, 2025", status: "IN_PROGRESS", severity: "P4" },
-  { id: "RZ-4434", category: "Potholes", location: "Quiapo, Manila", dateReported: "Oct 22, 2025", status: "RESOLVED", severity: "P3" },
-  { id: "RZ-4435", category: "Road Debris", location: "San Andres, Manila", dateReported: "Oct 23, 2025", status: "PENDING", severity: "P2" },
-  { id: "RZ-4436", category: "Flooding", location: "Malate, Manila", dateReported: "Oct 23, 2025", status: "RESOLVED", severity: "P5" },
-  { id: "RZ-4437", category: "Uneven Roads", location: "Paco, Manila", dateReported: "Oct 24, 2025", status: "IN_PROGRESS", severity: "P4" },
-  { id: "RZ-4438", category: "Fallen Tree", location: "Sampaloc, Manila", dateReported: "Oct 24, 2025", status: "RESOLVED", severity: "P3" },
-  { id: "RZ-4439", category: "Garbage Buildup", location: "Ermita, Manila", dateReported: "Oct 25, 2025", status: "PENDING", severity: "P2" },
-  { id: "RZ-4440", category: "Potholes", location: "Binondo, Manila", dateReported: "Oct 25, 2025", status: "RESOLVED", severity: "P5" },
-  { id: "RZ-4441", category: "Road Debris", location: "Tondo, Manila", dateReported: "Oct 26, 2025", status: "IN_PROGRESS", severity: "P4" },
-  { id: "RZ-4442", category: "Flooding", location: "Quiapo, Manila", dateReported: "Oct 26, 2025", status: "RESOLVED", severity: "P3" },
-  { id: "RZ-4443", category: "Uneven Roads", location: "San Andres, Manila", dateReported: "Oct 27, 2025", status: "PENDING", severity: "P2" },
-  { id: "RZ-4444", category: "Fallen Tree", location: "Malate, Manila", dateReported: "Oct 27, 2025", status: "RESOLVED", severity: "P5" },
+  { id: "HRZ-4421", category: "Uneven Roads", location: "Sampaloc, Manila", dateReported: "Oct 14, 2025", status: "PENDING", severity: "P5" },
+  { id: "HRZ-4422", category: "Road Debris", location: "Ermita, Manila", dateReported: "Oct 15, 2025", status: "RESOLVED", severity: "P4" },
+  { id: "HRZ-4423", category: "Potholes", location: "Brgy 724, Manila", dateReported: "Oct 16, 2025", status: "PENDING", severity: "P3" },
+  { id: "HRZ-4424", category: "Uneven Roads", location: "Binondo, Manila", dateReported: "Oct 17, 2025", status: "PENDING", severity: "P2" },
+  { id: "HRZ-4425", category: "Flooding", location: "Tondo, Manila", dateReported: "Oct 18, 2025", status: "RESOLVED", severity: "P5" },
+  { id: "HRZ-4426", category: "Fallen Tree", location: "Quiapo, Manila", dateReported: "Oct 18, 2025", status: "IN_PROGRESS", severity: "P4" },
+  { id: "HRZ-4427", category: "Garbage Buildup", location: "San Andres, Manila", dateReported: "Oct 19, 2025", status: "PENDING", severity: "P3" },
+  { id: "HRZ-4428", category: "Road Debris", location: "Malate, Manila", dateReported: "Oct 19, 2025", status: "RESOLVED", severity: "P5" },
+  { id: "HRZ-4429", category: "Potholes", location: "Paco, Manila", dateReported: "Oct 20, 2025", status: "IN_PROGRESS", severity: "P4" },
+  { id: "HRZ-4430", category: "Flooding", location: "Sampaloc, Manila", dateReported: "Oct 20, 2025", status: "RESOLVED", severity: "P3" },
+  { id: "HRZ-4431", category: "Uneven Roads", location: "Ermita, Manila", dateReported: "Oct 21, 2025", status: "PENDING", severity: "P2" },
+  { id: "HRZ-4432", category: "Fallen Tree", location: "Binondo, Manila", dateReported: "Oct 21, 2025", status: "RESOLVED", severity: "P5" },
+  { id: "HRZ-4433", category: "Garbage Buildup", location: "Tondo, Manila", dateReported: "Oct 22, 2025", status: "IN_PROGRESS", severity: "P4" },
+  { id: "HRZ-4434", category: "Potholes", location: "Quiapo, Manila", dateReported: "Oct 22, 2025", status: "RESOLVED", severity: "P3" },
+  { id: "HRZ-4435", category: "Road Debris", location: "San Andres, Manila", dateReported: "Oct 23, 2025", status: "PENDING", severity: "P2" },
+  { id: "HRZ-4436", category: "Flooding", location: "Malate, Manila", dateReported: "Oct 23, 2025", status: "RESOLVED", severity: "P5" },
+  { id: "HRZ-4437", category: "Uneven Roads", location: "Paco, Manila", dateReported: "Oct 24, 2025", status: "IN_PROGRESS", severity: "P4" },
+  { id: "HRZ-4438", category: "Fallen Tree", location: "Sampaloc, Manila", dateReported: "Oct 24, 2025", status: "RESOLVED", severity: "P3" },
+  { id: "HRZ-4439", category: "Garbage Buildup", location: "Ermita, Manila", dateReported: "Oct 25, 2025", status: "PENDING", severity: "P2" },
+  { id: "HRZ-4440", category: "Potholes", location: "Binondo, Manila", dateReported: "Oct 25, 2025", status: "RESOLVED", severity: "P5" },
+  { id: "HRZ-4441", category: "Road Debris", location: "Tondo, Manila", dateReported: "Oct 26, 2025", status: "IN_PROGRESS", severity: "P4" },
+  { id: "HRZ-4442", category: "Flooding", location: "Quiapo, Manila", dateReported: "Oct 26, 2025", status: "RESOLVED", severity: "P3" },
+  { id: "HRZ-4443", category: "Uneven Roads", location: "San Andres, Manila", dateReported: "Oct 27, 2025", status: "PENDING", severity: "P2" },
+  { id: "HRZ-4444", category: "Fallen Tree", location: "Malate, Manila", dateReported: "Oct 27, 2025", status: "RESOLVED", severity: "P5" },
 ];
 
 const CATEGORIES = ["All Categories", "Uneven Roads", "Road Debris", "Potholes", "Flooding", "Fallen Tree", "Garbage Buildup"];
@@ -34,7 +36,64 @@ const SEVERITIES = ["All Severities", "P1", "P2", "P3", "P4", "P5"];
 const STATUSES = ["All Statuses", "PENDING", "IN_PROGRESS", "RESOLVED"];
 const ROWS_PER_PAGE = 4;
 
+const ROLE = "officer"; /*or "supervisor" for Action Buttons*/
+
+function ClipboardIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+      <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+    </svg>
+  );
+}
+
+function CheckCircleIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function AlertIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
+    </svg>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
+function FilterIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+    </svg>
+  );
+}
+
 export default function MonitoringDashboard() {
+  const [selectedReportId, setSelectedReportId] = useState(null);
   const [draftCategory, setDraftCategory] = useState("All Categories");
   const [draftSeverity, setDraftSeverity] = useState("All Severities");
   const [draftStatus, setDraftStatus] = useState("All Statuses");
@@ -48,7 +107,6 @@ export default function MonitoringDashboard() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeNav, setActiveNav] = useState("overview");
 
   const filteredReports = useMemo(() => {
     return MOCK_REPORTS.filter((report) => {
@@ -108,61 +166,14 @@ export default function MonitoringDashboard() {
   };
 
   return (
-    <div className="dashboard-layout">
-      <aside className="sidebar">
-        <div className="sidebar-top">
-          <div className="sidebar-brand">
-            <div className="sidebar-logo">
-              <RocketIcon />
-            </div>
-            <span className="sidebar-brand-name">SnapSumbong</span>
-          </div>
-
-          <nav className="sidebar-nav">
-            <Link to="/report-management" className={`sidebar-nav-item ${activeNav === "reports" ? "active" : ""}`} onClick={() => setActiveNav("reports")}>
-              <ClipboardIcon />
-              <span>Report Management</span>
-            </Link>
-            <div className="sidebar-nav-section">
-              <Link to="/monitoring" className={`sidebar-nav-item parent ${["monitoring", "overview", "history"].includes(activeNav) ? "active" : ""}`}>
-                <MonitorIcon />
-                <span>Monitoring</span>
-              </Link>
-              <div className="sidebar-subnav">
-                <Link to="/monitoring" className={`sidebar-subnav-item ${activeNav === "overview" ? "active" : ""}`} onClick={() => setActiveNav("overview")}>
-                  Reports Overview
-                </Link>
-                <Link to="/monitoring/history" className={`sidebar-subnav-item ${activeNav === "history" ? "active" : ""}`} onClick={() => setActiveNav("history")}>
-                  Reports History
-                </Link>
-              </div>
-            </div>
-          </nav>
-        </div>
-
-        <div className="sidebar-bottom">
-          <div className="sidebar-user">
-            <div className="sidebar-user-avatar">
-              <UserIcon />
-            </div>
-            <div className="sidebar-user-info">
-              <span className="sidebar-user-name">Report Officer</span>
-              <span className="sidebar-user-role">admin</span>
-            </div>
-          </div>
-          <button className="sidebar-logout">
-            <LogoutIcon />
-            <span>Logout</span>
-          </button>
-        </div>
-      </aside>
-
-      <main className="dashboard-main">
-        <header className="dashboard-header">
-          <h1 className="dashboard-page-title">Monitoring Dashboard - Table View</h1>
-        </header>
-
-        <div className="dashboard-content">
+    <DashboardLayout title="Management Overview">
+      {selectedReportId ? (
+        <ReportDetail
+          reportId={selectedReportId}
+          onClose={() => setSelectedReportId(null)}
+        />
+      ) : (
+        <>
           <div className="section-header">
             <h2 className="section-title">Reports Overview</h2>
             <p className="section-subtitle">Manage and monitor citizen reports for community improvement.</p>
@@ -297,7 +308,15 @@ export default function MonitoringDashboard() {
                           {report.severity}
                         </span>
                       </td>
-                      <td><Link to="/report-management" className="action-link">Manage</Link></td>
+                      <td>
+                        {ROLE === "officer" ? (
+                          <Link to="/dashboard/report-management" className="action-link">Manage</Link>
+                        ) : (
+                          <button className="action-link action-view-btn" onClick={() => setSelectedReportId(report.id)}>
+                            View Details
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))
                 ) : (
@@ -331,101 +350,8 @@ export default function MonitoringDashboard() {
               </button>
             </div>
           </div>
-        </div>
-      </main>
-    </div>
-  );
-}
-
-function RocketIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
-      <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
-      <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
-      <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
-    </svg>
-  );
-}
-
-function ClipboardIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-      <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-    </svg>
-  );
-}
-
-function MonitorIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-function UserIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  );
-}
-
-function LogoutIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-      <polyline points="16 17 21 12 16 7" />
-      <line x1="21" y1="12" x2="9" y2="12" />
-    </svg>
-  );
-}
-
-function CheckCircleIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-      <polyline points="22 4 12 14.01 9 11.01" />
-    </svg>
-  );
-}
-
-function ClockIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  );
-}
-
-function AlertIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="8" x2="12" y2="12" />
-      <line x1="12" y1="16" x2="12.01" y2="16" />
-    </svg>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-  );
-}
-
-function FilterIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-    </svg>
+        </>
+      )}
+    </DashboardLayout>
   );
 }
