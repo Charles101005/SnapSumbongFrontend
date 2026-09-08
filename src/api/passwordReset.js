@@ -2,7 +2,7 @@ import api from "./axios";
 
 export const requestPasswordReset = async (email) => {
     try {
-        const response = await api.post("accounts/password/forgot/", {
+        const response = await api.post("accounts/forgot-password/", {
             "email": email
         });
         return response.data;
@@ -14,7 +14,7 @@ export const requestPasswordReset = async (email) => {
 
 export const verifyResetPasswordCode = async (email, otp) => {
     try {
-        const response = await api.post("accounts/password/verify/", {
+        const response = await api.post("accounts/forgot-password/verify/", {
             "email": email,
             "otp": otp
         });
@@ -27,7 +27,7 @@ export const verifyResetPasswordCode = async (email, otp) => {
 
 export const resendResetPasswordCode = async (email) => {
     try {
-        const response = await api.post("accounts/password/resend/", {
+        const response = await api.post("accounts/forgot-password/resend/", {
             "email": email
         });
         return response.data;
@@ -37,11 +37,11 @@ export const resendResetPasswordCode = async (email) => {
     }
 }
 
-export const resetPassword = async (email, otp, newPassword) => {
+export const resetPassword = async (email, resetToken, newPassword) => {
     try {
-        const response = await api.post("accounts/password/reset/", {
+        const response = await api.post("accounts/forgot-password/reset/", {
             "email": email,
-            "otp": otp,
+            "reset_token": resetToken,
             "new_password": newPassword
         });
         return response.data;
