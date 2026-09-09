@@ -1,12 +1,206 @@
-.analytics-placeholder {
-  padding: 40px;
-  text-align: center;
-  background: var(--color-bg-card);
-  border-radius: var(--radius-lg);
-  border: 1px dashed var(--color-border);
+/* ===== ROLE BADGES ===== */
+.role-badge {
+  display: inline-block;
+  padding: 0.2rem 0.625rem;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.analytics-placeholder p {
+.role-admin {
+  background-color: var(--color-warning-light);
+  color: var(--color-amber-text);
+}
+
+.role-report-officer {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+/* ===== ACTIVITY DETAILS MODAL ===== */
+.activity-details-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.activity-details-modal {
+  background-color: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.activity-details-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.activity-details-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--color-info-bg);
+  color: var(--color-info-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.activity-details-title-group {
+  flex: 1;
+}
+
+.activity-details-title {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--color-text-dark);
+}
+
+.activity-details-subtitle {
+  margin: 0.25rem 0 0;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
+}
+
+.activity-details-close {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.activity-details-close:hover {
+  color: var(--color-text-dark);
+  background-color: var(--color-border-light);
+}
+
+.activity-details-body {
+  padding: 1.5rem;
+}
+
+.activity-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.activity-detail-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-detail-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.375rem;
+}
+
+.activity-detail-value {
   font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--color-text-dark);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.activity-detail-role-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.activity-primary-action {
+  background-color: var(--color-info-bg);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.activity-primary-action .activity-detail-label {
+  color: var(--color-info-text);
+}
+
+.activity-primary-action-text {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--color-info-text);
+}
+
+.activity-description {
+  margin-bottom: 0;
+}
+
+.activity-description-text {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--color-text-body);
+  line-height: 1.6;
+}
+
+.activity-details-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.btn-copy-log-id {
+  padding: 0.5rem 1rem;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.btn-copy-log-id:hover {
+  color: var(--color-text-dark);
+}
+
+.btn-activity-close {
+  padding: 0.5rem 1.5rem;
+  background-color: var(--color-primary);
+  color: #ffffff;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.btn-activity-close:hover {
+  background-color: var(--color-primary-hover);
 }

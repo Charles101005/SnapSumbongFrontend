@@ -78,6 +78,7 @@ export default function Sidebar() {
 
   const isActive = (route) => path === route;
   const isMonitoringActive = path.startsWith("/dashboard/monitoring");
+  const isUserMgmtActive = path.startsWith("/dashboard/users");
 
   return (
     <aside className="sidebar">
@@ -90,13 +91,35 @@ export default function Sidebar() {
         </div>
 
         <nav className="sidebar-nav">
-          <Link
-            to="/dashboard/users"
-            className={`sidebar-nav-item ${isActive("/dashboard/users") ? "active" : ""}`}
-          >
-            <UserManagementIcon />
-            <span>User Management</span>
-          </Link>
+          <div className="sidebar-nav-section">
+            <Link
+              to="/dashboard/users/roles"
+              className={`sidebar-nav-item parent ${isUserMgmtActive ? "active" : ""}`}
+            >
+              <UserManagementIcon />
+              <span>User Management</span>
+            </Link>
+            <div className="sidebar-subnav">
+              <Link
+                to="/dashboard/users/roles"
+                className={`sidebar-subnav-item ${isActive("/dashboard/users/roles") ? "active" : ""}`}
+              >
+                View Roles
+              </Link>
+              <Link
+                to="/dashboard/users/employees"
+                className={`sidebar-subnav-item ${isActive("/dashboard/users/employees") ? "active" : ""}`}
+              >
+                Manage Employees
+              </Link>
+              <Link
+                to="/dashboard/users/citizens"
+                className={`sidebar-subnav-item ${isActive("/dashboard/users/citizens") ? "active" : ""}`}
+              >
+                Citizens
+              </Link>
+            </div>
+          </div>
 
           <Link
             to="/dashboard/report-management"

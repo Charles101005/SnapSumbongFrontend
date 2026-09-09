@@ -11,7 +11,15 @@ import MonitoringDashboard from "./pages/dashboard/Monitoring/MonitoringDashboar
 import ReportManagement from "./pages/dashboard/ReportManagement/ReportManagement";
 import ReportsHistory from "./pages/dashboard/Monitoring/ReportsHistory";
 import Analytics from "./pages/dashboard/Monitoring/Analytics";
-import UserManagement from "./pages/dashboard/UserManagement/UserManagement";
+import ViewRoles from "./pages/dashboard/UserManagement/ViewRoles";
+import AddNewRole from "./pages/dashboard/UserManagement/AddNewRole";
+import ManageRole from "./pages/dashboard/UserManagement/ManageRole";
+import ManageEmployees from "./pages/dashboard/UserManagement/ManageEmployees";
+import AddEmployee from "./pages/dashboard/UserManagement/AddEmployee";
+import EmployeeCreated from "./pages/dashboard/UserManagement/EmployeeCreated";
+import EmployeeProfile from "./pages/dashboard/UserManagement/EmployeeProfile";
+import ManageCitizens from "./pages/dashboard/UserManagement/ManageCitizens";
+import CitizenProfile from "./pages/dashboard/UserManagement/CitizenProfile";
 import AuditTrail from "./pages/dashboard/AuditTrail/AuditTrail";
 
 import ReportHazards from "./pages/citizen/ReportHazards/ReportHazards";
@@ -44,7 +52,8 @@ function App() {
 
     return (
         <Routes>
-            <Route path="/" element={<LoginPage />} />
+            {/* } <Route path="/" element={<LoginPage />} />  */}
+            <Route path="/" element={<MonitoringDashboard />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ResetPass />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
@@ -53,7 +62,15 @@ function App() {
             <Route path="/report-hazards" element={<ReportHazards />} />
             <Route path="/pin-location" element={<PinLocation />} />
             <Route path="/report-submitted" element={<ReportSubmitted />} />
-            <Route path="/dashboard/users" element={<UserManagement />} />
+            <Route path="/dashboard/users/roles" element={<ViewRoles />} />
+            <Route path="/dashboard/users/roles/add" element={<AddNewRole />} />
+            <Route path="/dashboard/users/roles/:id" element={<ManageRole />} />
+            <Route path="/dashboard/users/employees" element={<ManageEmployees />} />
+            <Route path="/dashboard/users/employees/add" element={<AddEmployee />} />
+            <Route path="/dashboard/users/employees/created" element={<EmployeeCreated />} />
+            <Route path="/dashboard/users/employees/:id" element={<EmployeeProfile />} />
+            <Route path="/dashboard/users/citizens" element={<ManageCitizens />} />
+            <Route path="/dashboard/users/citizens/:id" element={<CitizenProfile />} />
             <Route path="/dashboard/report-management" element={<ReportManagement />} />
             <Route path="/dashboard/monitoring" element={<MonitoringDashboard />} />
             <Route path="/dashboard/monitoring/history" element={<ReportsHistory />} />
