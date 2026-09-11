@@ -150,20 +150,83 @@
   display: none;
 }
 
-/* Image Preview */
-.preview-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+/* Image Preview (multi-photo grid) */
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
   width: 100%;
 }
 
-.preview-image {
-  max-width: 100%;
-  max-height: 180px;
-  object-fit: contain;
+.preview-thumb {
+  position: relative;
+  aspect-ratio: 1 / 1;
   border-radius: 8px;
-  margin-bottom: 12px;
+  overflow: hidden;
+  background: #e2e8f0;
+}
+
+.preview-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.remove-thumb {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(15, 23, 42, 0.65);
+  color: #ffffff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-thumb:hover {
+  background: rgba(15, 23, 42, 0.85);
+}
+
+.add-more-thumb {
+  /* Buttons don't stretch to fill a grid cell the way divs do by default —
+     force it explicitly so it matches the size of the photo thumbnails. */
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  border: 2px dashed #cbd5e1;
+  background: #ffffff;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.add-more-thumb svg {
+  width: 20px;
+  height: 20px;
+}
+
+.add-more-thumb:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.upload-error-text {
+  font-size: 0.8rem;
+  color: #dc2626;
+  margin: 10px 0 0;
 }
 
 .btn-change-photo {

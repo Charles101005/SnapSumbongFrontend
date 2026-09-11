@@ -1,12 +1,27 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { MapContainer, TileLayer, Marker } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 import PinLocationPage from "../PinLocation/PinLocation";
 import SubmitReportModal from "../SubmitReport/SubmitReportModal";
 import UploadPhoto from "../UploadPhoto/UploadPhoto";
 import MyReport from "../MyReport/MyReport";
 import AccountSettings from "../../shared/AccountSettings/AccountSettings";
 import CategorySelection from "../CategorySelection/CategorySelection";
+import { getHazardCategories, createHazardReport, uploadHazardImageFiles } from "../../../api/reports";
+import { getCurrentUser } from "../../../api/accounts";
+import { hazardMarkerIcon, reverseGeocode } from "../../../utils/leafletHelpers";
 import "./ReportHazards.css";
+
+const DEFAULT_LOCATION = {
+  coords: [14.5818, 120.977], // Manila default
+  latitude: 14.5818,
+  longitude: 120.977,
+  address: "Rizal Park, Ermita, Manila, 1000 Metro Manila",
+};
+
+const MAX_PHOTOS = 5;
+const MAX_CATEGORIES = 3;
 
 export default function HazardReportForm() {
   const navigate = useNavigate();
@@ -16,87 +31,240 @@ export default function HazardReportForm() {
 
   // User Profile State
   const [user, setUser] = useState({
-    firstName: "Marcus",
-    middleName: "Hue",
-    lastName: "Chen",
-    email: "marcus.chen@email.com",
-    role: "Verified Citizen",
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    email: "",
+    role: "",
   });
+
+  // Hazard Category State (fetched from the API)
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categoriesError, setCategoriesError] = useState("");
 
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   // Location State
-  const [locationData, setLocationData] = useState({
-    coords: [14.5818, 120.977], // Manila default
-    address: "Rizal Park, Ermita, Manila, 1000 Metro Manila",
-  });
+  const [locationData, setLocationData] = useState(DEFAULT_LOCATION);
 
   // Form Field States
-  const [photoPreview, setPhotoPreview] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState("pothole");
+  const [photos, setPhotos] = useState([]); // { file, previewUrl }[]
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState([]); // up to MAX_CATEGORIES
   const [description, setDescription] = useState("");
+
+  // Submission State
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  // Auto-detect (GPS) State
+  const [isAutoDetecting, setIsAutoDetecting] = useState(false);
 
   // Dynamic Full Name derived from state
   const fullName = `${user.firstName} ${user.lastName}`.trim();
 
+  // Quick-pick tiles show the first 3 categories; "Others" opens the full grid.
+  const quickPickCategories = categories.slice(0, 3);
+  const quickPickIds = quickPickCategories.map((cat) => cat.hazard_id);
+  const otherSelectedCategories = categories.filter(
+    (cat) => selectedCategoryIds.includes(cat.hazard_id) && !quickPickIds.includes(cat.hazard_id)
+  );
+  const isOtherCategorySelected = otherSelectedCategories.length > 0;
+
+  // --- Load categories and current user on mount ---
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const data = await getHazardCategories();
+        if (cancelled) return;
+        setCategories(data);
+        if (data.length > 0) {
+          setSelectedCategoryIds((prev) => (prev.length > 0 ? prev : [data[0].hazard_id]));
+        }
+      } catch {
+        if (!cancelled) setCategoriesError("Couldn't load hazard categories. Please refresh the page.");
+      } finally {
+        if (!cancelled) setCategoriesLoading(false);
+      }
+    })();
+
+    (async () => {
+      try {
+        const data = await getCurrentUser();
+        if (cancelled) return;
+        setUser({
+          firstName: data.first_name || "",
+          middleName: data.middle_name || "",
+          lastName: data.last_name || "",
+          email: data.email || "",
+          role: data.role || "",
+        });
+      } catch {
+        // Not logged in, or session expired — leave the form blank rather than guessing.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Revoke any outstanding photo object URLs when the form unmounts (but not
+  // on every ordinary state change — only the true final cleanup).
+  const photosRef = useRef(photos);
+  photosRef.current = photos;
+  useEffect(() => {
+    return () => revokePhotos(photosRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // --- Photo Handlers ---
-  const handleRemovePhoto = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setPhotoPreview(null);
+  // Photos use blob object URLs (see UploadPhoto.jsx) — revoke them once
+  // we're done with them so the browser can free the underlying memory.
+  const revokePhotos = (list) => {
+    list.forEach((p) => {
+      if (p.previewUrl) URL.revokeObjectURL(p.previewUrl);
+    });
   };
 
-  const handleUploadSuccess = (imageSrc) => {
-    setPhotoPreview(imageSrc);
+  const handleRemovePhoto = (e, index) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPhotos((prev) => {
+      const target = prev[index];
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const handleUploadSuccess = (newItems) => {
+    setPhotos((prev) => [...prev, ...newItems].slice(0, MAX_PHOTOS));
   };
 
   // --- Category Click Handler ---
-  const handleCategoryClick = (categoryKey) => {
-    setSelectedCategory(categoryKey);
-    if (categoryKey === "other") {
-      setCurrentView("category-selection");
+  // Toggles a category on/off, capped at MAX_CATEGORIES.
+  const handleCategoryClick = (hazardId) => {
+    setSelectedCategoryIds((prev) => {
+      if (prev.includes(hazardId)) {
+        return prev.filter((id) => id !== hazardId);
+      }
+      if (prev.length >= MAX_CATEGORIES) {
+        setSubmitError(`You can select up to ${MAX_CATEGORIES} categories.`);
+        return prev;
+      }
+      setSubmitError("");
+      return [...prev, hazardId];
+    });
+  };
+
+  const handleOthersClick = () => {
+    setCurrentView("category-selection");
+  };
+
+  // --- Auto-detect Handler (real GPS via browser geolocation) ---
+  const handleAutoDetect = () => {
+    if (!("geolocation" in navigator)) {
+      setSubmitError("Geolocation isn't supported on this device. Try Manual Pin instead.");
+      return;
     }
+
+    setSubmitError("");
+    setIsAutoDetecting(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const latitude = Number(position.coords.latitude.toFixed(6));
+        const longitude = Number(position.coords.longitude.toFixed(6));
+        const address = await reverseGeocode(latitude, longitude);
+
+        setLocationData({
+          coords: [latitude, longitude],
+          latitude,
+          longitude,
+          address: address || locationData.address,
+        });
+        setIsAutoDetecting(false);
+      },
+      () => {
+        setSubmitError("Couldn't get your location. Please allow location access or use Manual Pin.");
+        setIsAutoDetecting(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   // --- Form Actions ---
   const handleCancel = () => {
     if (window.confirm("Discard this hazard report?")) {
+      revokePhotos(photos);
       setDescription("");
-      setPhotoPreview(null);
-      setSelectedCategory("pothole");
+      setPhotos([]);
+      setSelectedCategoryIds(categories[0] ? [categories[0].hazard_id] : []);
+      setSubmitError("");
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setSubmitError("");
+
+    if (selectedCategoryIds.length === 0) {
+      setSubmitError("Please select a hazard category.");
+      return;
+    }
+    if (photos.length === 0) {
+      setSubmitError("Please add at least one photo of the hazard.");
+      return;
+    }
+    if (description.trim().length < 5) {
+      setSubmitError("Please provide a description of at least 5 characters.");
+      return;
+    }
+    if (!locationData.address || locationData.address.trim().length < 10) {
+      setSubmitError("Please pin a location with a valid address.");
+      return;
+    }
+
     setIsModalOpen(true);
   };
 
-  const handleFinalSubmit = (submissionType) => {
+  const handleFinalSubmit = async (submissionType) => {
     setIsModalOpen(false);
+    setIsSubmitting(true);
+    setSubmitError("");
 
-    const refNum = `#HZ - ${Math.floor(1000 + Math.random() * 9000)}`;
+    try {
+      const imageUrls = await uploadHazardImageFiles(photos.map((p) => p.file));
 
-    const payload = {
-      referenceNumber: refNum,
-      category: selectedCategory,
-      description,
-      hasPhoto: Boolean(photoPreview),
-      location: locationData,
-      submissionType,
-    };
+      const result = await createHazardReport({
+        category_ids: selectedCategoryIds,
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        address: locationData.address,
+        description,
+        is_anonymous: submissionType === "anonymous",
+        image_urls: imageUrls,
+      });
 
-    console.log("Hazard report submitted:", payload);
+      revokePhotos(photos);
+      setDescription("");
+      setPhotos([]);
+      setSelectedCategoryIds(categories[0] ? [categories[0].hazard_id] : []);
 
-    setDescription("");
-    setPhotoPreview(null);
-    setSelectedCategory("pothole");
-
-    navigate("/report-submitted", {
-      state: { referenceNumber: refNum },
-    });
+      navigate("/report-submitted", {
+        state: { referenceNumber: result.report_number },
+      });
+    } catch (err) {
+      setSubmitError(
+        err?.detail || "Something went wrong while submitting your report. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleUpdateUser = (updatedData) => {
@@ -159,8 +327,8 @@ export default function HazardReportForm() {
             </svg>
           </div>
           <div className="user-meta">
-            <span className="user-name">{fullName}</span>
-            <span className="user-role">{user.role}</span>
+            <span className="user-name">{fullName || "Guest"}</span>
+            <span className="user-role">{user.role || "Citizen"}</span>
             <button
               className={`account-settings ${currentView === "account-settings" ? "active" : ""}`}
               type="button"
@@ -193,9 +361,11 @@ export default function HazardReportForm() {
           />
         ) : currentView === "category-selection" ? (
           <CategorySelection
-            initialCategory={selectedCategory}
-            onSelectCategory={(chosenCategoryLabel) => {
-              setSelectedCategory(chosenCategoryLabel);
+            categories={categories}
+            initialCategoryIds={selectedCategoryIds}
+            maxSelections={MAX_CATEGORIES}
+            onSelectCategories={(chosenIds) => {
+              setSelectedCategoryIds(chosenIds);
               setCurrentView("form");
             }}
             onBack={() => setCurrentView("form")}
@@ -222,13 +392,14 @@ export default function HazardReportForm() {
                     <button
                       type="button"
                       className="pill-btn active"
-                      onClick={() => setCurrentView("pin-location")}
+                      onClick={handleAutoDetect}
+                      disabled={isAutoDetecting}
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="3" />
                         <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
                       </svg>
-                      Auto-detect
+                      {isAutoDetecting ? "Detecting..." : "Auto-detect"}
                     </button>
                     <button
                       type="button"
@@ -243,24 +414,31 @@ export default function HazardReportForm() {
                   </div>
                 </div>
 
-                {/* Map Graphic Preview */}
+                {/* Map Preview (real Leaflet map, non-interactive — click to fine-tune) */}
                 <div
                   className="map-wrap"
                   onClick={() => setCurrentView("pin-location")}
                 >
-                  <img
-                    src="https://tile.openstreetmap.org/15/27393/14660.png"
-                    alt="Map Preview"
-                    className="map-bg-img"
-                  />
-                  <div className="map-overlay-layer"></div>
-                  <div className="map-pin-indicator">
-                    <svg viewBox="0 0 24 24" fill="#1d82f5" stroke="#ffffff" strokeWidth="1.5">
-                      <path d="M12 0C7.6 0 4 3.6 4 8c0 6 8 16 8 16s8-10 8-16c0-4.4-3.6-8-8-8Z" />
-                      <circle cx="12" cy="8" r="3" fill="#ffffff" />
-                    </svg>
-                  </div>
+                  <MapContainer
+                    key={`${locationData.coords[0]}-${locationData.coords[1]}`}
+                    center={locationData.coords}
+                    zoom={16}
+                    style={{ width: "100%", height: "100%" }}
+                    zoomControl={false}
+                    dragging={false}
+                    scrollWheelZoom={false}
+                    doubleClickZoom={false}
+                    touchZoom={false}
+                    boxZoom={false}
+                    keyboard={false}
+                    attributionControl={false}
+                  >
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <Marker position={locationData.coords} icon={hazardMarkerIcon} />
+                  </MapContainer>
+                  <div className="map-click-hint">Click to adjust</div>
                 </div>
+                <p className="map-address-caption">{locationData.address}</p>
               </section>
 
               {/* 2. Photo Upload */}
@@ -271,38 +449,57 @@ export default function HazardReportForm() {
                     <circle cx="12" cy="13" r="4" />
                   </svg>
                   2. Photo Upload
+                  <span className="photo-count-hint">
+                    {photos.length}/{MAX_PHOTOS}
+                  </span>
                 </div>
 
-                <div
-                  className="upload-box"
-                  onClick={() => setIsUploadModalOpen(true)}
-                  tabIndex="0"
-                >
-                  {!photoPreview ? (
-                    <>
-                      <div className="upload-icon-wrapper">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                          <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                          <polyline points="21 15 16 10 5 21"></polyline>
-                        </svg>
+                {photos.length === 0 ? (
+                  <div
+                    className="upload-box"
+                    onClick={() => setIsUploadModalOpen(true)}
+                    tabIndex="0"
+                  >
+                    <div className="upload-icon-wrapper">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                      </svg>
+                    </div>
+                    <span>Add Photo</span>
+                  </div>
+                ) : (
+                  <div className="photo-thumb-grid">
+                    {photos.map((photo, index) => (
+                      <div className="photo-thumb" key={index}>
+                        <img src={photo.previewUrl} alt={`Uploaded hazard ${index + 1}`} />
+                        <button
+                          type="button"
+                          className="remove-photo"
+                          onClick={(e) => handleRemovePhoto(e, index)}
+                          title="Remove photo"
+                        >
+                          &times;
+                        </button>
                       </div>
-                      <span>Add Photo</span>
-                    </>
-                  ) : (
-                    <>
-                      <img src={photoPreview} alt="Uploaded hazard" />
-                      <button
-                        type="button"
-                        className="remove-photo"
-                        onClick={handleRemovePhoto}
-                        title="Remove photo"
+                    ))}
+
+                    {photos.length < MAX_PHOTOS && (
+                      <div
+                        className="photo-thumb-add"
+                        onClick={() => setIsUploadModalOpen(true)}
+                        tabIndex="0"
                       >
-                        &times;
-                      </button>
-                    </>
-                  )}
-                </div>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="12" y1="5" x2="12" y2="19" />
+                          <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        <span>Add</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </section>
 
               {/* 3. Category Selection */}
@@ -312,63 +509,51 @@ export default function HazardReportForm() {
                     <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
                   </svg>
                   3. Category Selection
+                  <span className="photo-count-hint">
+                    {selectedCategoryIds.length}/{MAX_CATEGORIES}
+                  </span>
                 </div>
 
                 <div className="category-grid">
-                  <div
-                    className={`category-card ${selectedCategory === "pothole" ? "selected" : ""}`}
-                    onClick={() => handleCategoryClick("pothole")}
-                  >
-                    <div className="category-icon">
-                      <div className="icon-circle-fill"></div>
-                    </div>
-                    <span>Pothole</span>
-                  </div>
+                  {categoriesLoading ? (
+                    <span className="category-loading-state">Loading categories...</span>
+                  ) : categoriesError ? (
+                    <span className="category-loading-state">{categoriesError}</span>
+                  ) : (
+                    <>
+                      {quickPickCategories.map((cat) => (
+                        <div
+                          key={cat.hazard_id}
+                          className={`category-card ${selectedCategoryIds.includes(cat.hazard_id) ? "selected" : ""}`}
+                          onClick={() => handleCategoryClick(cat.hazard_id)}
+                          title={cat.description}
+                        >
+                          <div className="category-icon">
+                            <div className="icon-circle-fill"></div>
+                          </div>
+                          <span>{cat.hazard_name}</span>
+                        </div>
+                      ))}
 
-                  <div
-                    className={`category-card ${selectedCategory === "uneven-roads" ? "selected" : ""}`}
-                    onClick={() => handleCategoryClick("uneven-roads")}
-                  >
-                    <div className="category-icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 20L12 4l9 16H3z"></path>
-                      </svg>
-                    </div>
-                    <span>Uneven Roads</span>
-                  </div>
-
-                  <div
-                    className={`category-card ${selectedCategory === "road-debris" ? "selected" : ""}`}
-                    onClick={() => handleCategoryClick("road-debris")}
-                  >
-                    <div className="category-icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="14" width="7" height="7"></rect>
-                        <rect x="3" y="14" width="7" height="7"></rect>
-                      </svg>
-                    </div>
-                    <span>Road Debris</span>
-                  </div>
-
-                  <div
-                    className={`category-card ${selectedCategory === "other" || !["pothole", "uneven-roads", "road-debris"].includes(selectedCategory) ? "selected" : ""}`}
-                    onClick={() => handleCategoryClick("other")}
-                  >
-                    <div className="category-icon">
-                      <svg viewBox="0 0 24 24" fill="currentColor">
-                        <circle cx="5" cy="12" r="2" />
-                        <circle cx="12" cy="12" r="2" />
-                        <circle cx="19" cy="12" r="2" />
-                      </svg>
-                    </div>
-                    <span>
-                      {["pothole", "uneven-roads", "road-debris"].includes(selectedCategory)
-                        ? "Others"
-                        : selectedCategory}
-                    </span>
-                  </div>
+                      <div
+                        className={`category-card ${isOtherCategorySelected ? "selected" : ""}`}
+                        onClick={handleOthersClick}
+                      >
+                        <div className="category-icon">
+                          <svg viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="5" cy="12" r="2" />
+                            <circle cx="12" cy="12" r="2" />
+                            <circle cx="19" cy="12" r="2" />
+                          </svg>
+                        </div>
+                        <span>
+                          {isOtherCategorySelected
+                            ? otherSelectedCategories.map((c) => c.hazard_name).join(", ")
+                            : "Others"}
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </section>
 
@@ -391,17 +576,20 @@ export default function HazardReportForm() {
                 />
               </section>
 
+              {submitError && <div className="form-error-banner">{submitError}</div>}
+
               {/* Submit / Cancel Actions */}
               <div className="actions">
                 <button
                   type="button"
                   className="btn-cancel"
                   onClick={handleCancel}
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-submit">
-                  Submit Report
+                <button type="submit" className="btn-submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Submitting..." : "Submit Report"}
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13"></line>
                     <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
@@ -418,6 +606,7 @@ export default function HazardReportForm() {
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
         onUploadSuccess={handleUploadSuccess}
+        existingCount={photos.length}
       />
 
       {/* Submit Report Modal */}

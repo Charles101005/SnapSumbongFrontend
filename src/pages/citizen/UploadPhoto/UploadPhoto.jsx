@@ -1,28 +1,56 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import "./UploadPhoto.css";
 
-export default function UploadPhoto({ isOpen, onClose, onUploadSuccess }) {
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
+const MAX_PHOTOS = 5;
+
+export default function UploadPhoto({ isOpen, onClose, onUploadSuccess, existingCount = 0 }) {
+  const [items, setItems] = useState([]); // { file, previewUrl }[]
   const [isDragging, setIsDragging] = useState(false);
+  const [error, setError] = useState("");
   const fileInputRef = useRef(null);
+
+  // Revoke any object URLs we created for this modal session once it closes
+  // or unmounts, so we don't leak memory.
+  useEffect(() => {
+    if (!isOpen) {
+      items.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleFileSelect = (file) => {
-    if (!file || !file.type.startsWith("image/")) return;
-    setSelectedFile(file);
+  const remainingSlots = Math.max(MAX_PHOTOS - existingCount - items.length, 0);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setPreviewUrl(e.target.result);
-    };
-    reader.readAsDataURL(file);
+  const handleFilesSelected = (fileList) => {
+    const incoming = Array.from(fileList || []).filter((f) => f.type.startsWith("image/"));
+    if (incoming.length === 0) return;
+
+    if (remainingSlots <= 0) {
+      setError(`You can only upload up to ${MAX_PHOTOS} photos.`);
+      return;
+    }
+
+    const accepted = incoming.slice(0, remainingSlots);
+    if (incoming.length > remainingSlots) {
+      setError(`Only ${MAX_PHOTOS} photos are allowed in total — the rest were skipped.`);
+    } else {
+      setError("");
+    }
+
+    // Each file gets its own, independent object URL — no shared state
+    // between files, so each thumbnail is guaranteed to show its own image.
+    const newItems = accepted.map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+
+    setItems((prev) => [...prev, ...newItems]);
   };
 
   const handleInputChange = (e) => {
-    const file = e.target.files[0];
-    handleFileSelect(file);
+    handleFilesSelected(e.target.files);
+    e.target.value = "";
   };
 
   const handleDragOver = (e) => {
@@ -41,25 +69,44 @@ export default function UploadPhoto({ isOpen, onClose, onUploadSuccess }) {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileSelect(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files) {
+      handleFilesSelected(e.dataTransfer.files);
     }
+  };
+
+  const handleRemove = (index) => {
+    setItems((prev) => {
+      const target = prev[index];
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((_, i) => i !== index);
+    });
+    setError("");
   };
 
   const handleConfirmUpload = () => {
-    if (previewUrl && onUploadSuccess) {
-      onUploadSuccess(previewUrl, selectedFile);
+    if (items.length > 0 && onUploadSuccess) {
+      onUploadSuccess(items);
     }
-    handleClose();
-  };
-
-  const handleClose = () => {
-    setSelectedFile(null);
-    setPreviewUrl(null);
+    // Ownership of the object URLs now belongs to the parent, so clear our
+    // local list without revoking them.
+    setItems([]);
     setIsDragging(false);
+    setError("");
     if (fileInputRef.current) fileInputRef.current.value = "";
     onClose();
   };
+
+  const handleClose = () => {
+    items.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+    setItems([]);
+    setIsDragging(false);
+    setError("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    onClose();
+  };
+
+  const hasPhotos = items.length > 0;
+  const canAddMore = remainingSlots > 0;
 
   return (
     <div className="upload-modal-overlay" onClick={handleClose}>
@@ -67,9 +114,9 @@ export default function UploadPhoto({ isOpen, onClose, onUploadSuccess }) {
         {/* Header */}
         <div className="upload-modal-header">
           <div>
-            <h2 className="upload-modal-title">Upload Photo</h2>
+            <h2 className="upload-modal-title">Upload Photos</h2>
             <p className="upload-modal-subtitle">
-              Add a clear image of the hazard to help us locate and assess it.
+              Add up to {MAX_PHOTOS} clear images of the hazard to help us locate and assess it.
             </p>
           </div>
           <button
@@ -82,14 +129,14 @@ export default function UploadPhoto({ isOpen, onClose, onUploadSuccess }) {
           </button>
         </div>
 
-        {/* Dropzone Area */}
+        {/* Dropzone / Preview Area */}
         <div
           className={`upload-dropzone ${isDragging ? "dragging" : ""}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
-          {!previewUrl ? (
+          {!hasPhotos ? (
             <>
               <div className="camera-icon-circle">
                 <svg
@@ -106,7 +153,7 @@ export default function UploadPhoto({ isOpen, onClose, onUploadSuccess }) {
               </div>
 
               <span className="dropzone-text-primary">
-                Drag and drop your photo here
+                Drag and drop your photos here
               </span>
               <span className="dropzone-text-or">or</span>
 
@@ -118,18 +165,39 @@ export default function UploadPhoto({ isOpen, onClose, onUploadSuccess }) {
                 Browse Files
               </button>
 
-              <span className="dropzone-hint">JPG, PNG or GIF (max. 10MB)</span>
+              <span className="dropzone-hint">
+                JPG, PNG or GIF (max. 10MB) — up to {MAX_PHOTOS} photos
+              </span>
             </>
           ) : (
-            <div className="preview-container">
-              <img src={previewUrl} alt="Hazard Preview" className="preview-image" />
-              <button
-                type="button"
-                className="btn-change-photo"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                Change Photo
-              </button>
+            <div className="preview-grid">
+              {items.map((item, index) => (
+                <div className="preview-thumb" key={item.previewUrl}>
+                  <img src={item.previewUrl} alt={`Hazard preview ${index + 1}`} />
+                  <button
+                    type="button"
+                    className="remove-thumb"
+                    onClick={() => handleRemove(index)}
+                    title="Remove photo"
+                  >
+                    &times;
+                  </button>
+                </div>
+              ))}
+
+              {canAddMore && (
+                <button
+                  type="button"
+                  className="add-more-thumb"
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Add another photo"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </button>
+              )}
             </div>
           )}
 
@@ -138,9 +206,12 @@ export default function UploadPhoto({ isOpen, onClose, onUploadSuccess }) {
             ref={fileInputRef}
             className="hidden-file-input"
             accept="image/*"
+            multiple
             onChange={handleInputChange}
           />
         </div>
+
+        {error && <p className="upload-error-text">{error}</p>}
 
         {/* Action Buttons */}
         <div className="upload-modal-footer">
@@ -153,11 +224,11 @@ export default function UploadPhoto({ isOpen, onClose, onUploadSuccess }) {
           </button>
           <button
             type="button"
-            className={`btn-upload-submit ${!previewUrl ? "disabled" : ""}`}
+            className={`btn-upload-submit ${!hasPhotos ? "disabled" : ""}`}
             onClick={handleConfirmUpload}
-            disabled={!previewUrl}
+            disabled={!hasPhotos}
           >
-            Upload
+            Add {hasPhotos ? `(${items.length})` : ""}
           </button>
         </div>
       </div>

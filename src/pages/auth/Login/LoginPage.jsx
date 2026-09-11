@@ -35,7 +35,7 @@ export default function LoginPage() {
     try {
       const data = await loginUser(email, password);
       setAccessToken(data.access);
-      navigate("/monitoring");
+      navigate("/report-hazards");
     } catch (err) {
       setErrors({ form: err?.message || err?.detail || "Invalid email or password." });
     } finally {

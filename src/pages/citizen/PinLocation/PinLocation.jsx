@@ -1,208 +1,234 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo, useRef } from "react";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  useMapEvents,
+  useMap,
+} from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import { hazardMarkerIcon, reverseGeocode } from "../../../utils/leafletHelpers";
 import "./PinLocation.css";
 
+// Default Manila coordinates, used when no initial location is provided.
+const DEFAULT_COORDS = [14.5818, 120.977];
 
-export default function PinLocationPage({ initialLocation, onConfirm, onBack }) {
- const [address, setAddress] = useState(
-   initialLocation?.address || "Rizal Park, Ermita, Manila, 1000 Metro Manila"
- );
- const [isEditingAddress, setIsEditingAddress] = useState(false);
- const [zoomLevel, setZoomLevel] = useState(1);
-
-
- const handleZoomIn = () => {
-   setZoomLevel((prev) => Math.min(prev + 0.2, 2));
- };
-
-
- const handleZoomOut = () => {
-   setZoomLevel((prev) => Math.max(prev - 0.2, 0.8));
- };
-
-
- const handleConfirm = () => {
-   onConfirm({
-     ...initialLocation,
-     address: address,
-   });
- };
-
-
- return (
-   <div className="pin-location-container">
-     {/* Title & Subtitle */}
-     <header className="pin-header">
-       <h2>Pin the Location</h2>
-       <p>Drag the map or use your GPS to pinpoint the hazard.</p>
-     </header>
-
-
-     {/* Interactive Map Wrapper */}
-     <div className="pin-map-card">
-       <div className="pin-map-viewport">
-         {/* Simulated Map Background */}
-         <div
-           className="pin-map-bg"
-           style={{ transform: `scale(${zoomLevel})` }}
-         >
-           <svg
-             viewBox="0 0 950 450"
-             preserveAspectRatio="xMidYMid slice"
-             className="map-vector"
-           >
-             {/* Land / Water Base */}
-             <rect width="950" height="450" fill="#a4c2db" />
-             <polygon
-               points="180,0 950,0 950,450 350,450 220,280 260,180"
-               fill="#cfdeca"
-             />
-
-
-             {/* Road Grids */}
-             <g stroke="#ffffff" strokeWidth="5" fill="none" opacity="0.8">
-               <line x1="200" y1="50" x2="950" y2="50" />
-               <line x1="250" y1="120" x2="950" y2="120" />
-               <line x1="280" y1="220" x2="950" y2="220" />
-               <line x1="360" y1="330" x2="950" y2="330" />
-               <line x1="300" y1="0" x2="300" y2="450" />
-               <line x1="450" y1="0" x2="450" y2="450" />
-               <line x1="620" y1="0" x2="620" y2="450" />
-               <line x1="800" y1="0" x2="800" y2="450" />
-             </g>
-
-
-             {/* Major Highways */}
-             <g stroke="#f6d365" strokeWidth="8" fill="none">
-               <path d="M 220,280 C 400,250 500,100 850,50" />
-               <path d="M 350,450 C 450,300 600,200 620,0" />
-             </g>
-
-
-             {/* Landmarks / Labels */}
-             <text x="520" y="160" className="map-label city-label">
-               Manila
-             </text>
-             <text x="390" y="210" className="map-label sub-label">
-               Rizal Park
-             </text>
-             <text x="680" y="140" className="map-label sub-label">
-               Greenhills
-             </text>
-             <text x="740" y="310" className="map-label sub-label">
-               Makati City
-             </text>
-             <text x="500" y="400" className="map-label sub-label">
-               Pasay City
-             </text>
-           </svg>
-         </div>
-
-
-         {/* Center Location Pin */}
-         <div className="pin-marker">
-           <svg
-             viewBox="0 0 24 24"
-             fill="#2563eb"
-             stroke="#ffffff"
-             strokeWidth="1.5"
-           >
-             <path d="M12 0C7.6 0 4 3.6 4 8c0 6 8 16 8 16s8-10 8-16c0-4.4-3.6-8-8-8Z" />
-             <circle cx="12" cy="8" r="3" fill="#ffffff" />
-           </svg>
-         </div>
-
-
-         {/* Map Controls */}
-         <div className="zoom-controls">
-           <button
-             type="button"
-             className="zoom-btn"
-             onClick={handleZoomIn}
-             title="Zoom In"
-           >
-             +
-           </button>
-           <button
-             type="button"
-             className="zoom-btn"
-             onClick={handleZoomOut}
-             title="Zoom Out"
-           >
-             &minus;
-           </button>
-         </div>
-       </div>
-     </div>
-
-
-     {/* Selected Location Details Card */}
-     <div className="location-card">
-       <div className="location-icon">
-         <svg
-           viewBox="0 0 24 24"
-           fill="none"
-           stroke="currentColor"
-           strokeWidth="2"
-           strokeLinecap="round"
-           strokeLinejoin="round"
-         >
-           <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
-           <line x1="9" y1="3" x2="9" y2="18" />
-           <line x1="15" y1="6" x2="15" y2="21" />
-         </svg>
-       </div>
-
-
-       <div className="location-details">
-         <span className="location-label">SELECTED LOCATION</span>
-         {isEditingAddress ? (
-           <input
-             type="text"
-             className="location-input"
-             value={address}
-             onChange={(e) => setAddress(e.target.value)}
-             onBlur={() => setIsEditingAddress(false)}
-             autoFocus
-           />
-         ) : (
-           <div className="location-address">{address}</div>
-         )}
-       </div>
-
-
-       <button
-         type="button"
-         className="btn-edit-address"
-         onClick={() => setIsEditingAddress(!isEditingAddress)}
-       >
-         {isEditingAddress ? "Done" : "Edit Address"}
-       </button>
-     </div>
-
-
-     {/* Bottom Actions */}
-     <div className="pin-actions">
-       <button type="button" className="btn-back" onClick={onBack}>
-         <svg
-           viewBox="0 0 24 24"
-           fill="none"
-           stroke="currentColor"
-           strokeWidth="2"
-           strokeLinecap="round"
-           strokeLinejoin="round"
-         >
-           <line x1="19" y1="12" x2="5" y2="12" />
-           <polyline points="12 19 5 12 12 5" />
-         </svg>
-         Back
-       </button>
-
-
-       <button type="button" className="btn-confirm" onClick={handleConfirm}>
-         Confirm
-       </button>
-     </div>
-   </div>
- );
+function RecenterOnCoords({ coords }) {
+  const map = useMap();
+  React.useEffect(() => {
+    map.setView(coords, map.getZoom());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coords[0], coords[1]]);
+  return null;
 }
 
+function ClickToPlaceMarker({ onPick }) {
+  useMapEvents({
+    click(e) {
+      onPick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
+
+export default function PinLocationPage({ initialLocation, onConfirm, onBack }) {
+  const initialCoords = useMemo(
+    () =>
+      Array.isArray(initialLocation?.coords) && initialLocation.coords.length === 2
+        ? initialLocation.coords
+        : DEFAULT_COORDS,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  const [coords, setCoords] = useState(initialCoords);
+  const [address, setAddress] = useState(
+    initialLocation?.address || "Rizal Park, Ermita, Manila, 1000 Metro Manila"
+  );
+  const [isEditingAddress, setIsEditingAddress] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const [isResolvingAddress, setIsResolvingAddress] = useState(false);
+  const [locateError, setLocateError] = useState("");
+  const mapRef = useRef(null);
+
+  const applyCoords = useCallback(async (lat, lng) => {
+    setCoords([lat, lng]);
+    setIsResolvingAddress(true);
+    const resolved = await reverseGeocode(lat, lng);
+    setIsResolvingAddress(false);
+    if (resolved) {
+      setAddress(resolved);
+    }
+  }, []);
+
+  const handleUseMyLocation = () => {
+    if (!("geolocation" in navigator)) {
+      setLocateError("Geolocation is not supported on this device.");
+      return;
+    }
+
+    setLocateError("");
+    setIsLocating(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        await applyCoords(latitude, longitude);
+        setIsLocating(false);
+      },
+      () => {
+        setLocateError("Couldn't get your location. Please allow location access or pin it manually.");
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const handleMarkerDragEnd = (e) => {
+    const marker = e.target;
+    const { lat, lng } = marker.getLatLng();
+    applyCoords(lat, lng);
+  };
+
+  const handleMapClick = (lat, lng) => {
+    applyCoords(lat, lng);
+  };
+
+  const handleConfirm = () => {
+    // The API stores coordinates as DecimalField(decimal_places=6), so round
+    // here rather than sending raw floats with 15+ decimal places (which the
+    // backend rejects with a 400).
+    const roundedLat = Number(coords[0].toFixed(6));
+    const roundedLng = Number(coords[1].toFixed(6));
+
+    onConfirm({
+      coords: [roundedLat, roundedLng],
+      latitude: roundedLat,
+      longitude: roundedLng,
+      address,
+    });
+  };
+
+  return (
+    <div className="pin-location-container">
+      {/* Title & Subtitle */}
+      <header className="pin-header">
+        <h2>Pin the Location</h2>
+        <p>Click the map, drag the pin, or use your GPS to pinpoint the hazard.</p>
+      </header>
+
+      {/* Interactive Map Wrapper */}
+      <div className="pin-map-card">
+        <div className="pin-map-viewport">
+          <MapContainer
+            center={coords}
+            zoom={16}
+            style={{ width: "100%", height: "100%" }}
+            ref={mapRef}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <ClickToPlaceMarker onPick={handleMapClick} />
+            <RecenterOnCoords coords={coords} />
+            <Marker
+              position={coords}
+              draggable
+              icon={hazardMarkerIcon}
+              eventHandlers={{ dragend: handleMarkerDragEnd }}
+            />
+          </MapContainer>
+
+          {/* Locate Me Control */}
+          <div className="locate-control">
+            <button
+              type="button"
+              className="locate-btn"
+              onClick={handleUseMyLocation}
+              disabled={isLocating}
+              title="Use my current location"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+              </svg>
+              {isLocating ? "Locating..." : "Use My Location"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {locateError && <p className="locate-error">{locateError}</p>}
+
+      {/* Selected Location Details Card */}
+      <div className="location-card">
+        <div className="location-icon">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+            <line x1="9" y1="3" x2="9" y2="18" />
+            <line x1="15" y1="6" x2="15" y2="21" />
+          </svg>
+        </div>
+
+        <div className="location-details">
+          <span className="location-label">SELECTED LOCATION</span>
+          {isEditingAddress ? (
+            <input
+              type="text"
+              className="location-input"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              onBlur={() => setIsEditingAddress(false)}
+              autoFocus
+            />
+          ) : (
+            <div className="location-address">
+              {isResolvingAddress ? "Resolving address..." : address}
+            </div>
+          )}
+          <span className="location-coords">
+            {coords[0].toFixed(6)}, {coords[1].toFixed(6)}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          className="btn-edit-address"
+          onClick={() => setIsEditingAddress(!isEditingAddress)}
+        >
+          {isEditingAddress ? "Done" : "Edit Address"}
+        </button>
+      </div>
+
+      {/* Bottom Actions */}
+      <div className="pin-actions">
+        <button type="button" className="btn-back" onClick={onBack}>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+          Back
+        </button>
+
+        <button type="button" className="btn-confirm" onClick={handleConfirm}>
+          Confirm
+        </button>
+      </div>
+    </div>
+  );
+}
