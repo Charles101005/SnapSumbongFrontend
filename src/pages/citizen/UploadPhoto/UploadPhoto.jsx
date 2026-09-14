@@ -2,6 +2,30 @@ import React, { useState, useRef, useEffect } from "react";
 import "./UploadPhoto.css";
 
 const MAX_PHOTOS = 5;
+const ALLOWED_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+// Reads the first few bytes of a file and checks its magic number against
+// known image signatures. This is more reliable than trusting file.type,
+// which is just browser-reported metadata and can be wrong or spoofed.
+async function sniffImageType(file) {
+  const buffer = await file.slice(0, 12).arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  const hex = [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+
+  if (hex.startsWith("ffd8ff")) return "image/jpeg";
+  if (hex.startsWith("89504e47")) return "image/png";
+  if (hex.startsWith("52494646") && hex.slice(16, 24) === "57454250") return "image/webp"; // RIFF....WEBP
+  if (hex.slice(8, 16) === "66747970") return "image/heic"; // 'ftyp' box (heic/heif container)
+
+  return null;
+}
 
 export default function UploadPhoto({ isOpen, onClose, onUploadSuccess, existingCount = 0 }) {
   const [items, setItems] = useState([]); // { file, previewUrl }[]
@@ -9,8 +33,6 @@ export default function UploadPhoto({ isOpen, onClose, onUploadSuccess, existing
   const [error, setError] = useState("");
   const fileInputRef = useRef(null);
 
-  // Revoke any object URLs we created for this modal session once it closes
-  // or unmounts, so we don't leak memory.
   useEffect(() => {
     if (!isOpen) {
       items.forEach((item) => URL.revokeObjectURL(item.previewUrl));
@@ -22,18 +44,37 @@ export default function UploadPhoto({ isOpen, onClose, onUploadSuccess, existing
 
   const remainingSlots = Math.max(MAX_PHOTOS - existingCount - items.length, 0);
 
-  const handleFilesSelected = (fileList) => {
-    const incoming = Array.from(fileList || []).filter((f) => f.type.startsWith("image/"));
-    if (incoming.length === 0) return;
+  const handleFilesSelected = async (fileList) => {
+    const all = Array.from(fileList || []);
+    if (all.length === 0) return;
+
+    // Layer 1 + 2: check real file signature (also filters out non-images
+    // outright, so we no longer need the old f.type.startsWith("image/") check)
+    const checked = await Promise.all(
+      all.map(async (f) => ({ file: f, sniffed: await sniffImageType(f) }))
+    );
+
+    const valid = checked
+      .filter((c) => c.sniffed && ALLOWED_MIME_TYPES.includes(c.sniffed) && c.file.size <= MAX_FILE_SIZE)
+      .map((c) => c.file);
+
+    if (valid.length === 0) {
+      setError("Please upload valid JPG, PNG, WEBP, HEIC, or HEIF images under 10MB.");
+      return;
+    }
 
     if (remainingSlots <= 0) {
       setError(`You can only upload up to ${MAX_PHOTOS} photos.`);
       return;
     }
 
-    const accepted = incoming.slice(0, remainingSlots);
-    if (incoming.length > remainingSlots) {
-      setError(`Only ${MAX_PHOTOS} photos are allowed in total — the rest were skipped.`);
+    const accepted = valid.slice(0, remainingSlots);
+    const someSkipped = valid.length > remainingSlots || checked.length !== valid.length;
+
+    if (someSkipped) {
+      setError(
+        `Only ${MAX_PHOTOS} photos are allowed in total, and only supported image types under 10MB are kept — some files were skipped.`
+      );
     } else {
       setError("");
     }
@@ -87,8 +128,6 @@ export default function UploadPhoto({ isOpen, onClose, onUploadSuccess, existing
     if (items.length > 0 && onUploadSuccess) {
       onUploadSuccess(items);
     }
-    // Ownership of the object URLs now belongs to the parent, so clear our
-    // local list without revoking them.
     setItems([]);
     setIsDragging(false);
     setError("");
@@ -166,7 +205,7 @@ export default function UploadPhoto({ isOpen, onClose, onUploadSuccess, existing
               </button>
 
               <span className="dropzone-hint">
-                JPG, PNG or GIF (max. 10MB) — up to {MAX_PHOTOS} photos
+                Supported formats: .jpg, .jpeg, .png, .webp, .heic, .heif (max. 10MB) — up to {MAX_PHOTOS} photos
               </span>
             </>
           ) : (
