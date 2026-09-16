@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import "./AddEmployee.css";
+import mockData from "../../../data/mock.json";
 
-const ROLES = ["Select a role", "Admin", "Report Officer", "Supervisor"];
+const { roleOptions: ROLES } = mockData.constants;
 
 export default function AddEmployee() {
   const navigate = useNavigate();

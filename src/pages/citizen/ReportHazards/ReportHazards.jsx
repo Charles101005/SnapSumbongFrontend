@@ -29,6 +29,9 @@ export default function HazardReportForm() {
   // Navigation / View State ('form' | 'pin-location' | 'my-reports' | 'account-settings' | 'category-selection')
   const [currentView, setCurrentView] = useState("form");
 
+  // Mobile sidebar toggle
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   // User Profile State
   const [user, setUser] = useState({
     firstName: "",
@@ -273,8 +276,14 @@ export default function HazardReportForm() {
 
   return (
     <div className="app">
+      {/* Mobile Sidebar Overlay */}
+      <div
+        className={`sidebar-overlay ${sidebarOpen ? "open" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
       {/* Sidebar */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-top">
           <div className="brand">
             <div className="brand-icon">
@@ -291,7 +300,7 @@ export default function HazardReportForm() {
             <button
               className={`nav-item ${currentView === "my-reports" ? "active" : ""}`}
               type="button"
-              onClick={() => setCurrentView("my-reports")}
+              onClick={() => { setCurrentView("my-reports"); setSidebarOpen(false); }}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -307,7 +316,7 @@ export default function HazardReportForm() {
             <button
               className={`nav-item ${currentView === "form" || currentView === "pin-location" || currentView === "category-selection" ? "active" : ""}`}
               type="button"
-              onClick={() => setCurrentView("form")}
+              onClick={() => { setCurrentView("form"); setSidebarOpen(false); }}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
@@ -332,7 +341,7 @@ export default function HazardReportForm() {
             <button
               className={`account-settings ${currentView === "account-settings" ? "active" : ""}`}
               type="button"
-              onClick={() => setCurrentView("account-settings")}
+              onClick={() => { setCurrentView("account-settings"); setSidebarOpen(false); }}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3"></circle>
@@ -346,6 +355,20 @@ export default function HazardReportForm() {
 
       {/* Main Content Pane */}
       <main className="main">
+        {/* Mobile hamburger button */}
+        <button
+          className="hamburger-btn"
+          type="button"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open menu"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+
         {currentView === "account-settings" ? (
           <AccountSettings user={user} onUpdateUser={handleUpdateUser} />
         ) : currentView === "my-reports" ? (

@@ -1,24 +1,10 @@
 import { useState } from "react";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import "./ReportManagement.css";
+import mockData from "../../../data/mock.json";
 
-const REPORT = {
-  id: "HR-4302",
-  category: "Potholes",
-  location: "Sampaloc, Manila",
-  dateReported: "Oct 14, 2025",
-  timeReported: "8:45 AM",
-  status: "ONGOING",
-  severity: "P5",
-  reportedBy: "Anonymous User",
-  title: "Potholes - Sampaloc",
-  description:
-    "A large pothole has formed on the road near the intersection. Multiple vehicles have been damaged and it poses a safety hazard for pedestrians, especially at night. The area needs immediate repair and proper signage to warn oncoming traffic.",
-  originalImage: null,
-};
-
-const SEVERITY_OPTIONS = ["P1", "P2", "P3", "P4", "P5"];
-const STATUS_OPTIONS = ["PENDING", "ONGOING", "IN_PROGRESS", "RESOLVED"];
+const { reportManagement, constants } = mockData;
+const { severityOptions: SEVERITY_OPTIONS, statusOptions: STATUS_OPTIONS } = constants;
 
 function UploadIcon() {
   return (
@@ -31,8 +17,8 @@ function UploadIcon() {
 }
 
 export default function ReportManagement() {
-  const [severity, setSeverity] = useState(REPORT.severity);
-  const [status, setStatus] = useState(REPORT.status);
+  const [severity, setSeverity] = useState(reportManagement.severity);
+  const [status, setStatus] = useState(reportManagement.status);
   const [remarks, setRemarks] = useState("");
   const [resolutionPhoto, setResolutionPhoto] = useState(null);
 
@@ -48,8 +34,8 @@ export default function ReportManagement() {
   };
 
   const handleDiscard = () => {
-    setSeverity(REPORT.severity);
-    setStatus(REPORT.status);
+    setSeverity(reportManagement.severity);
+    setStatus(reportManagement.status);
     setRemarks("");
     setResolutionPhoto(null);
     alert("Changes discarded.");
@@ -65,9 +51,9 @@ export default function ReportManagement() {
       <div className="report-detail-card">
         <div className="report-detail-header">
           <div>
-            <h3 className="report-title">{REPORT.title}</h3>
+            <h3 className="report-title">{reportManagement.title}</h3>
             <p className="report-meta">
-              {REPORT.location} &middot; {REPORT.dateReported} &middot; {REPORT.timeReported}
+              {reportManagement.location} &middot; {reportManagement.dateReported} &middot; {reportManagement.timeReported}
             </p>
           </div>
           <span className={`status-badge status-${status.toLowerCase().replace(" ", "_")}`}>
@@ -75,16 +61,16 @@ export default function ReportManagement() {
           </span>
         </div>
 
-        <p className="report-description">{REPORT.description}</p>
+        <p className="report-description">{reportManagement.description}</p>
 
         <div className="report-meta-grid">
           <div className="meta-item">
             <span className="meta-label">Report ID</span>
-            <span className="meta-value">{REPORT.id}</span>
+            <span className="meta-value">{reportManagement.id}</span>
           </div>
           <div className="meta-item">
             <span className="meta-label">Reported by</span>
-            <span className="meta-value">{REPORT.reportedBy}</span>
+            <span className="meta-value">{reportManagement.reportedBy}</span>
           </div>
         </div>
 
@@ -111,8 +97,8 @@ export default function ReportManagement() {
           <div className="image-block">
             <span className="image-label">Original Report</span>
             <div className="image-placeholder">
-              {REPORT.originalImage ? (
-                <img src={REPORT.originalImage} alt="Original report" />
+              {reportManagement.originalImage ? (
+                <img src={reportManagement.originalImage} alt="Original report" />
               ) : (
                 <span>Original report image</span>
               )}

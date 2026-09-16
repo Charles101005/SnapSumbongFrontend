@@ -1,80 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import './MyReport.css';
+import mockData from '../../../data/mock.json';
 
-const MOCK_REPORTS = [
-  {
-    id: '#HZ-4431',
-    category: 'Pothole',
-    dateSubmitted: 'Oct 12, 2023',
-    status: 'IN PROGRESS',
-    description: 'Deep pothole right in the middle of the lane. Cars are swerving to avoid it, which is very dangerous during rush hour. It\'s about 10 inches deep.',
-    coordinates: '14.5995° N, 120.9842° E',
-    address: 'Main St. & 4th Ave Intersection',
-    timeline: [
-      { label: 'Report Received', date: 'Oct 12, 2023', completed: true },
-      { label: 'Under Verification', date: 'Oct 13, 2023', completed: true },
-      { label: 'Under Repair', date: 'Pending', completed: false },
-      { label: 'Ticket Resolved', date: 'Pending', completed: false },
-    ],
-    remarks: 'Report received and currently under review.',
-    photos: [
-      'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=400&q=80',
-      'https://images.unsplash.com/photo-1584463688353-29c11224d4bc?w=400&q=80',
-    ],
-  },
-  {
-    id: '#HZ-4390',
-    category: 'Uneven Roads',
-    dateSubmitted: 'Sep 28, 2023',
-    status: 'RESOLVED',
-    description: 'Uneven road surface causing vehicle instability.',
-    coordinates: '14.5818° N, 120.9770° E',
-    address: 'Rizal Park Area',
-    timeline: [
-      { label: 'Report Received', date: 'Sep 28, 2023', completed: true },
-      { label: 'Under Verification', date: 'Sep 29, 2023', completed: true },
-      { label: 'Under Repair', date: 'Oct 01, 2023', completed: true },
-      { label: 'Ticket Resolved', date: 'Oct 03, 2023', completed: true },
-    ],
-    remarks: 'Road resurfacing completed.',
-    photos: ['https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=400&q=80'],
-  },
-  {
-    id: '#HZ-4355',
-    category: 'Road Debris',
-    dateSubmitted: 'Sep 15, 2023',
-    status: 'RESOLVED',
-    description: 'Fallen tree branches blocking right lane.',
-    coordinates: '14.5900° N, 120.9800° E',
-    address: 'Taft Ave Extension',
-    timeline: [
-      { label: 'Report Received', date: 'Sep 15, 2023', completed: true },
-      { label: 'Under Verification', date: 'Sep 15, 2023', completed: true },
-      { label: 'Under Repair', date: 'Sep 16, 2023', completed: true },
-      { label: 'Ticket Resolved', date: 'Sep 16, 2023', completed: true },
-    ],
-    remarks: 'Debris cleared by local maintenance team.',
-    photos: [],
-  },
-  {
-    id: '#HZ-4210',
-    category: 'Uneven Roads',
-    dateSubmitted: 'Aug 30, 2023',
-    status: 'PENDING',
-    description: 'Cracked asphalt expanding near pedestrian lane.',
-    coordinates: '14.6000° N, 120.9900° E',
-    address: 'Espana Blvd',
-    timeline: [
-      { label: 'Report Received', date: 'Aug 30, 2023', completed: true },
-      { label: 'Under Verification', date: 'Pending', completed: false },
-      { label: 'Under Repair', date: 'Pending', completed: false },
-      { label: 'Ticket Resolved', date: 'Pending', completed: false },
-    ],
-    remarks: 'Queued for site inspection.',
-    photos: [],
-  },
-];
-
+const { citizenReports: MOCK_REPORTS } = mockData;
 const ROWS_PER_PAGE = 4;
 
 export default function MyReport() {
@@ -404,45 +332,47 @@ export default function MyReport() {
 
       {/* Reports Table Card */}
       <div className="card table-card">
-        <table className="reports-table">
-          <thead>
-            <tr>
-              <th>REPORT ID</th>
-              <th>CATEGORY</th>
-              <th>DATE SUBMITTED</th>
-              <th>STATUS</th>
-              <th>ACTION</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedReports.length > 0 ? (
-              paginatedReports.map((report) => (
-                <tr key={report.id}>
-                  <td className="report-id-cell">{report.id}</td>
-                  <td>{report.category}</td>
-                  <td>{report.dateSubmitted}</td>
-                  <td>
-                    <span className={getStatusBadgeClass(report.status)}>
-                      {report.status}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      className="action-view-btn"
-                      onClick={() => setSelectedReport(report)}
-                    >
-                      View Details
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
+        <div className="table-scroll-wrapper">
+          <table className="reports-table">
+            <thead>
               <tr>
-                <td colSpan="5" className="empty-table-message">No reports found matching your filters.</td>
+                <th>REPORT ID</th>
+                <th>CATEGORY</th>
+                <th>DATE SUBMITTED</th>
+                <th>STATUS</th>
+                <th>ACTION</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paginatedReports.length > 0 ? (
+                paginatedReports.map((report) => (
+                  <tr key={report.id}>
+                    <td className="report-id-cell">{report.id}</td>
+                    <td>{report.category}</td>
+                    <td>{report.dateSubmitted}</td>
+                    <td>
+                      <span className={getStatusBadgeClass(report.status)}>
+                        {report.status}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        className="action-view-btn"
+                        onClick={() => setSelectedReport(report)}
+                      >
+                        View Details
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="empty-table-message">No reports found matching your filters.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Pagination */}

@@ -212,3 +212,30 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+@media (max-width: 640px) {
+  .category-selection-overlay {
+    padding: 16px;
+  }
+  .category-selection-card {
+    padding: 16px;
+    border-radius: 12px;
+  }
+  .extended-category-card {
+    height: 90px;
+    padding: 8px;
+  }
+  .extended-category-label {
+    font-size: 0.7rem;
+  }
+  .category-selection-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .category-selection-actions .btn-back {
+    align-self: flex-start;
+  }
+  .category-selection-actions .btn-confirm {
+    width: 100%;
+  }
+}

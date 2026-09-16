@@ -1,0 +1,724 @@
+{
+  "monitoringReports": [
+    { "id": "HRZ-4421", "category": "Uneven Roads", "location": "Sampaloc, Manila", "dateReported": "Oct 14, 2025", "status": "PENDING", "severity": "P5" },
+    { "id": "HRZ-4422", "category": "Road Debris", "location": "Ermita, Manila", "dateReported": "Oct 15, 2025", "status": "RESOLVED", "severity": "P4" },
+    { "id": "HRZ-4423", "category": "Potholes", "location": "Brgy 724, Manila", "dateReported": "Oct 16, 2025", "status": "PENDING", "severity": "P3" },
+    { "id": "HRZ-4424", "category": "Uneven Roads", "location": "Binondo, Manila", "dateReported": "Oct 17, 2025", "status": "PENDING", "severity": "P2" },
+    { "id": "HRZ-4425", "category": "Flooding", "location": "Tondo, Manila", "dateReported": "Oct 18, 2025", "status": "RESOLVED", "severity": "P5" },
+    { "id": "HRZ-4426", "category": "Fallen Tree", "location": "Quiapo, Manila", "dateReported": "Oct 18, 2025", "status": "IN_PROGRESS", "severity": "P4" },
+    { "id": "HRZ-4427", "category": "Garbage Buildup", "location": "San Andres, Manila", "dateReported": "Oct 19, 2025", "status": "PENDING", "severity": "P3" },
+    { "id": "HRZ-4428", "category": "Road Debris", "location": "Malate, Manila", "dateReported": "Oct 19, 2025", "status": "RESOLVED", "severity": "P5" },
+    { "id": "HRZ-4429", "category": "Potholes", "location": "Paco, Manila", "dateReported": "Oct 20, 2025", "status": "IN_PROGRESS", "severity": "P4" },
+    { "id": "HRZ-4430", "category": "Flooding", "location": "Sampaloc, Manila", "dateReported": "Oct 20, 2025", "status": "RESOLVED", "severity": "P3" },
+    { "id": "HRZ-4431", "category": "Uneven Roads", "location": "Ermita, Manila", "dateReported": "Oct 21, 2025", "status": "PENDING", "severity": "P2" },
+    { "id": "HRZ-4432", "category": "Fallen Tree", "location": "Binondo, Manila", "dateReported": "Oct 21, 2025", "status": "RESOLVED", "severity": "P5" },
+    { "id": "HRZ-4433", "category": "Garbage Buildup", "location": "Tondo, Manila", "dateReported": "Oct 22, 2025", "status": "IN_PROGRESS", "severity": "P4" },
+    { "id": "HRZ-4434", "category": "Potholes", "location": "Quiapo, Manila", "dateReported": "Oct 22, 2025", "status": "RESOLVED", "severity": "P3" },
+    { "id": "HRZ-4435", "category": "Road Debris", "location": "San Andres, Manila", "dateReported": "Oct 23, 2025", "status": "PENDING", "severity": "P2" },
+    { "id": "HRZ-4436", "category": "Flooding", "location": "Malate, Manila", "dateReported": "Oct 23, 2025", "status": "RESOLVED", "severity": "P5" },
+    { "id": "HRZ-4437", "category": "Uneven Roads", "location": "Paco, Manila", "dateReported": "Oct 24, 2025", "status": "IN_PROGRESS", "severity": "P4" },
+    { "id": "HRZ-4438", "category": "Fallen Tree", "location": "Sampaloc, Manila", "dateReported": "Oct 24, 2025", "status": "RESOLVED", "severity": "P3" },
+    { "id": "HRZ-4439", "category": "Garbage Buildup", "location": "Ermita, Manila", "dateReported": "Oct 25, 2025", "status": "PENDING", "severity": "P2" },
+    { "id": "HRZ-4440", "category": "Potholes", "location": "Binondo, Manila", "dateReported": "Oct 25, 2025", "status": "RESOLVED", "severity": "P5" },
+    { "id": "HRZ-4441", "category": "Road Debris", "location": "Tondo, Manila", "dateReported": "Oct 26, 2025", "status": "IN_PROGRESS", "severity": "P4" },
+    { "id": "HRZ-4442", "category": "Flooding", "location": "Quiapo, Manila", "dateReported": "Oct 26, 2025", "status": "RESOLVED", "severity": "P3" },
+    { "id": "HRZ-4443", "category": "Uneven Roads", "location": "San Andres, Manila", "dateReported": "Oct 27, 2025", "status": "PENDING", "severity": "P2" },
+    { "id": "HRZ-4444", "category": "Fallen Tree", "location": "Malate, Manila", "dateReported": "Oct 27, 2025", "status": "RESOLVED", "severity": "P5" }
+  ],
+  "reportsHistory": [
+    { "id": "HIZ-4421", "category": "Uneven Roads", "location": "Sampaloc, Manila", "dateReported": "Oct 14, 2025", "status": "RESOLVED", "severity": "P5" },
+    { "id": "HIZ-4422", "category": "Road Debris", "location": "Ermita, Manila", "dateReported": "Oct 15, 2025", "status": "ONGOING", "severity": "P3" },
+    { "id": "HIZ-4423", "category": "Potholes", "location": "Brgy 724, Manila", "dateReported": "Oct 16, 2025", "status": "PENDING", "severity": "P1" },
+    { "id": "HIZ-4424", "category": "Uneven Roads", "location": "Binondo, Manila", "dateReported": "Oct 17, 2025", "status": "PENDING", "severity": "P3" },
+    { "id": "HIZ-4425", "category": "Road Debris", "location": "Sampaloc, Manila", "dateReported": "Oct 18, 2025", "status": "ONGOING", "severity": "P5" },
+    { "id": "HIZ-4426", "category": "Potholes", "location": "Malate, Manila", "dateReported": "Oct 19, 2025", "status": "PENDING", "severity": "P1" },
+    { "id": "HIZ-4427", "category": "Uneven Roads", "location": "Santa Cruz, Manila", "dateReported": "Oct 20, 2025", "status": "RESOLVED", "severity": "P5" },
+    { "id": "HIZ-4428", "category": "Road Debris", "location": "Intramuros, Manila", "dateReported": "Oct 21, 2025", "status": "ONGOING", "severity": "P3" },
+    { "id": "HIZ-4429", "category": "Potholes", "location": "Tondo, Manila", "dateReported": "Oct 22, 2025", "status": "PENDING", "severity": "P1" },
+    { "id": "HIZ-4430", "category": "Flooding", "location": "Quiapo, Manila", "dateReported": "Oct 23, 2025", "status": "RESOLVED", "severity": "P4" },
+    { "id": "HIZ-4431", "category": "Fallen Tree", "location": "San Andres, Manila", "dateReported": "Oct 24, 2025", "status": "ONGOING", "severity": "P2" },
+    { "id": "HIZ-4432", "category": "Garbage Buildup", "location": "Paco, Manila", "dateReported": "Oct 25, 2025", "status": "RESOLVED", "severity": "P5" },
+    { "id": "HIZ-4433", "category": "Flooding", "location": "Sampaloc, Manila", "dateReported": "Oct 26, 2025", "status": "ONGOING", "severity": "P3" },
+    { "id": "HIZ-4434", "category": "Potholes", "location": "Ermita, Manila", "dateReported": "Oct 27, 2025", "status": "RESOLVED", "severity": "P4" },
+    { "id": "HIZ-4435", "category": "Uneven Roads", "location": "Binondo, Manila", "dateReported": "Oct 28, 2025", "status": "PENDING", "severity": "P2" },
+    { "id": "HIZ-4436", "category": "Road Debris", "location": "Tondo, Manila", "dateReported": "Oct 29, 2025", "status": "RESOLVED", "severity": "P5" },
+    { "id": "HIZ-4437", "category": "Fallen Tree", "location": "Quiapo, Manila", "dateReported": "Oct 30, 2025", "status": "ONGOING", "severity": "P1" },
+    { "id": "HIZ-4438", "category": "Garbage Buildup", "location": "Malate, Manila", "dateReported": "Oct 31, 2025", "status": "RESOLVED", "severity": "P3" },
+    { "id": "HIZ-4439", "category": "Flooding", "location": "Santa Cruz, Manila", "dateReported": "Nov 1, 2025", "status": "PENDING", "severity": "P4" },
+    { "id": "HIZ-4440", "category": "Potholes", "location": "Intramuros, Manila", "dateReported": "Nov 2, 2025", "status": "RESOLVED", "severity": "P2" },
+    { "id": "HIZ-4441", "category": "Uneven Roads", "location": "San Andres, Manila", "dateReported": "Nov 3, 2025", "status": "ONGOING", "severity": "P5" },
+    { "id": "HIZ-4442", "category": "Road Debris", "location": "Paco, Manila", "dateReported": "Nov 4, 2025", "status": "PENDING", "severity": "P1" },
+    { "id": "HIZ-4443", "category": "Garbage Buildup", "location": "Sampaloc, Manila", "dateReported": "Nov 5, 2025", "status": "RESOLVED", "severity": "P3" },
+    { "id": "HIZ-4444", "category": "Fallen Tree", "location": "Ermita, Manila", "dateReported": "Nov 6, 2025", "status": "ONGOING", "severity": "P4" }
+  ],
+  "citizenReports": [
+    {
+      "id": "#HZ-4431",
+      "category": "Pothole",
+      "dateSubmitted": "Oct 12, 2023",
+      "status": "IN PROGRESS",
+      "description": "Deep pothole right in the middle of the lane. Cars are swerving to avoid it, which is very dangerous during rush hour. It's about 10 inches deep.",
+      "coordinates": "14.5995\u00b0 N, 120.9842\u00b0 E",
+      "address": "Main St. & 4th Ave Intersection",
+      "timeline": [
+        { "label": "Report Received", "date": "Oct 12, 2023", "completed": true },
+        { "label": "Under Verification", "date": "Oct 13, 2023", "completed": true },
+        { "label": "Under Repair", "date": "Pending", "completed": false },
+        { "label": "Ticket Resolved", "date": "Pending", "completed": false }
+      ],
+      "remarks": "Report received and currently under review.",
+      "photos": [
+        "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=400&q=80",
+        "https://images.unsplash.com/photo-1584463688353-29c11224d4bc?w=400&q=80"
+      ]
+    },
+    {
+      "id": "#HZ-4390",
+      "category": "Uneven Roads",
+      "dateSubmitted": "Sep 28, 2023",
+      "status": "RESOLVED",
+      "description": "Uneven road surface causing vehicle instability.",
+      "coordinates": "14.5818\u00b0 N, 120.9770\u00b0 E",
+      "address": "Rizal Park Area",
+      "timeline": [
+        { "label": "Report Received", "date": "Sep 28, 2023", "completed": true },
+        { "label": "Under Verification", "date": "Sep 29, 2023", "completed": true },
+        { "label": "Under Repair", "date": "Oct 01, 2023", "completed": true },
+        { "label": "Ticket Resolved", "date": "Oct 03, 2023", "completed": true }
+      ],
+      "remarks": "Road resurfacing completed.",
+      "photos": [
+        "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=400&q=80"
+      ]
+    },
+    {
+      "id": "#HZ-4355",
+      "category": "Road Debris",
+      "dateSubmitted": "Sep 15, 2023",
+      "status": "RESOLVED",
+      "description": "Fallen tree branches blocking right lane.",
+      "coordinates": "14.5900\u00b0 N, 120.9800\u00b0 E",
+      "address": "Taft Ave Extension",
+      "timeline": [
+        { "label": "Report Received", "date": "Sep 15, 2023", "completed": true },
+        { "label": "Under Verification", "date": "Sep 15, 2023", "completed": true },
+        { "label": "Under Repair", "date": "Sep 16, 2023", "completed": true },
+        { "label": "Ticket Resolved", "date": "Sep 16, 2023", "completed": true }
+      ],
+      "remarks": "Debris cleared by local maintenance team.",
+      "photos": []
+    },
+    {
+      "id": "#HZ-4210",
+      "category": "Uneven Roads",
+      "dateSubmitted": "Aug 30, 2023",
+      "status": "PENDING",
+      "description": "Cracked asphalt expanding near pedestrian lane.",
+      "coordinates": "14.6000\u00b0 N, 120.9900\u00b0 E",
+      "address": "Espana Blvd",
+      "timeline": [
+        { "label": "Report Received", "date": "Aug 30, 2023", "completed": true },
+        { "label": "Under Verification", "date": "Pending", "completed": false },
+        { "label": "Under Repair", "date": "Pending", "completed": false },
+        { "label": "Ticket Resolved", "date": "Pending", "completed": false }
+      ],
+      "remarks": "Queued for site inspection.",
+      "photos": []
+    }
+  ],
+  "detailReports": {
+    "HRZ-4421": {
+      "id": "#HZ-4421",
+      "category": "Uneven Roads",
+      "location": "Sampaloc, Manila",
+      "reportedSeverity": "P5",
+      "status": "RESOLVED",
+      "reporterComments": "Huge fissure, dangerous to vehicles",
+      "media": [
+        "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=300&q=80",
+        "https://images.unsplash.com/photo-1584463688353-29c11224d4bc?w=300&q=80",
+        "https://images.unsplash.com/photo-1590682680695-43b96c480e93?w=300&q=80",
+        "https://images.unsplash.com/photo-1504432842672-1a79f78e4084?w=300&q=80",
+        "https://images.unsplash.com/photo-1517420704952-d9f39e95b43e?w=300&q=80"
+      ],
+      "timeline": [
+        {
+          "status": "PENDING",
+          "color": "pending",
+          "performedBy": "Elena Gomez",
+          "date": "Oct 7, 2025",
+          "time": "3:30 pm",
+          "activity": {
+            "logId": "#LOG-6818",
+            "role": "Right Officer",
+            "module": "Report Management",
+            "primaryAction": "Created new road hazard report #HZ-4421",
+            "description": "Reporter submitted a new road hazard report for uneven roads in Sampaloc, Manila with severity level P5."
+          }
+        },
+        {
+          "status": "ONGOING",
+          "color": "ongoing",
+          "performedBy": "Elena Gomez",
+          "date": "Oct 10, 2025",
+          "time": "3:30 pm",
+          "activity": {
+            "logId": "#LOG-6819",
+            "role": "Right Officer",
+            "module": "Report Management",
+            "primaryAction": "Updated report status #HZ-4421",
+            "description": "Administrator updated the status of road hazard report #HZ-4421 from PENDING to ONGOING and added internal notes regarding crew dispatch."
+          }
+        },
+        {
+          "status": "RESOLVED",
+          "color": "resolved",
+          "performedBy": "Elena Gomez",
+          "date": "Oct 14, 2025",
+          "time": "3:34 pm",
+          "activity": {
+            "logId": "#LOG-6820",
+            "role": "Right Officer",
+            "module": "Report Management",
+            "primaryAction": "Resolved report #HZ-4421",
+            "description": "Administrator marked road hazard report #HZ-4421 as RESOLVED after crew completed repair work on the uneven road."
+          }
+        }
+      ]
+    },
+    "HRZ-4422": {
+      "id": "#HZ-4422",
+      "category": "Road Debris",
+      "location": "Ermita, Manila",
+      "reportedSeverity": "P4",
+      "status": "RESOLVED",
+      "reporterComments": "Fallen tree branches blocking the main road after heavy rain.",
+      "media": [
+        "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=300&q=80"
+      ],
+      "timeline": [
+        {
+          "status": "PENDING",
+          "color": "pending",
+          "performedBy": "Carlos Reyes",
+          "date": "Oct 15, 2025",
+          "time": "10:00 am",
+          "activity": {
+            "logId": "#LOG-6821",
+            "role": "Right Officer",
+            "module": "Report Management",
+            "primaryAction": "Created new road hazard report #HZ-4422",
+            "description": "Reporter submitted a new road hazard report for road debris in Ermita, Manila with severity level P4."
+          }
+        },
+        {
+          "status": "ONGOING",
+          "color": "ongoing",
+          "performedBy": "Carlos Reyes",
+          "date": "Oct 16, 2025",
+          "time": "2:15 pm",
+          "activity": {
+            "logId": "#LOG-6822",
+            "role": "Right Officer",
+            "module": "Report Management",
+            "primaryAction": "Updated report status #HZ-4422",
+            "description": "Administrator updated the status of road hazard report #HZ-4422 from PENDING to ONGOING and assigned cleanup crew."
+          }
+        },
+        {
+          "status": "RESOLVED",
+          "color": "resolved",
+          "performedBy": "Carlos Reyes",
+          "date": "Oct 17, 2025",
+          "time": "9:45 am",
+          "activity": {
+            "logId": "#LOG-6823",
+            "role": "Right Officer",
+            "module": "Report Management",
+            "primaryAction": "Resolved report #HZ-4422",
+            "description": "Administrator marked road hazard report #HZ-4422 as RESOLVED after crew removed fallen tree branches."
+          }
+        }
+      ]
+    },
+    "HRZ-4423": {
+      "id": "#HZ-4423",
+      "category": "Potholes",
+      "location": "Brgy 724, Manila",
+      "reportedSeverity": "P3",
+      "status": "PENDING",
+      "reporterComments": "Deep pothole near the school zone, risk to children.",
+      "media": [
+        "https://images.unsplash.com/photo-1584463688353-29c11224d4bc?w=300&q=80"
+      ],
+      "timeline": [
+        {
+          "status": "PENDING",
+          "color": "pending",
+          "performedBy": "Maria Santos",
+          "date": "Oct 16, 2025",
+          "time": "11:00 am",
+          "activity": {
+            "logId": "#LOG-6824",
+            "role": "Right Officer",
+            "module": "Report Management",
+            "primaryAction": "Created new road hazard report #HZ-4423",
+            "description": "Reporter submitted a new road hazard report for potholes in Brgy 724, Manila with severity level P3."
+          }
+        }
+      ]
+    }
+  },
+  "reportManagement": {
+    "id": "HR-4302",
+    "category": "Potholes",
+    "location": "Sampaloc, Manila",
+    "dateReported": "Oct 14, 2025",
+    "timeReported": "8:45 AM",
+    "status": "ONGOING",
+    "severity": "P5",
+    "reportedBy": "Anonymous User",
+    "title": "Potholes - Sampaloc",
+    "description": "A large pothole has formed on the road near the intersection. Multiple vehicles have been damaged and it poses a safety hazard for pedestrians, especially at night. The area needs immediate repair and proper signage to warn oncoming traffic.",
+    "originalImage": null
+  },
+  "employees": [
+    {
+      "id": 1,
+      "name": "Juan Dela Cruz",
+      "email": "juan.delacruz@lgu.gov.ph",
+      "role": "ADMIN",
+      "status": "ACTIVE",
+      "lastActivity": "2 mins ago"
+    },
+    {
+      "id": 2,
+      "name": "Maria Santos",
+      "email": "maria.santos@lgu.gov.ph",
+      "role": "REPORT OFFICER",
+      "status": "DEACTIVATED",
+      "lastActivity": "15 hours ago"
+    },
+    {
+      "id": 3,
+      "name": "Ricardo Ramos",
+      "email": "ricardo.ramos@lgu.gov.ph",
+      "role": "REPORT OFFICER",
+      "status": "ACTIVE",
+      "lastActivity": "3 days ago"
+    },
+    {
+      "id": 4,
+      "name": "Elena Gomez",
+      "email": "elena.gomez@lgu.gov.ph",
+      "role": "ADMIN",
+      "status": "ACTIVE",
+      "lastActivity": "5 mins ago"
+    },
+    {
+      "id": 5,
+      "name": "Carlos Reyes",
+      "email": "carlos.reyes@lgu.gov.ph",
+      "role": "SUPERVISOR",
+      "status": "ACTIVE",
+      "lastActivity": "1 hour ago"
+    }
+  ],
+  "employeeProfiles": {
+    "1": {
+      "firstName": "Juan Dela",
+      "lastName": "Cruz",
+      "middleName": "Mirito",
+      "email": "juan.delacruz@lgu.gov.ph",
+      "role": "REPORT OFFICER",
+      "status": "DEACTIVATED",
+      "joinedDate": "Jan 10, 2026",
+      "lastActive": "2 mins ago",
+      "reportsHandled": 43,
+      "reportsResolved": 36
+    },
+    "2": {
+      "firstName": "Maria",
+      "lastName": "Santos",
+      "middleName": "",
+      "email": "maria.santos@lgu.gov.ph",
+      "role": "REPORT OFFICER",
+      "status": "DEACTIVATED",
+      "joinedDate": "Mar 5, 2025",
+      "lastActive": "15 hours ago",
+      "reportsHandled": 28,
+      "reportsResolved": 22
+    },
+    "3": {
+      "firstName": "Ricardo",
+      "lastName": "Ramos",
+      "middleName": "",
+      "email": "ricardo.ramos@lgu.gov.ph",
+      "role": "REPORT OFFICER",
+      "status": "ACTIVE",
+      "joinedDate": "Jun 20, 2025",
+      "lastActive": "3 days ago",
+      "reportsHandled": 67,
+      "reportsResolved": 59
+    },
+    "4": {
+      "firstName": "Elena",
+      "lastName": "Gomez",
+      "middleName": "",
+      "email": "elena.gomez@lgu.gov.ph",
+      "role": "ADMIN",
+      "status": "ACTIVE",
+      "joinedDate": "Feb 14, 2025",
+      "lastActive": "5 mins ago",
+      "reportsHandled": 12,
+      "reportsResolved": 12
+    },
+    "5": {
+      "firstName": "Carlos",
+      "lastName": "Reyes",
+      "middleName": "",
+      "email": "carlos.reyes@lgu.gov.ph",
+      "role": "SUPERVISOR",
+      "status": "ACTIVE",
+      "joinedDate": "Jan 3, 2025",
+      "lastActive": "1 hour ago",
+      "reportsHandled": 85,
+      "reportsResolved": 78
+    }
+  },
+  "citizens": [
+    {
+      "id": 1,
+      "name": "Juan Daet",
+      "email": "juan.daet@email.com",
+      "status": "ACTIVE",
+      "lastActivity": "2 mins ago"
+    },
+    {
+      "id": 2,
+      "name": "Ricardo Ramos",
+      "email": "ricardo.r@email.com",
+      "status": "ACTIVE",
+      "lastActivity": "1 hour ago"
+    },
+    {
+      "id": 3,
+      "name": "Elena Cruz",
+      "email": "elena.cruz@email.com",
+      "status": "ACTIVE",
+      "lastActivity": "3 days ago"
+    },
+    {
+      "id": 4,
+      "name": "Juan Dela Cruz",
+      "email": "juan.dc@email.com",
+      "status": "DEACTIVATED",
+      "lastActivity": "5 mins ago"
+    },
+    {
+      "id": 5,
+      "name": "Sofia Reyes",
+      "email": "sofia.reyes@email.com",
+      "status": "ACTIVE",
+      "lastActivity": "10 mins ago"
+    },
+    {
+      "id": 6,
+      "name": "Antonio Luna",
+      "email": "a.luna@email.com",
+      "status": "ACTIVE",
+      "lastActivity": "Yesterday"
+    },
+    {
+      "id": 7,
+      "name": "Liza Santos",
+      "email": "liza.sj@email.com",
+      "status": "DEACTIVATED",
+      "lastActivity": "1 week ago"
+    },
+    {
+      "id": 8,
+      "name": "Manuel Quezon",
+      "email": "quezon.m@email.com",
+      "status": "ACTIVE",
+      "lastActivity": "3 hours ago"
+    }
+  ],
+  "citizenProfiles": {
+    "1": {
+      "firstName": "Juan",
+      "lastName": "Daet",
+      "middleName": "",
+      "email": "juan.daet@email.com",
+      "status": "ACTIVE",
+      "joinedDate": "Jan 15, 2026",
+      "lastActive": "2 mins ago",
+      "reportsSubmitted": 5,
+      "reportsResolved": 3
+    },
+    "2": {
+      "firstName": "Ricardo",
+      "lastName": "Ramos",
+      "middleName": "",
+      "email": "ricardo.r@email.com",
+      "status": "ACTIVE",
+      "joinedDate": "Mar 10, 2025",
+      "lastActive": "1 hour ago",
+      "reportsSubmitted": 12,
+      "reportsResolved": 9
+    },
+    "3": {
+      "firstName": "Elena",
+      "lastName": "Cruz",
+      "middleName": "",
+      "email": "elena.cruz@email.com",
+      "status": "ACTIVE",
+      "joinedDate": "Jun 22, 2025",
+      "lastActive": "3 days ago",
+      "reportsSubmitted": 8,
+      "reportsResolved": 7
+    },
+    "4": {
+      "firstName": "Juan",
+      "lastName": "Dela Cruz",
+      "middleName": "",
+      "email": "juan.dc@email.com",
+      "status": "DEACTIVATED",
+      "joinedDate": "Feb 5, 2025",
+      "lastActive": "5 mins ago",
+      "reportsSubmitted": 3,
+      "reportsResolved": 1
+    },
+    "5": {
+      "firstName": "Sofia",
+      "lastName": "Reyes",
+      "middleName": "",
+      "email": "sofia.reyes@email.com",
+      "status": "ACTIVE",
+      "joinedDate": "Sep 18, 2025",
+      "lastActive": "10 mins ago",
+      "reportsSubmitted": 15,
+      "reportsResolved": 14
+    },
+    "6": {
+      "firstName": "Antonio",
+      "lastName": "Luna",
+      "middleName": "",
+      "email": "a.luna@email.com",
+      "status": "ACTIVE",
+      "joinedDate": "Jul 1, 2025",
+      "lastActive": "Yesterday",
+      "reportsSubmitted": 7,
+      "reportsResolved": 6
+    },
+    "7": {
+      "firstName": "Liza",
+      "lastName": "Santos",
+      "middleName": "",
+      "email": "liza.sj@email.com",
+      "status": "DEACTIVATED",
+      "joinedDate": "Apr 12, 2025",
+      "lastActive": "1 week ago",
+      "reportsSubmitted": 4,
+      "reportsResolved": 2
+    },
+    "8": {
+      "firstName": "Manuel",
+      "lastName": "Quezon",
+      "middleName": "",
+      "email": "quezon.m@email.com",
+      "status": "ACTIVE",
+      "joinedDate": "May 25, 2025",
+      "lastActive": "3 hours ago",
+      "reportsSubmitted": 10,
+      "reportsResolved": 8
+    }
+  },
+  "roles": [
+    {
+      "id": 1,
+      "name": "Admin",
+      "color": "#7c3aed",
+      "permissions": ["FULL SYSTEM ACCESS", "SYSTEM/ALL", "SUPERVISORS/ALL", "AUTHORITY/ALL"]
+    },
+    {
+      "id": 2,
+      "name": "Staff/Officer",
+      "color": "#2563eb",
+      "permissions": ["REPORT MANAGE", "PRIORITY ASSIGNMENT"]
+    },
+    {
+      "id": 3,
+      "name": "User",
+      "color": "#16a34a",
+      "permissions": ["REPORT VIEW/UPDATE"]
+    }
+  ],
+  "permissionModules": [
+    {
+      "id": "report",
+      "name": "Report Module",
+      "permissions": [
+        { "id": "REPORT_VIEW", "label": "REPORT_VIEW", "description": "View all reports in the system" },
+        { "id": "REPORT_MANAGE", "label": "REPORT_MANAGE", "description": "Create, update, and delete reports" },
+        { "id": "REPORT_ASSIGN", "label": "REPORT_ASSIGN", "description": "Assign reports to personnel" }
+      ]
+    },
+    {
+      "id": "user",
+      "name": "User Module",
+      "permissions": [
+        { "id": "USER_VIEW", "label": "USER_VIEW", "description": "View user accounts" },
+        { "id": "USER_MANAGE", "label": "USER_MANAGE", "description": "Create, update, and delete user accounts" },
+        { "id": "USER_ASSIGN", "label": "USER_ASSIGN", "description": "Assign roles to users" }
+      ]
+    },
+    {
+      "id": "audit",
+      "name": "Audit Trail Module",
+      "permissions": [
+        { "id": "AUDIT_VIEW_ALL", "label": "AUDIT_VIEW_ALL", "description": "Access to all audit logs of the system" }
+      ]
+    }
+  ],
+  "auditLogs": [
+    {
+      "id": "LOG-0921",
+      "userName": "Jose Rizal",
+      "role": "Admin",
+      "action": "Created new staff account",
+      "module": "User Management",
+      "date": "Oct 24, 2026 09:42 AM",
+      "description": "Administrator created a new staff account for field responder with default permissions and assigned to the Monitoring department."
+    },
+    {
+      "id": "LOG-0920",
+      "userName": "Elena Gomez",
+      "role": "Report Officer",
+      "action": "Updated report status #HZ-4421",
+      "module": "Report Management",
+      "date": "Oct 24, 2026 09:15 AM",
+      "description": "Administrator updated the status of road hazard report #HZ-4421 from PENDING to ONGOING and added internal notes regarding crew dispatch."
+    },
+    {
+      "id": "LOG-0919",
+      "userName": "Jose Rizal",
+      "role": "Admin",
+      "action": "Changed system email settings",
+      "module": "Config Change",
+      "date": "Oct 23, 2026 11:30 AM",
+      "description": "Administrator modified the system email notification settings to include CC recipients for all resolved reports."
+    },
+    {
+      "id": "LOG-0918",
+      "userName": "Maria Clara",
+      "role": "Report Officer",
+      "action": "Resolved report #HZ-4415",
+      "module": "Report Management",
+      "date": "Oct 23, 2026 10:05 AM",
+      "description": "Report officer marked road hazard report #HZ-4415 as RESOLVED after verifying that the reported pothole has been repaired by the maintenance crew."
+    },
+    {
+      "id": "LOG-0917",
+      "userName": "Jose Rizal",
+      "role": "Admin",
+      "action": "Added new role: Field Responder",
+      "module": "User Management",
+      "date": "Oct 22, 2026 03:20 PM",
+      "description": "Administrator created a new system role named Field Responder with permissions limited to viewing and updating assigned reports."
+    },
+    {
+      "id": "LOG-0916",
+      "userName": "Elena Gomez",
+      "role": "Report Officer",
+      "action": "Assigned report #HZ-4410 to team",
+      "module": "Report Management",
+      "date": "Oct 22, 2026 01:45 PM",
+      "description": "Report officer assigned road hazard report #HZ-4410 to the Sampaloc field team for inspection and resolution."
+    },
+    {
+      "id": "LOG-0915",
+      "userName": "Jose Rizal",
+      "role": "Admin",
+      "action": "Deactivated user account: Juan Dela Cruz",
+      "module": "User Management",
+      "date": "Oct 21, 2026 09:00 AM",
+      "description": "Administrator deactivated the user account for Juan Dela Cruz due to role reassignment. All active sessions have been terminated."
+    },
+    {
+      "id": "LOG-0914",
+      "userName": "Maria Clara",
+      "role": "Report Officer",
+      "action": "Updated severity of report #HZ-4405 to P1",
+      "module": "Report Management",
+      "date": "Oct 21, 2026 08:30 AM",
+      "description": "Report officer escalated the severity level of report #HZ-4405 from P3 to P1 after field inspection revealed critical road damage."
+    },
+    {
+      "id": "LOG-0913",
+      "userName": "Jose Rizal",
+      "role": "Admin",
+      "action": "Exported audit trail logs",
+      "module": "Audit Trail",
+      "date": "Oct 20, 2026 04:15 PM",
+      "description": "Administrator exported the audit trail logs for the period of October 1-20, 2026 in CSV format for compliance review."
+    },
+    {
+      "id": "LOG-0912",
+      "userName": "Elena Gomez",
+      "role": "Report Officer",
+      "action": "Marked report #HZ-4400 as resolved",
+      "module": "Report Management",
+      "date": "Oct 20, 2026 02:00 PM",
+      "description": "Report officer marked road hazard report #HZ-4400 as RESOLVED after the flooding issue in Tondo was cleared by the drainage team."
+    },
+    {
+      "id": "LOG-0911",
+      "userName": "Jose Rizal",
+      "role": "Admin",
+      "action": "Updated system notification settings",
+      "module": "Config Change",
+      "date": "Oct 19, 2026 11:10 AM",
+      "description": "Administrator updated the system notification preferences to enable SMS alerts for all P1 and P2 severity reports."
+    },
+    {
+      "id": "LOG-0910",
+      "userName": "Maria Clara",
+      "role": "Report Officer",
+      "action": "Created new report #HZ-4398",
+      "module": "Report Management",
+      "date": "Oct 19, 2026 09:30 AM",
+      "description": "Report officer created a new road hazard report #HZ-4398 for fallen tree obstruction in Quiapo, Manila with severity level P4."
+    },
+    {
+      "id": "LOG-0909",
+      "userName": "Jose Rizal",
+      "role": "Admin",
+      "action": "Approved role permissions for Report Officer",
+      "module": "User Management",
+      "date": "Oct 18, 2026 03:45 PM",
+      "description": "Administrator approved updated permissions for the Report Officer role, granting access to the analytics dashboard and export features."
+    },
+    {
+      "id": "LOG-0908",
+      "userName": "Elena Gomez",
+      "role": "Report Officer",
+      "action": "Assigned report #HZ-4395 to field team",
+      "module": "Report Management",
+      "date": "Oct 18, 2026 10:20 AM",
+      "description": "Report officer assigned road hazard report #HZ-4395 to the Binondo field team for immediate inspection of reported road debris."
+    }
+  ],
+  "constants": {
+    "categories": ["All Categories", "Uneven Roads", "Road Debris", "Potholes", "Flooding", "Fallen Tree", "Garbage Buildup"],
+    "severities": ["All Severities", "P1", "P2", "P3", "P4", "P5"],
+    "monitoringStatuses": ["All Statuses", "PENDING", "IN_PROGRESS", "RESOLVED"],
+    "historyStatuses": ["All Statuses", "RESOLVED", "ONGOING", "PENDING"],
+    "auditModules": ["All Module", "User Management", "Report Management", "Config Change", "Audit Trail"],
+    "auditRoles": ["All Roles", "Admin", "Report Officer"],
+    "employeeTabs": ["All Employees", "Admins", "Report Officer", "Supervisor"],
+    "roleOptions": ["Select a role", "Admin", "Report Officer", "Supervisor"],
+    "severityOptions": ["P1", "P2", "P3", "P4", "P5"],
+    "statusOptions": ["PENDING", "ONGOING", "IN_PROGRESS", "RESOLVED"]
+  }
+}

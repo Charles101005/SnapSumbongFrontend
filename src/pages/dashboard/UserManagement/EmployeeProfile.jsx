@@ -1,69 +1,9 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import "./EmployeeProfile.css";
+import mockData from "../../../data/mock.json";
 
-const MOCK_EMPLOYEES = {
-  1: {
-    firstName: "Juan Dela",
-    lastName: "Cruz",
-    middleName: "Mirito",
-    email: "juan.delacruz@lgu.gov.ph",
-    role: "REPORT OFFICER",
-    status: "DEACTIVATED",
-    joinedDate: "Jan 10, 2026",
-    lastActive: "2 mins ago",
-    reportsHandled: 43,
-    reportsResolved: 36,
-  },
-  2: {
-    firstName: "Maria",
-    lastName: "Santos",
-    middleName: "",
-    email: "maria.santos@lgu.gov.ph",
-    role: "REPORT OFFICER",
-    status: "DEACTIVATED",
-    joinedDate: "Mar 5, 2025",
-    lastActive: "15 hours ago",
-    reportsHandled: 28,
-    reportsResolved: 22,
-  },
-  3: {
-    firstName: "Ricardo",
-    lastName: "Ramos",
-    middleName: "",
-    email: "ricardo.ramos@lgu.gov.ph",
-    role: "REPORT OFFICER",
-    status: "ACTIVE",
-    joinedDate: "Jun 20, 2025",
-    lastActive: "3 days ago",
-    reportsHandled: 67,
-    reportsResolved: 59,
-  },
-  4: {
-    firstName: "Elena",
-    lastName: "Gomez",
-    middleName: "",
-    email: "elena.gomez@lgu.gov.ph",
-    role: "ADMIN",
-    status: "ACTIVE",
-    joinedDate: "Feb 14, 2025",
-    lastActive: "5 mins ago",
-    reportsHandled: 12,
-    reportsResolved: 12,
-  },
-  5: {
-    firstName: "Carlos",
-    lastName: "Reyes",
-    middleName: "",
-    email: "carlos.reyes@lgu.gov.ph",
-    role: "SUPERVISOR",
-    status: "ACTIVE",
-    joinedDate: "Jan 3, 2025",
-    lastActive: "1 hour ago",
-    reportsHandled: 85,
-    reportsResolved: 78,
-  },
-};
+const { employeeProfiles: MOCK_EMPLOYEES } = mockData;
 
 function UserIcon() {
   return (

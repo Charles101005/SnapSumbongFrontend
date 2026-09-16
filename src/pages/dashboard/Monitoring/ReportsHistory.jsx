@@ -2,37 +2,10 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import "./ReportsHistory.css";
+import mockData from "../../../data/mock.json";
 
-const MOCK_REPORTS = [
-  { id: "HIZ-4421", category: "Uneven Roads", location: "Sampaloc, Manila", dateReported: "Oct 14, 2025", status: "RESOLVED", severity: "P5" },
-  { id: "HIZ-4422", category: "Road Debris", location: "Ermita, Manila", dateReported: "Oct 15, 2025", status: "ONGOING", severity: "P3" },
-  { id: "HIZ-4423", category: "Potholes", location: "Brgy 724, Manila", dateReported: "Oct 16, 2025", status: "PENDING", severity: "P1" },
-  { id: "HIZ-4424", category: "Uneven Roads", location: "Binondo, Manila", dateReported: "Oct 17, 2025", status: "PENDING", severity: "P3" },
-  { id: "HIZ-4425", category: "Road Debris", location: "Sampaloc, Manila", dateReported: "Oct 18, 2025", status: "ONGOING", severity: "P5" },
-  { id: "HIZ-4426", category: "Potholes", location: "Malate, Manila", dateReported: "Oct 19, 2025", status: "PENDING", severity: "P1" },
-  { id: "HIZ-4427", category: "Uneven Roads", location: "Santa Cruz, Manila", dateReported: "Oct 20, 2025", status: "RESOLVED", severity: "P5" },
-  { id: "HIZ-4428", category: "Road Debris", location: "Intramuros, Manila", dateReported: "Oct 21, 2025", status: "ONGOING", severity: "P3" },
-  { id: "HIZ-4429", category: "Potholes", location: "Tondo, Manila", dateReported: "Oct 22, 2025", status: "PENDING", severity: "P1" },
-  { id: "HIZ-4430", category: "Flooding", location: "Quiapo, Manila", dateReported: "Oct 23, 2025", status: "RESOLVED", severity: "P4" },
-  { id: "HIZ-4431", category: "Fallen Tree", location: "San Andres, Manila", dateReported: "Oct 24, 2025", status: "ONGOING", severity: "P2" },
-  { id: "HIZ-4432", category: "Garbage Buildup", location: "Paco, Manila", dateReported: "Oct 25, 2025", status: "RESOLVED", severity: "P5" },
-  { id: "HIZ-4433", category: "Flooding", location: "Sampaloc, Manila", dateReported: "Oct 26, 2025", status: "ONGOING", severity: "P3" },
-  { id: "HIZ-4434", category: "Potholes", location: "Ermita, Manila", dateReported: "Oct 27, 2025", status: "RESOLVED", severity: "P4" },
-  { id: "HIZ-4435", category: "Uneven Roads", location: "Binondo, Manila", dateReported: "Oct 28, 2025", status: "PENDING", severity: "P2" },
-  { id: "HIZ-4436", category: "Road Debris", location: "Tondo, Manila", dateReported: "Oct 29, 2025", status: "RESOLVED", severity: "P5" },
-  { id: "HIZ-4437", category: "Fallen Tree", location: "Quiapo, Manila", dateReported: "Oct 30, 2025", status: "ONGOING", severity: "P1" },
-  { id: "HIZ-4438", category: "Garbage Buildup", location: "Malate, Manila", dateReported: "Oct 31, 2025", status: "RESOLVED", severity: "P3" },
-  { id: "HIZ-4439", category: "Flooding", location: "Santa Cruz, Manila", dateReported: "Nov 1, 2025", status: "PENDING", severity: "P4" },
-  { id: "HIZ-4440", category: "Potholes", location: "Intramuros, Manila", dateReported: "Nov 2, 2025", status: "RESOLVED", severity: "P2" },
-  { id: "HIZ-4441", category: "Uneven Roads", location: "San Andres, Manila", dateReported: "Nov 3, 2025", status: "ONGOING", severity: "P5" },
-  { id: "HIZ-4442", category: "Road Debris", location: "Paco, Manila", dateReported: "Nov 4, 2025", status: "PENDING", severity: "P1" },
-  { id: "HIZ-4443", category: "Garbage Buildup", location: "Sampaloc, Manila", dateReported: "Nov 5, 2025", status: "RESOLVED", severity: "P3" },
-  { id: "HIZ-4444", category: "Fallen Tree", location: "Ermita, Manila", dateReported: "Nov 6, 2025", status: "ONGOING", severity: "P4" },
-];
-
-const CATEGORIES = ["All Categories", "Uneven Roads", "Road Debris", "Potholes", "Flooding", "Fallen Tree", "Garbage Buildup"];
-const SEVERITIES = ["All Severities", "P1", "P2", "P3", "P4", "P5"];
-const STATUSES = ["All Statuses", "RESOLVED", "ONGOING", "PENDING"];
+const { reportsHistory: MOCK_REPORTS, constants } = mockData;
+const { categories: CATEGORIES, severities: SEVERITIES, historyStatuses: STATUSES } = constants;
 const ROWS_PER_PAGE = 9;
 
 function SearchIcon() {

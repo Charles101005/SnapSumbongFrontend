@@ -182,3 +182,17 @@
 .btn-modal-cancel:hover {
   color: #0f172a;
 }
+
+/* --- RESPONSIVE (mobile ≤640px) --- */
+@media (max-width: 640px) {
+  .modal-overlay {
+    padding: 16px;
+  }
+  .modal-card {
+    padding: 20px 16px;
+    border-radius: 16px;
+  }
+  .modal-title {
+    font-size: 1.1rem;
+  }
+}

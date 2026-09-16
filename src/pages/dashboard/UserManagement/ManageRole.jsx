@@ -2,55 +2,9 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import "./ManageRole.css";
+import mockData from "../../../data/mock.json";
 
-const MOCK_ROLES = [
-  {
-    id: 1,
-    name: "Admin",
-    color: "#7c3aed",
-    permissions: ["FULL SYSTEM ACCESS", "SYSTEM/ALL", "SUPERVISORS/ALL", "AUTHORITY/ALL"],
-  },
-  {
-    id: 2,
-    name: "Staff/Officer",
-    color: "#2563eb",
-    permissions: ["REPORT_MANAGE", "PRIORITY_ASSIGNMENT"],
-  },
-  {
-    id: 3,
-    name: "User",
-    color: "#16a34a",
-    permissions: ["REPORT_VIEW_UPDATE"],
-  },
-];
-
-const PERMISSION_MODULES = [
-  {
-    id: "report",
-    name: "Report Module",
-    permissions: [
-      { id: "REPORT_VIEW", label: "REPORT_VIEW", description: "View all reports in the system" },
-      { id: "REPORT_MANAGE", label: "REPORT_MANAGE", description: "Create, update, and delete reports" },
-      { id: "REPORT_ASSIGN", label: "REPORT_ASSIGN", description: "Assign reports to personnel" },
-    ],
-  },
-  {
-    id: "user",
-    name: "User Module",
-    permissions: [
-      { id: "USER_VIEW", label: "USER_VIEW", description: "View user accounts" },
-      { id: "USER_MANAGE", label: "USER_MANAGE", description: "Create, update, and delete user accounts" },
-      { id: "USER_ASSIGN", label: "USER_ASSIGN", description: "Assign roles to users" },
-    ],
-  },
-  {
-    id: "audit",
-    name: "Audit Trail Module",
-    permissions: [
-      { id: "AUDIT_VIEW_ALL", label: "AUDIT_VIEW_ALL", description: "Access to all audit logs of the system" },
-    ],
-  },
-];
+const { roles: MOCK_ROLES, permissionModules: PERMISSION_MODULES } = mockData;
 
 function ChevronIcon({ expanded }) {
   return (

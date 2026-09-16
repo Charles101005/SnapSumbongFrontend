@@ -1,97 +1,9 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import "./CitizenProfile.css";
+import mockData from "../../../data/mock.json";
 
-const MOCK_CITIZENS = {
-  1: {
-    firstName: "Juan",
-    lastName: "Daet",
-    middleName: "",
-    email: "juan.daet@email.com",
-    status: "ACTIVE",
-    joinedDate: "Jan 15, 2026",
-    lastActive: "2 mins ago",
-    reportsSubmitted: 5,
-    reportsResolved: 3,
-  },
-  2: {
-    firstName: "Ricardo",
-    lastName: "Ramos",
-    middleName: "",
-    email: "ricardo.r@email.com",
-    status: "ACTIVE",
-    joinedDate: "Mar 10, 2025",
-    lastActive: "1 hour ago",
-    reportsSubmitted: 12,
-    reportsResolved: 9,
-  },
-  3: {
-    firstName: "Elena",
-    lastName: "Cruz",
-    middleName: "",
-    email: "elena.cruz@email.com",
-    status: "ACTIVE",
-    joinedDate: "Jun 22, 2025",
-    lastActive: "3 days ago",
-    reportsSubmitted: 8,
-    reportsResolved: 7,
-  },
-  4: {
-    firstName: "Juan",
-    lastName: "Dela Cruz",
-    middleName: "",
-    email: "juan.dc@email.com",
-    status: "DEACTIVATED",
-    joinedDate: "Feb 5, 2025",
-    lastActive: "5 mins ago",
-    reportsSubmitted: 3,
-    reportsResolved: 1,
-  },
-  5: {
-    firstName: "Sofia",
-    lastName: "Reyes",
-    middleName: "",
-    email: "sofia.reyes@email.com",
-    status: "ACTIVE",
-    joinedDate: "Sep 18, 2025",
-    lastActive: "10 mins ago",
-    reportsSubmitted: 15,
-    reportsResolved: 14,
-  },
-  6: {
-    firstName: "Antonio",
-    lastName: "Luna",
-    middleName: "",
-    email: "a.luna@email.com",
-    status: "ACTIVE",
-    joinedDate: "Jul 1, 2025",
-    lastActive: "Yesterday",
-    reportsSubmitted: 7,
-    reportsResolved: 6,
-  },
-  7: {
-    firstName: "Liza",
-    lastName: "Santos",
-    middleName: "",
-    email: "liza.sj@email.com",
-    status: "DEACTIVATED",
-    joinedDate: "Apr 12, 2025",
-    lastActive: "1 week ago",
-    reportsSubmitted: 4,
-    reportsResolved: 2,
-  },
-  8: {
-    firstName: "Manuel",
-    lastName: "Quezon",
-    middleName: "",
-    email: "quezon.m@email.com",
-    status: "ACTIVE",
-    joinedDate: "May 25, 2025",
-    lastActive: "3 hours ago",
-    reportsSubmitted: 10,
-    reportsResolved: 8,
-  },
-};
+const { citizenProfiles: MOCK_CITIZENS } = mockData;
 
 function UserIcon() {
   return (

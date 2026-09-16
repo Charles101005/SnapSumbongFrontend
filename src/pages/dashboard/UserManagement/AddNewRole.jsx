@@ -2,34 +2,9 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import "./AddNewRole.css";
+import mockData from "../../../data/mock.json";
 
-const PERMISSION_MODULES = [
-  {
-    id: "report",
-    name: "Report Module",
-    permissions: [
-      { id: "REPORT_VIEW", label: "REPORT_VIEW", description: "View all reports in the system" },
-      { id: "REPORT_MANAGE", label: "REPORT_MANAGE", description: "Create, update, and delete reports" },
-      { id: "REPORT_ASSIGN", label: "REPORT_ASSIGN", description: "Assign reports to personnel" },
-    ],
-  },
-  {
-    id: "user",
-    name: "User Module",
-    permissions: [
-      { id: "USER_VIEW", label: "USER_VIEW", description: "View user accounts" },
-      { id: "USER_MANAGE", label: "USER_MANAGE", description: "Create, update, and delete user accounts" },
-      { id: "USER_ASSIGN", label: "USER_ASSIGN", description: "Assign roles to users" },
-    ],
-  },
-  {
-    id: "audit",
-    name: "Audit Trail Module",
-    permissions: [
-      { id: "AUDIT_VIEW_ALL", label: "AUDIT_VIEW_ALL", description: "Access to all audit logs of the system" },
-    ],
-  },
-];
+const { permissionModules: PERMISSION_MODULES } = mockData;
 
 function ChevronIcon({ expanded }) {
   return (

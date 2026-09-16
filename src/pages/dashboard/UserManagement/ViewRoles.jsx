@@ -2,28 +2,9 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import "./ViewRoles.css";
+import mockData from "../../../data/mock.json";
 
-const MOCK_ROLES = [
-  {
-    id: 1,
-    name: "Admin",
-    color: "#7c3aed",
-    permissions: ["FULL SYSTEM ACCESS", "SYSTEM/ALL", "SUPERVISORS/ALL", "AUTHORITY/ALL"],
-  },
-  {
-    id: 2,
-    name: "Staff/Officer",
-    color: "#2563eb",
-    permissions: ["REPORT MANAGE", "PRIORITY ASSIGNMENT"],
-  },
-  {
-    id: 3,
-    name: "User",
-    color: "#16a34a",
-    permissions: ["REPORT VIEW/UPDATE"],
-  },
-];
-
+const { roles: MOCK_ROLES } = mockData;
 const ROWS_PER_PAGE = 4;
 
 function PlusIcon() {

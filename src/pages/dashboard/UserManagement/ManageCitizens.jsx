@@ -2,66 +2,9 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import "./ManageCitizens.css";
+import mockData from "../../../data/mock.json";
 
-const MOCK_CITIZENS = [
-  {
-    id: 1,
-    name: "Juan Daet",
-    email: "juan.daet@email.com",
-    status: "ACTIVE",
-    lastActivity: "2 mins ago",
-  },
-  {
-    id: 2,
-    name: "Ricardo Ramos",
-    email: "ricardo.r@email.com",
-    status: "ACTIVE",
-    lastActivity: "1 hour ago",
-  },
-  {
-    id: 3,
-    name: "Elena Cruz",
-    email: "elena.cruz@email.com",
-    status: "ACTIVE",
-    lastActivity: "3 days ago",
-  },
-  {
-    id: 4,
-    name: "Juan Dela Cruz",
-    email: "juan.dc@email.com",
-    status: "DEACTIVATED",
-    lastActivity: "5 mins ago",
-  },
-  {
-    id: 5,
-    name: "Sofia Reyes",
-    email: "sofia.reyes@email.com",
-    status: "ACTIVE",
-    lastActivity: "10 mins ago",
-  },
-  {
-    id: 6,
-    name: "Antonio Luna",
-    email: "a.luna@email.com",
-    status: "ACTIVE",
-    lastActivity: "Yesterday",
-  },
-  {
-    id: 7,
-    name: "Liza Santos",
-    email: "liza.sj@email.com",
-    status: "DEACTIVATED",
-    lastActivity: "1 week ago",
-  },
-  {
-    id: 8,
-    name: "Manuel Quezon",
-    email: "quezon.m@email.com",
-    status: "ACTIVE",
-    lastActivity: "3 hours ago",
-  },
-];
-
+const { citizens: MOCK_CITIZENS } = mockData;
 const ROWS_PER_PAGE = 8;
 
 export default function ManageCitizens() {
