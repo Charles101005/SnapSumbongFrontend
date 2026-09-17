@@ -480,6 +480,11 @@ export default function MyReport() {
 
       {/* Reports Table Card */}
       <div className="card table-card">
+        {/* Scroll happens here, not on .table-card — keeps the rounded-corner
+            card visuals separate from the sticky/scroll positioning context,
+            which is what was causing the sticky Report ID column to glitch
+            on mobile. */}
+        <div className="table-scroll-wrapper">
         <table className="reports-table">
           <thead>
             <tr>
@@ -527,6 +532,7 @@ export default function MyReport() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Pagination */}

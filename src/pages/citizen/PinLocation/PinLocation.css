@@ -40,6 +40,11 @@
  height: 420px;
  background-color: #a4c2db;
  overflow: hidden;
+ /* Establishes a local stacking context so the locate button below (and
+    Leaflet's own zoom controls, which also use z-index: 1000 internally)
+    are contained here instead of escaping to compare against app-level
+    chrome like the mobile sidebar (z-index 200) and its overlay (150). */
+ z-index: 1;
 }
 
 
@@ -258,4 +263,3 @@
    justify-content: center;
  }
 }
-

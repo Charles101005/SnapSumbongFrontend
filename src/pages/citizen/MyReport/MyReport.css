@@ -5,23 +5,6 @@
   min-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: #1e293b;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  overflow-x: clip;
-}
-
-.app .reports-list-container,
-.app .reports-detail-container {
-  padding: 0;
-  background-color: transparent;
-  min-height: auto;
-  max-width: 100%;
-  min-width: 0;
-  width: 100%;
-  box-sizing: border-box;
-  overflow-x: clip;
 }
 
 /* Page Header */
@@ -130,16 +113,10 @@
 
 .filter-actions {
   display: flex;
-  align-items: center;
   gap: 8px;
 }
 
 .btn-apply {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  white-space: nowrap;
   background-color: #2563eb;
   color: #ffffff;
   border: none;
@@ -150,11 +127,6 @@
 }
 
 .btn-reset {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  white-space: nowrap;
   background-color: transparent;
   color: #64748b;
   border: 1px solid #cbd5e1;
@@ -189,41 +161,34 @@
 /* Table Card */
 .table-card {
   padding: 0;
-  overflow: hidden;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-}
-
-/* Beat `.app .card { padding: 24px 28px !important; width: 100% !important; }`
-   from ReportHazards.css so the table stays edge-to-edge and scrollable. (Responsive Table Design)*/
-.app .reports-list-container .table-card {
-  padding: 0 !important;
-  width: 100% !important;
-  max-width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
+  /* This element now only owns the visual card (rounded corners, border,
+     shadow, from .card) and clips those corners. Scrolling and the sticky
+     positioning context live one level down, in .table-scroll-wrapper —
+     combining rounded corners + overflow-x:auto + a position:sticky
+     descendant on a single element is what caused the sticky Report ID
+     column to glitch/overlap on mobile WebKit. */
   overflow: hidden;
 }
 
 .table-scroll-wrapper {
-  display: block;
-  width: 100%;
-  max-width: 100%;
   overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  position: relative;
-  touch-action: pan-x pan-y;
-  overscroll-behavior-x: contain;
-  scrollbar-width: thin;
+  overflow-y: hidden; /* only horizontal scroll is needed; avoids visible/auto axis quirks */
+  /* NOTE: intentionally no -webkit-overflow-scrolling: touch here — on iOS
+     it conflicts with the position: sticky Report ID column below, causing
+     the sticky cell to repaint a frame behind the actual scroll position
+     and visually overlap the next column. Modern Safari scrolls natively
+     without this property, so dropping it is the fix, not a regression. */
 }
 
 .reports-table {
   width: 100%;
-  min-width: 640px;
-  border-collapse: collapse;
+  min-width: 640px; /* keeps columns from squishing unreadably; card scrolls horizontally below this width */
+  /* `separate` (not `collapse`) — Safari/iOS drops `position: sticky` on
+     table cells when border-collapse is used, which is exactly why the
+     pinned Report ID column was still scrolling away on mobile. Only
+     border-bottom is used on th/td below, so this has no visual effect. */
+  border-collapse: separate;
+  border-spacing: 0;
   text-align: left;
 }
 
@@ -234,7 +199,6 @@
   font-weight: 700;
   color: #64748b;
   border-bottom: 1px solid #e2e8f0;
-  white-space: nowrap;
 }
 
 .reports-table td {
@@ -242,11 +206,26 @@
   border-bottom: 1px solid #f1f5f9;
   font-size: 14px;
   color: #334155;
-  white-space: nowrap;
 }
 
-.reports-table td .status-badge {
-  white-space: nowrap;
+/* Report ID stays pinned to the left while the rest of the table scrolls
+   horizontally, so the row's identity never scrolls out of view. */
+.reports-table th:first-child,
+.reports-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #f8fafc; /* match header/body backgrounds so scrolling content doesn't show through */
+  box-shadow: 1px 0 0 0 #e2e8f0; /* thin divider so the pinned edge reads clearly once scrolled */
+  /* Forces its own compositing layer so iOS repaints it in sync with
+     scroll instead of a frame behind, which is what caused the sticky
+     column to visually overlap the next column mid-scroll. */
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.reports-table td:first-child {
+  background: #ffffff;
 }
 
 .report-id-cell {
@@ -585,179 +564,120 @@
   line-height: 1.4;
 }
 
-/* --- RESPONSIVE (mobile ≤640px) --- */
-@media (max-width: 640px) {
- .reports-list-container,
- .reports-detail-container {
-   padding: 16px;
-   min-width: 0;
-   max-width: 100%;
-   width: 100%;
-   box-sizing: border-box;
-  }
-  .app .reports-list-container,
-  .app .reports-detail-container {
-    padding: 0;
+/* --- RESPONSIVE --- */
+
+/* Tablet: stats grid to 2 columns, detail side panel stacks below main column */
+@media (max-width: 900px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 
-  /* Stats: 4 columns -> 2 columns */
+  .detail-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-side-column {
+    order: -1;
+  }
+}
+
+/* Mobile: matches the .app hamburger-btn breakpoint used by CitizenLayout,
+   which only handles the sidebar/nav — the content below still needs its
+   own stacking rules. */
+@media (max-width: 640px) {
+  .reports-list-container,
+  .reports-detail-container {
+    padding: 16px;
+    /* clear the fixed hamburger button (top: 12px, 40px tall) */
+    padding-top: 64px;
+  }
+
+  .page-header h1 {
+    font-size: 20px;
+  }
+
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
+
   .stat-card {
-    min-width: 0;
+    padding: 12px;
+    gap: 12px;
   }
 
-  /* Filters: stack vertically */
+  .stat-value {
+    font-size: 17px;
+  }
+
+  /* Filters stack full-width instead of the desktop inline row */
   .filters-card {
     flex-direction: column;
     align-items: stretch;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    box-sizing: border-box;
-  }
-  .app .reports-list-container .filters-card {
-    padding: 16px !important;
-  }
-  .filter-group {
-    flex: none;
-    min-width: 0;
-    width: 100%;
-  }
-  .filter-group select,
-  .filter-group input {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    box-sizing: border-box;
-  }
-  .filter-actions {
-    flex-direction: row;
-    width: 100%;
-  }
-  .filter-actions button {
-    flex: 1;
-    min-width: 0;
-  }
-
-  /* Table: reduced padding + sticky first column */
-  .table-card,
-  .app .reports-list-container .table-card {
-    overflow: hidden;
-    min-width: 0;
-    max-width: 100%;
-    width: 100%;
-  }
-  .table-scroll-wrapper {
-    max-width: 100%;
-  }
-  .reports-table {
-    min-width: 600px;
-  }
-  .reports-table th {
-    padding: 10px 12px;
-  }
-  .reports-table td {
-    padding: 10px 12px;
-    font-size: 13px;
-  }
-
-  /* Sticky REPORT ID column */
-  .reports-table th:first-child,
-  .reports-table td:first-child {
-    position: sticky;
-    left: 0;
-    z-index: 1;
-  }
-  .reports-table th:first-child {
-    background: #f8fafc;
-    border-right: 1px solid #e2e8f0;
-    z-index: 3;
-  }
-  .reports-table td:first-child {
-    background: #ffffff;
-    border-right: 1px solid #f1f5f9;
-    box-shadow: 4px 0 8px -4px rgba(15, 23, 42, 0.12);
-  }
-
- /* Pagination: stack */
- .pagination {
-   flex-direction: column;
-   gap: 12px;
-   align-items: center;
- }
-
-  /* Detail view: single column */
-  .detail-layout {
-    grid-template-columns: 1fr;
-    min-width: 0;
-  }
-  .detail-main-column,
-  .detail-side-column {
-    min-width: 0;
-    max-width: 100%;
-  }
-  .report-status-card {
-    flex-direction: column;
-    align-items: flex-start;
     gap: 12px;
   }
 
-  /* Timeline: allow sideways swipe instead of crushing 4 steps */
-  .timeline-stepper {
-    overflow-x: auto;
-    gap: 8px;
-    padding-bottom: 8px;
-    touch-action: pan-x pan-y;
-    overscroll-behavior-x: contain;
-    margin-left: -4px;
-    margin-right: -4px;
-    padding-left: 4px;
-    padding-right: 4px;
-  }
-  .timeline-step {
-    min-width: 76px;
-    flex: 1 0 76px;
-  }
-  .timeline-stepper::before {
-    left: 12%;
-    right: 12%;
+  .filter-group,
+  .search-filter-group {
+    flex: none;
+    width: 100%;
   }
 
-  /* Submission content: single column */
-  .submission-content-grid {
-    grid-template-columns: 1fr;
+  .filter-actions {
+    width: 100%;
   }
-   .photo-grid {
-     grid-template-columns: repeat(2, 1fr);
-   }
-}
 
-/* --- RESPONSIVE (very small mobile ≤480px) --- */
-@media (max-width: 480px) {
- .reports-list-container,
- .reports-detail-container {
-   padding: 12px;
+  .filter-actions .btn-apply,
+  .filter-actions .btn-reset {
+    flex: 1;
   }
-  .app .reports-list-container,
-  .app .reports-detail-container {
-    padding: 0;
+
+  /* Table keeps its horizontal scroll (min-width: 640px on .reports-table)
+     so wide columns stay readable instead of squishing */
+  .reports-table th,
+  .reports-table td {
+    padding: 12px 14px;
   }
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
+
+  .pagination {
+    flex-direction: column;
+    align-items: flex-start;
     gap: 10px;
-  }
-  .stat-card {
-    padding: 12px;
-  }
-  .reports-table {
-    min-width: 560px;
   }
 
   .pagination-buttons {
     flex-wrap: wrap;
-    justify-content: center;
+  }
+
+  /* Detail view */
+  .submission-content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .photos-column {
+    order: 2;
+  }
+
+  .details-column {
+    order: 1;
+  }
+
+  .timeline-stepper {
+    flex-wrap: wrap;
+    row-gap: 16px;
+  }
+
+  .timeline-stepper::before {
+    display: none;
+  }
+
+  .timeline-step {
+    flex: 1 1 45%;
+  }
+
+  .report-status-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
   }
 }
