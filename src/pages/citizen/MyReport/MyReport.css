@@ -201,9 +201,14 @@
   letter-spacing: 0.3px;
 }
 
+.status-new { background: #ede9fe; color: #6d28d9; }
+.status-open { background: #e0edff; color: #1d4ed8; }
 .status-in-progress { background: #e0edff; color: #1d4ed8; }
-.status-resolved { background: #dcfce7; color: #15803d; }
 .status-pending { background: #fef3c7; color: #b45309; }
+.status-on-hold { background: #fef3c7; color: #b45309; }
+.status-under-repair { background: #e0edff; color: #1d4ed8; }
+.status-resolved { background: #dcfce7; color: #15803d; }
+.status-closed { background: #dcfce7; color: #15803d; }
 
 .action-view-btn {
   background: none;

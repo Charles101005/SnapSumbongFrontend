@@ -1,286 +1,358 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import './MyReport.css';
+import { getReports, getReportDetail, getHazardCategories } from '../../../api/reports';
+import { hazardMarkerIcon } from '../../../utils/leafletHelpers';
 
-const MOCK_REPORTS = [
-  {
-    id: '#HZ-4431',
-    category: 'Pothole',
-    dateSubmitted: 'Oct 12, 2023',
-    status: 'IN PROGRESS',
-    description: 'Deep pothole right in the middle of the lane. Cars are swerving to avoid it, which is very dangerous during rush hour. It\'s about 10 inches deep.',
-    coordinates: '14.5995° N, 120.9842° E',
-    address: 'Main St. & 4th Ave Intersection',
-    timeline: [
-      { label: 'Report Received', date: 'Oct 12, 2023', completed: true },
-      { label: 'Under Verification', date: 'Oct 13, 2023', completed: true },
-      { label: 'Under Repair', date: 'Pending', completed: false },
-      { label: 'Ticket Resolved', date: 'Pending', completed: false },
-    ],
-    remarks: 'Report received and currently under review.',
-    photos: [
-      'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=400&q=80',
-      'https://images.unsplash.com/photo-1584463688353-29c11224d4bc?w=400&q=80',
-    ],
-  },
-  {
-    id: '#HZ-4390',
-    category: 'Uneven Roads',
-    dateSubmitted: 'Sep 28, 2023',
-    status: 'RESOLVED',
-    description: 'Uneven road surface causing vehicle instability.',
-    coordinates: '14.5818° N, 120.9770° E',
-    address: 'Rizal Park Area',
-    timeline: [
-      { label: 'Report Received', date: 'Sep 28, 2023', completed: true },
-      { label: 'Under Verification', date: 'Sep 29, 2023', completed: true },
-      { label: 'Under Repair', date: 'Oct 01, 2023', completed: true },
-      { label: 'Ticket Resolved', date: 'Oct 03, 2023', completed: true },
-    ],
-    remarks: 'Road resurfacing completed.',
-    photos: ['https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=400&q=80'],
-  },
-  {
-    id: '#HZ-4355',
-    category: 'Road Debris',
-    dateSubmitted: 'Sep 15, 2023',
-    status: 'RESOLVED',
-    description: 'Fallen tree branches blocking right lane.',
-    coordinates: '14.5900° N, 120.9800° E',
-    address: 'Taft Ave Extension',
-    timeline: [
-      { label: 'Report Received', date: 'Sep 15, 2023', completed: true },
-      { label: 'Under Verification', date: 'Sep 15, 2023', completed: true },
-      { label: 'Under Repair', date: 'Sep 16, 2023', completed: true },
-      { label: 'Ticket Resolved', date: 'Sep 16, 2023', completed: true },
-    ],
-    remarks: 'Debris cleared by local maintenance team.',
-    photos: [],
-  },
-  {
-    id: '#HZ-4210',
-    category: 'Uneven Roads',
-    dateSubmitted: 'Aug 30, 2023',
-    status: 'PENDING',
-    description: 'Cracked asphalt expanding near pedestrian lane.',
-    coordinates: '14.6000° N, 120.9900° E',
-    address: 'Espana Blvd',
-    timeline: [
-      { label: 'Report Received', date: 'Aug 30, 2023', completed: true },
-      { label: 'Under Verification', date: 'Pending', completed: false },
-      { label: 'Under Repair', date: 'Pending', completed: false },
-      { label: 'Ticket Resolved', date: 'Pending', completed: false },
-    ],
-    remarks: 'Queued for site inspection.',
-    photos: [],
-  },
-];
+const ROWS_PER_PAGE = 5; // Matches the backend's SmallListPagination page size.
 
-const ROWS_PER_PAGE = 4;
+// Mirrors HazardReports.Status on the backend. The API returns these raw
+// values, so we map them to a display label and a badge class here.
+const STATUS_META = {
+  NEW: { label: 'New', badgeClass: 'status-new' },
+  OPEN: { label: 'Open', badgeClass: 'status-open' },
+  IN_PROGRESS: { label: 'In Progress', badgeClass: 'status-in-progress' },
+  PENDING: { label: 'Pending', badgeClass: 'status-pending' },
+  ON_HOLD: { label: 'On Hold', badgeClass: 'status-on-hold' },
+  UNDER_REPAIR: { label: 'Under Repair', badgeClass: 'status-under-repair' },
+  RESOLVED: { label: 'Resolved', badgeClass: 'status-resolved' },
+  CLOSED: { label: 'Closed', badgeClass: 'status-closed' },
+};
+const STATUS_OPTIONS = Object.entries(STATUS_META).map(([value, meta]) => ({
+  value,
+  label: meta.label,
+}));
+
+const getStatusLabel = (status) => STATUS_META[status]?.label || status;
+const getStatusBadgeClass = (status) =>
+  `status-badge ${STATUS_META[status]?.badgeClass || ''}`;
+
+const formatDate = (isoString) => {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return isoString;
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+};
+
+const formatCoordinates = (latitude, longitude) => {
+  const lat = Number(latitude);
+  const lon = Number(longitude);
+  const latLabel = `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? 'N' : 'S'}`;
+  const lonLabel = `${Math.abs(lon).toFixed(4)}° ${lon >= 0 ? 'E' : 'W'}`;
+  return `${latLabel}, ${lonLabel}`;
+};
 
 export default function MyReport() {
-  const [selectedReport, setSelectedReport] = useState(null);
+  // --- Category options (for the filter dropdown) ---
+  const [categories, setCategories] = useState([]);
+
+  // --- Report list state (server-paginated/filtered) ---
+  const [reports, setReports] = useState([]);
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageMeta, setPageMeta] = useState({ count: 0, totalPages: 1 });
+
+  // --- Summary stat cards ---
+  // The API has no aggregate/stats endpoint, so these are derived from a few
+  // lightweight requests (page_size=1, we only read the `count`).
+  const [stats, setStats] = useState({ total: null, resolved: null, inProgress: null, pending: null });
+
+  // --- Detail view state ---
+  const [selectedReportRow, setSelectedReportRow] = useState(null); // the clicked row (has `category`)
+  const [selectedReportDetail, setSelectedReportDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
 
   // Temporary control states (bound to form controls)
-  const [tempCategory, setTempCategory] = useState('All Categories');
-  const [tempStatus, setTempStatus] = useState('All Statuses');
+  const [tempCategoryId, setTempCategoryId] = useState('');
+  const [tempStatus, setTempStatus] = useState('');
   const [tempDate, setTempDate] = useState('');
   const [tempSearch, setTempSearch] = useState('');
 
-  // Applied filter states (used to actually filter the data table)
-  const [appliedCategory, setAppliedCategory] = useState('All Categories');
-  const [appliedStatus, setAppliedStatus] = useState('All Statuses');
+  // Applied filter states (used to actually query the API)
+  const [appliedCategoryId, setAppliedCategoryId] = useState('');
+  const [appliedStatus, setAppliedStatus] = useState('');
   const [appliedDate, setAppliedDate] = useState('');
+  // Search has no server-side equivalent on this endpoint, so it only
+  // filters within whatever page is currently loaded.
   const [appliedSearch, setAppliedSearch] = useState('');
 
-  // Handle click on "Apply Filters"
+  // --- Load hazard categories once, for the filter dropdown ---
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getHazardCategories();
+        if (!cancelled) setCategories(data);
+      } catch {
+        // Non-critical — the filter dropdown just falls back to "All Categories".
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // --- Load the report list whenever filters or the page change ---
+  useEffect(() => {
+    let cancelled = false;
+    setListLoading(true);
+    setListError('');
+
+    (async () => {
+      try {
+        const params = { page: currentPage };
+        if (appliedCategoryId) params.category_id = appliedCategoryId;
+        if (appliedStatus) params.status = appliedStatus;
+        if (appliedDate) params.created_at = appliedDate;
+
+        const data = await getReports(params);
+        if (cancelled) return;
+        setReports(data.results || []);
+        setPageMeta({ count: data.count || 0, totalPages: data.total_pages || 1 });
+      } catch {
+        if (!cancelled) {
+          setListError("Couldn't load your reports. Please try again.");
+          setReports([]);
+        }
+      } finally {
+        if (!cancelled) setListLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [appliedCategoryId, appliedStatus, appliedDate, currentPage]);
+
+  // --- Load summary counts once on mount ---
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const [total, resolved, inProgress, pending] = await Promise.all([
+          getReports({ page_size: 1 }),
+          getReports({ page_size: 1, status: 'RESOLVED' }),
+          getReports({ page_size: 1, status: 'IN_PROGRESS' }),
+          getReports({ page_size: 1, status: 'PENDING' }),
+        ]);
+        if (cancelled) return;
+        setStats({
+          total: total.count,
+          resolved: resolved.count,
+          inProgress: inProgress.count,
+          pending: pending.count,
+        });
+      } catch {
+        // Leave stats blank rather than showing misleading numbers.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleApplyFilters = () => {
-    setAppliedCategory(tempCategory);
+    setAppliedCategoryId(tempCategoryId);
     setAppliedStatus(tempStatus);
     setAppliedDate(tempDate);
     setAppliedSearch(tempSearch);
     setCurrentPage(1);
   };
 
-  // Handle click on "Reset"
   const handleResetFilters = () => {
-    setTempCategory('All Categories');
-    setTempStatus('All Statuses');
+    setTempCategoryId('');
+    setTempStatus('');
     setTempDate('');
     setTempSearch('');
-    
-    setAppliedCategory('All Categories');
-    setAppliedStatus('All Statuses');
+
+    setAppliedCategoryId('');
+    setAppliedStatus('');
     setAppliedDate('');
     setAppliedSearch('');
     setCurrentPage(1);
   };
 
-  // Filter based ONLY on applied states
-  const filteredReports = useMemo(() => {
-    return MOCK_REPORTS.filter((report) => {
-      if (appliedCategory !== 'All Categories' && report.category !== appliedCategory) {
-        return false;
-      }
-      if (
-        appliedStatus !== 'All Statuses' &&
-        report.status.replaceAll(' ', '') !== appliedStatus.replaceAll(' ', '')
-      ) {
-        return false;
-      }
-      if (appliedDate && !report.dateSubmitted.includes(appliedDate)) {
-        return false;
-      }
-      if (appliedSearch) {
-        const q = appliedSearch.toLowerCase();
-        const match =
-          report.id.toLowerCase().includes(q) ||
-          report.category.toLowerCase().includes(q);
-        if (!match) return false;
-      }
-      return true;
-    });
-  }, [appliedCategory, appliedStatus, appliedDate, appliedSearch]);
+  // Client-side search over just the currently-loaded page.
+  const visibleReports = useMemo(() => {
+    if (!appliedSearch) return reports;
+    const q = appliedSearch.toLowerCase();
+    return reports.filter(
+      (report) =>
+        report.report_number.toLowerCase().includes(q) ||
+        report.category.toLowerCase().includes(q)
+    );
+  }, [reports, appliedSearch]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredReports.length / ROWS_PER_PAGE));
-  const safePage = Math.min(currentPage, totalPages);
-  const paginatedReports = filteredReports.slice((safePage - 1) * ROWS_PER_PAGE, safePage * ROWS_PER_PAGE);
-  const startRow = filteredReports.length === 0 ? 0 : (safePage - 1) * ROWS_PER_PAGE + 1;
-  const endRow = Math.min(safePage * ROWS_PER_PAGE, filteredReports.length);
+  const totalPages = Math.max(1, pageMeta.totalPages);
+  const startRow = pageMeta.count === 0 ? 0 : (currentPage - 1) * ROWS_PER_PAGE + 1;
+  const endRow = Math.min(currentPage * ROWS_PER_PAGE, pageMeta.count);
 
-  const getStatusBadgeClass = (status) => {
-    switch (status) {
-      case 'IN PROGRESS':
-        return 'status-badge status-in-progress';
-      case 'RESOLVED':
-        return 'status-badge status-resolved';
-      case 'PENDING':
-        return 'status-badge status-pending';
-      default:
-        return 'status-badge';
+  const handleViewDetails = useCallback(async (report) => {
+    setSelectedReportRow(report);
+    setSelectedReportDetail(null);
+    setDetailError('');
+    setDetailLoading(true);
+    try {
+      const data = await getReportDetail(report.report_number);
+      setSelectedReportDetail(data);
+    } catch {
+      setDetailError("Couldn't load this report's details. Please go back and try again.");
+    } finally {
+      setDetailLoading(false);
     }
+  }, []);
+
+  const handleBackToList = () => {
+    setSelectedReportRow(null);
+    setSelectedReportDetail(null);
+    setDetailError('');
   };
 
   // --- DETAIL VIEW ---
-  if (selectedReport) {
+  if (selectedReportRow) {
     return (
       <div className="reports-detail-container">
-        <button className="back-link-btn" onClick={() => setSelectedReport(null)}>
+        <button className="back-link-btn" onClick={handleBackToList}>
           &larr; Back to All Reports
         </button>
 
-        <div className="detail-layout">
-          {/* Main Detail Column */}
-          <div className="detail-main-column">
-            {/* Status Header Card */}
-            <div className="card report-status-card">
-              <div className="status-header-info">
-                <div className="status-icon-circle">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="16" x2="12" y2="12" />
-                    <line x1="12" y1="8" x2="12.01" y2="8" />
-                  </svg>
-                </div>
-                <div>
-                  <span className="report-id-sub">Report ID: {selectedReport.id}</span>
-                  <h2>{selectedReport.status}</h2>
-                </div>
-              </div>
-              <span className={getStatusBadgeClass(selectedReport.status)}>
-                {selectedReport.status}
-              </span>
-            </div>
+        {detailLoading && <p className="category-loading-state">Loading report details...</p>}
+        {detailError && <div className="form-error-banner">{detailError}</div>}
 
-            {/* Resolution Timeline */}
-            <div className="card timeline-card">
-              <h3>RESOLUTION TIMELINE</h3>
-              <div className="timeline-stepper">
-                {selectedReport.timeline.map((step, idx) => (
-                  <div key={idx} className={`timeline-step ${step.completed ? 'completed' : ''}`}>
-                    <div className="step-node">
-                      {step.completed ? (
+        {selectedReportDetail && (
+          <div className="detail-layout">
+            {/* Main Detail Column */}
+            <div className="detail-main-column">
+              {/* Status Header Card */}
+              <div className="card report-status-card">
+                <div className="status-header-info">
+                  <div className="status-icon-circle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="16" x2="12" y2="12" />
+                      <line x1="12" y1="8" x2="12.01" y2="8" />
+                    </svg>
+                  </div>
+                  <div>
+                    <span className="report-id-sub">Report ID: {selectedReportDetail.report_number}</span>
+                    <h2>{getStatusLabel(selectedReportDetail.status)}</h2>
+                  </div>
+                </div>
+                <span className={getStatusBadgeClass(selectedReportDetail.status)}>
+                  {getStatusLabel(selectedReportDetail.status)}
+                </span>
+              </div>
+
+              {/* Resolution Timeline */}
+              <div className="card timeline-card">
+                <h3>RESOLUTION TIMELINE</h3>
+                <div className="timeline-stepper">
+                  {(selectedReportDetail.status_timeline || []).map((step, idx) => (
+                    <div key={idx} className="timeline-step completed">
+                      <div className="step-node">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
-                      ) : (
-                        <div className="step-inner-circle" />
-                      )}
+                      </div>
+                      <div className="step-label">{getStatusLabel(step.status)}</div>
+                      <div className="step-date">{formatDate(step.created_at)}</div>
                     </div>
-                    <div className="step-label">{step.label}</div>
-                    <div className="step-date">{step.date}</div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-              <div className="remarks-box">
-                <span className="remarks-title">REMARKS:</span>
-                <p>{selectedReport.remarks}</p>
+
+              {/* Original Report Submission */}
+              <div className="card submission-card">
+                <h3>Original Report Submission</h3>
+                <div className="submission-content-grid">
+                  <div className="photos-column">
+                    {selectedReportDetail.image_urls && selectedReportDetail.image_urls.length > 0 ? (
+                      <div className="photo-grid">
+                        {selectedReportDetail.image_urls.map((src, i) => (
+                          <img key={i} src={src} alt={`Submission proof ${i + 1}`} />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="no-photos-placeholder">No Photos Attached</div>
+                    )}
+
+                    <div className="gps-location-box">
+                      <div className="gps-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2">
+                          <path d="M12 22s8-7.58 8-13a8 8 0 1 0-16 0c0 5.42 8 13 8 13Z" />
+                          <circle cx="12" cy="9" r="2.5" />
+                        </svg>
+                        <strong>GPS Coordinates</strong>
+                      </div>
+                      <span className="coords-text">
+                        {formatCoordinates(selectedReportDetail.latitude, selectedReportDetail.longitude)}
+                      </span>
+                      <span className="address-text">{selectedReportDetail.address}</span>
+                    </div>
+                  </div>
+
+                  <div className="details-column">
+                    <div className="user-description-section">
+                      <h4>USER DESCRIPTION</h4>
+                      <p>"{selectedReportDetail.description}"</p>
+                    </div>
+
+                    <div className="map-view-section">
+                      <h4>ATTACHED MAP VIEW</h4>
+                      <div className="map-preview-box">
+                        <MapContainer
+                          key={`${selectedReportDetail.latitude}-${selectedReportDetail.longitude}`}
+                          center={[
+                            Number(selectedReportDetail.latitude),
+                            Number(selectedReportDetail.longitude),
+                          ]}
+                          zoom={16}
+                          style={{ width: '100%', height: '100%' }}
+                          zoomControl={false}
+                          dragging={false}
+                          scrollWheelZoom={false}
+                          doubleClickZoom={false}
+                          touchZoom={false}
+                          boxZoom={false}
+                          keyboard={false}
+                          attributionControl={false}
+                        >
+                          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                          <Marker
+                            position={[
+                              Number(selectedReportDetail.latitude),
+                              Number(selectedReportDetail.longitude),
+                            ]}
+                            icon={hazardMarkerIcon}
+                          />
+                        </MapContainer>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Original Report Submission */}
-            <div className="card submission-card">
-              <h3>Original Report Submission</h3>
-              <div className="submission-content-grid">
-                <div className="photos-column">
-                  {selectedReport.photos.length > 0 ? (
-                    <div className="photo-grid">
-                      {selectedReport.photos.map((src, i) => (
-                        <img key={i} src={src} alt={`Submission proof ${i + 1}`} />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="no-photos-placeholder">No Photos Attached</div>
-                  )}
-
-                  <div className="gps-location-box">
-                    <div className="gps-header">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2">
-                        <path d="M12 22s8-7.58 8-13a8 8 0 1 0-16 0c0 5.42 8 13 8 13Z" />
-                        <circle cx="12" cy="9" r="2.5" />
-                      </svg>
-                      <strong>GPS Coordinates</strong>
-                    </div>
-                    <span className="coords-text">{selectedReport.coordinates}</span>
-                    <span className="address-text">{selectedReport.address}</span>
-                  </div>
-                </div>
-
-                <div className="details-column">
-                  <div className="user-description-section">
-                    <h4>USER DESCRIPTION</h4>
-                    <p>"{selectedReport.description}"</p>
-                  </div>
-
-                  <div className="map-view-section">
-                    <h4>ATTACHED MAP VIEW</h4>
-                    <div className="map-preview-box">
-                      <img
-                        src="https://tile.openstreetmap.org/15/27393/14660.png"
-                        alt="Map Location"
-                      />
-                      <div className="map-pin"></div>
-                    </div>
-                  </div>
+            {/* Side Panel: LGU Resolution Proof */}
+            <div className="detail-side-column">
+              <div className="card resolution-proof-card">
+                <h3>LGU Resolution Proof</h3>
+                <div className="proof-placeholder-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                  <p>Photo of the repair will appear here once the case is marked 'Resolved'</p>
                 </div>
               </div>
             </div>
           </div>
-
-          {/* Side Panel: LGU Resolution Proof */}
-          <div className="detail-side-column">
-            <div className="card resolution-proof-card">
-              <h3>LGU Resolution Proof</h3>
-              <div className="proof-placeholder-box">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z" />
-                  <circle cx="12" cy="13" r="4" />
-                </svg>
-                <p>Photo of the repair will appear here once the case is marked 'Resolved'</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     );
   }
@@ -304,7 +376,7 @@ export default function MyReport() {
           </div>
           <div>
             <span className="stat-label">TOTAL REPORTS</span>
-            <div className="stat-value">11</div>
+            <div className="stat-value">{stats.total ?? '—'}</div>
           </div>
         </div>
 
@@ -316,7 +388,7 @@ export default function MyReport() {
           </div>
           <div>
             <span className="stat-label">RESOLVED</span>
-            <div className="stat-value">4</div>
+            <div className="stat-value">{stats.resolved ?? '—'}</div>
           </div>
         </div>
 
@@ -329,7 +401,7 @@ export default function MyReport() {
           </div>
           <div>
             <span className="stat-label">IN PROGRESS</span>
-            <div className="stat-value">2</div>
+            <div className="stat-value">{stats.inProgress ?? '—'}</div>
           </div>
         </div>
 
@@ -343,7 +415,7 @@ export default function MyReport() {
           </div>
           <div>
             <span className="stat-label">PENDING</span>
-            <div className="stat-value">1</div>
+            <div className="stat-value">{stats.pending ?? '—'}</div>
           </div>
         </div>
       </div>
@@ -352,21 +424,25 @@ export default function MyReport() {
       <div className="card filters-card">
         <div className="filter-group">
           <label>Category</label>
-          <select value={tempCategory} onChange={(e) => setTempCategory(e.target.value)}>
-            <option>All Categories</option>
-            <option>Pothole</option>
-            <option>Uneven Roads</option>
-            <option>Road Debris</option>
+          <select value={tempCategoryId} onChange={(e) => setTempCategoryId(e.target.value)}>
+            <option value="">All Categories</option>
+            {categories.map((cat) => (
+              <option key={cat.hazard_id} value={cat.hazard_id}>
+                {cat.hazard_name}
+              </option>
+            ))}
           </select>
         </div>
 
         <div className="filter-group">
           <label>Status</label>
           <select value={tempStatus} onChange={(e) => setTempStatus(e.target.value)}>
-            <option>All Statuses</option>
-            <option>IN PROGRESS</option>
-            <option>RESOLVED</option>
-            <option>PENDING</option>
+            <option value="">All Statuses</option>
+            {STATUS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -415,21 +491,29 @@ export default function MyReport() {
             </tr>
           </thead>
           <tbody>
-            {paginatedReports.length > 0 ? (
-              paginatedReports.map((report) => (
-                <tr key={report.id}>
-                  <td className="report-id-cell">{report.id}</td>
+            {listLoading ? (
+              <tr>
+                <td colSpan="5" className="empty-table-message">Loading reports...</td>
+              </tr>
+            ) : listError ? (
+              <tr>
+                <td colSpan="5" className="empty-table-message">{listError}</td>
+              </tr>
+            ) : visibleReports.length > 0 ? (
+              visibleReports.map((report) => (
+                <tr key={report.report_number}>
+                  <td className="report-id-cell">{report.report_number}</td>
                   <td>{report.category}</td>
-                  <td>{report.dateSubmitted}</td>
+                  <td>{formatDate(report.created_at)}</td>
                   <td>
                     <span className={getStatusBadgeClass(report.status)}>
-                      {report.status}
+                      {getStatusLabel(report.status)}
                     </span>
                   </td>
                   <td>
                     <button
                       className="action-view-btn"
-                      onClick={() => setSelectedReport(report)}
+                      onClick={() => handleViewDetails(report)}
                     >
                       View Details
                     </button>
@@ -448,22 +532,22 @@ export default function MyReport() {
       {/* Pagination */}
       <div className="pagination">
         <span className="pagination-info">
-          Showing {startRow} to {endRow} of {filteredReports.length} reports
+          Showing {startRow} to {endRow} of {pageMeta.count} reports
         </span>
         <div className="pagination-buttons">
-          <button className="pagination-btn" disabled={safePage <= 1} onClick={() => setCurrentPage((p) => p - 1)}>
+          <button className="pagination-btn" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => p - 1)}>
             Previous
           </button>
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
             <button
               key={page}
-              className={`pagination-btn ${page === safePage ? 'active' : ''}`}
+              className={`pagination-btn ${page === currentPage ? 'active' : ''}`}
               onClick={() => setCurrentPage(page)}
             >
               {page}
             </button>
           ))}
-          <button className="pagination-btn" disabled={safePage >= totalPages} onClick={() => setCurrentPage((p) => p + 1)}>
+          <button className="pagination-btn" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => p + 1)}>
             Next
           </button>
         </div>

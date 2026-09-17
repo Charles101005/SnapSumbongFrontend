@@ -82,11 +82,38 @@ export const uploadHazardImageFiles = async (files) => {
 };
 
 // POST /reports/
-// payload: { category_ids, latitude, longitude, address, description, is_anonymous, image_urls }
+// payload: { category_id, latitude, longitude, address, description, is_anonymous, image_urls }
 // -> { report_number, reported_by, created_at }
 export const createHazardReport = async (payload) => {
     try {
         const response = await api.post("reports/", payload);
+        return response.data;
+    } catch (error) {
+        throw error.response.data;
+    }
+};
+
+// GET /reports/?category_id=&status=&created_at=YYYY-MM-DD&page=&page_size=
+// Only category_id, status and created_at (exact date) are supported server-side filters;
+// there is no free-text search filter on this endpoint.
+// -> { count, total_pages, current_page, next, previous,
+//      results: [{ report_number, category, status, created_at }] }
+export const getReports = async (params = {}) => {
+    try {
+        const response = await api.get("reports/", { params });
+        return response.data;
+    } catch (error) {
+        throw error.response.data;
+    }
+};
+
+// GET /reports/:report_number/
+// -> { report_number, status, latitude, longitude, address, description,
+//      image_urls, status_timeline: [{ status, created_at }] }
+// Note: category and remarks are NOT part of this response yet.
+export const getReportDetail = async (reportNumber) => {
+    try {
+        const response = await api.get(`reports/${reportNumber}/`);
         return response.data;
     } catch (error) {
         throw error.response.data;

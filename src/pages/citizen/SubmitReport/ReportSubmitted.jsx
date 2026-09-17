@@ -47,14 +47,14 @@ export default function ReportSubmitted() {
             className="btn-primary-blue"
             onClick={() => navigate("/report-hazards")}
           >
-            Go to Report Hazards
+            Report Another Hazard
           </button>
           <button
             type="button"
             className="btn-secondary-gray"
             onClick={() => navigate("/my-reports")}
           >
-            Go to My Reports
+            View My Reports
           </button>
         </div>
       </div>

@@ -25,6 +25,9 @@ import AuditTrail from "./pages/dashboard/AuditTrail/AuditTrail";
 import ReportHazards from "./pages/citizen/ReportHazards/ReportHazards";
 import PinLocation from "./pages/citizen/PinLocation/PinLocation";
 import ReportSubmitted from "./pages/citizen/SubmitReport/ReportSubmitted";
+import CitizenLayout from "./components/citizens/CitizenLayout/CitizenLayout";
+import MyReport from "./pages/citizen/MyReport/MyReport";
+import AccountSettingsRoute from "./pages/shared/AccountSettings/AccountSettingsRoute";
 
 function App() {
     const [authChecked, setAuthChecked] = useState(false);
@@ -59,7 +62,13 @@ function App() {
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/new-password" element={<NewPass />} />
 
-            <Route path="/report-hazards" element={<ReportHazards />} />
+            {/* Citizen portal pages share one sidebar layout, each with its own URL */}
+            <Route element={<CitizenLayout />}>
+                <Route path="/report-hazards" element={<ReportHazards />} />
+                <Route path="/my-reports" element={<MyReport />} />
+                <Route path="/account-settings" element={<AccountSettingsRoute />} />
+            </Route>
+
             <Route path="/pin-location" element={<PinLocation />} />
             <Route path="/report-submitted" element={<ReportSubmitted />} />
             <Route path="/dashboard/users/roles" element={<ViewRoles />} />

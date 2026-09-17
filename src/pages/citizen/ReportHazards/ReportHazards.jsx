@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import PinLocationPage from "../PinLocation/PinLocation";
 import SubmitReportModal from "../SubmitReport/SubmitReportModal";
 import UploadPhoto from "../UploadPhoto/UploadPhoto";
-import MyReport from "../MyReport/MyReport";
-import AccountSettings from "../../shared/AccountSettings/AccountSettings";
 import CategorySelection from "../CategorySelection/CategorySelection";
 import { getHazardCategories, createHazardReport, uploadHazardImageFiles } from "../../../api/reports";
-import { getCurrentUser } from "../../../api/accounts";
 import { hazardMarkerIcon, reverseGeocode } from "../../../utils/leafletHelpers";
 import "./ReportHazards.css";
 
@@ -21,22 +18,17 @@ const DEFAULT_LOCATION = {
 };
 
 const MAX_PHOTOS = 5;
-const MAX_CATEGORIES = 3;
+const MAX_CATEGORIES = 1; // Backend now stores a single category per report (FK, not M2M).
 
 export default function HazardReportForm() {
   const navigate = useNavigate();
+  // The sidebar/user profile now live in CitizenLayout, which renders this
+  // page inside its <Outlet />. `user` here is only needed for the "Submit
+  // as..." confirmation modal, which shows the reporter's name.
+  const { user } = useOutletContext();
 
-  // Navigation / View State ('form' | 'pin-location' | 'my-reports' | 'account-settings' | 'category-selection')
+  // Navigation / View State ('form' | 'pin-location' | 'category-selection')
   const [currentView, setCurrentView] = useState("form");
-
-  // User Profile State
-  const [user, setUser] = useState({
-    firstName: "",
-    middleName: "",
-    lastName: "",
-    email: "",
-    role: "",
-  });
 
   // Hazard Category State (fetched from the API)
   const [categories, setCategories] = useState([]);
@@ -73,7 +65,7 @@ export default function HazardReportForm() {
   );
   const isOtherCategorySelected = otherSelectedCategories.length > 0;
 
-  // --- Load categories and current user on mount ---
+  // --- Load categories on mount ---
   useEffect(() => {
     let cancelled = false;
 
@@ -89,22 +81,6 @@ export default function HazardReportForm() {
         if (!cancelled) setCategoriesError("Couldn't load hazard categories. Please refresh the page.");
       } finally {
         if (!cancelled) setCategoriesLoading(false);
-      }
-    })();
-
-    (async () => {
-      try {
-        const data = await getCurrentUser();
-        if (cancelled) return;
-        setUser({
-          firstName: data.first_name || "",
-          middleName: data.middle_name || "",
-          lastName: data.last_name || "",
-          email: data.email || "",
-          role: data.role || "",
-        });
-      } catch {
-        // Not logged in, or session expired — leave the form blank rather than guessing.
       }
     })();
 
@@ -146,19 +122,11 @@ export default function HazardReportForm() {
   };
 
   // --- Category Click Handler ---
-  // Toggles a category on/off, capped at MAX_CATEGORIES.
+  // A report can only have one category now, so picking a new one replaces
+  // whatever was previously selected instead of appending to a list.
   const handleCategoryClick = (hazardId) => {
-    setSelectedCategoryIds((prev) => {
-      if (prev.includes(hazardId)) {
-        return prev.filter((id) => id !== hazardId);
-      }
-      if (prev.length >= MAX_CATEGORIES) {
-        setSubmitError(`You can select up to ${MAX_CATEGORIES} categories.`);
-        return prev;
-      }
-      setSubmitError("");
-      return [...prev, hazardId];
-    });
+    setSubmitError("");
+    setSelectedCategoryIds((prev) => (prev.includes(hazardId) ? [] : [hazardId]));
   };
 
   const handleOthersClick = () => {
@@ -241,7 +209,7 @@ export default function HazardReportForm() {
       const imageUrls = await uploadHazardImageFiles(photos.map((p) => p.file));
 
       const result = await createHazardReport({
-        category_ids: selectedCategoryIds,
+        category_id: selectedCategoryIds[0],
         latitude: locationData.latitude,
         longitude: locationData.longitude,
         address: locationData.address,
@@ -267,90 +235,9 @@ export default function HazardReportForm() {
     }
   };
 
-  const handleUpdateUser = (updatedData) => {
-    setUser((prev) => ({ ...prev, ...updatedData }));
-  };
-
   return (
-    <div className="app">
-      {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="sidebar-top">
-          <div className="brand">
-            <div className="brand-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-7.58 8-13a8 8 0 1 0-16 0c0 5.42 8 13 8 13Z" />
-                <circle cx="12" cy="9" r="2.5" />
-              </svg>
-            </div>
-            <span>SnapSumbong</span>
-          </div>
-
-          <nav className="nav">
-            {/* My Reports Option */}
-            <button
-              className={`nav-item ${currentView === "my-reports" ? "active" : ""}`}
-              type="button"
-              onClick={() => setCurrentView("my-reports")}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
-              </svg>
-              My Reports
-            </button>
-
-            {/* Report Hazard Option */}
-            <button
-              className={`nav-item ${currentView === "form" || currentView === "pin-location" || currentView === "category-selection" ? "active" : ""}`}
-              type="button"
-              onClick={() => setCurrentView("form")}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="16"></line>
-                <line x1="8" y1="12" x2="16" y2="12"></line>
-              </svg>
-              Report Hazard
-            </button>
-          </nav>
-        </div>
-
-        <div className="user-card">
-          <div className="avatar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-          </div>
-          <div className="user-meta">
-            <span className="user-name">{fullName || "Guest"}</span>
-            <span className="user-role">{user.role || "Citizen"}</span>
-            <button
-              className={`account-settings ${currentView === "account-settings" ? "active" : ""}`}
-              type="button"
-              onClick={() => setCurrentView("account-settings")}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-              </svg>
-              Account Settings
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content Pane */}
-      <main className="main">
-        {currentView === "account-settings" ? (
-          <AccountSettings user={user} onUpdateUser={handleUpdateUser} />
-        ) : currentView === "my-reports" ? (
-          <MyReport />
-        ) : currentView === "pin-location" ? (
+    <>
+      {currentView === "pin-location" ? (
           <PinLocationPage
             initialLocation={locationData}
             onConfirm={(updatedLocation) => {
@@ -599,7 +486,6 @@ export default function HazardReportForm() {
             </form>
           </>
         )}
-      </main>
 
       {/* Upload Photo Modal */}
       <UploadPhoto
@@ -616,6 +502,6 @@ export default function HazardReportForm() {
         onConfirm={handleFinalSubmit}
         userName={fullName}
       />
-    </div>
+    </>
   );
 }

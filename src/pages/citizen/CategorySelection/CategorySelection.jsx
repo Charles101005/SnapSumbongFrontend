@@ -119,7 +119,7 @@ function getIconFor(name = "") {
 export default function CategorySelection({
   categories = [],
   initialCategoryIds = [],
-  maxSelections = 3,
+  maxSelections = 1,
   onSelectCategories,
   onBack,
 }) {
@@ -133,6 +133,12 @@ export default function CategorySelection({
         return prev.filter((id) => id !== hazardId);
       }
       if (prev.length >= maxSelections) {
+        // With a single-category report, picking a new one swaps out the old
+        // selection instead of blocking until the user manually deselects it.
+        if (maxSelections === 1) {
+          setLimitNotice("");
+          return [hazardId];
+        }
         setLimitNotice(`You can select up to ${maxSelections} categories.`);
         return prev;
       }
