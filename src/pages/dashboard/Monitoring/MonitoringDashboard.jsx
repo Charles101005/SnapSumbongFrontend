@@ -3,37 +3,10 @@ import { Link } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import ReportDetail from "./ReportDetail";
 import "./MonitoringDashboard.css";
+import mockData from "../../../data/mock.json";
 
-const MOCK_REPORTS = [
-  { id: "HRZ-4421", category: "Uneven Roads", location: "Sampaloc, Manila", dateReported: "Oct 14, 2025", status: "PENDING", severity: "P5" },
-  { id: "HRZ-4422", category: "Road Debris", location: "Ermita, Manila", dateReported: "Oct 15, 2025", status: "RESOLVED", severity: "P4" },
-  { id: "HRZ-4423", category: "Potholes", location: "Brgy 724, Manila", dateReported: "Oct 16, 2025", status: "PENDING", severity: "P3" },
-  { id: "HRZ-4424", category: "Uneven Roads", location: "Binondo, Manila", dateReported: "Oct 17, 2025", status: "PENDING", severity: "P2" },
-  { id: "HRZ-4425", category: "Flooding", location: "Tondo, Manila", dateReported: "Oct 18, 2025", status: "RESOLVED", severity: "P5" },
-  { id: "HRZ-4426", category: "Fallen Tree", location: "Quiapo, Manila", dateReported: "Oct 18, 2025", status: "IN_PROGRESS", severity: "P4" },
-  { id: "HRZ-4427", category: "Garbage Buildup", location: "San Andres, Manila", dateReported: "Oct 19, 2025", status: "PENDING", severity: "P3" },
-  { id: "HRZ-4428", category: "Road Debris", location: "Malate, Manila", dateReported: "Oct 19, 2025", status: "RESOLVED", severity: "P5" },
-  { id: "HRZ-4429", category: "Potholes", location: "Paco, Manila", dateReported: "Oct 20, 2025", status: "IN_PROGRESS", severity: "P4" },
-  { id: "HRZ-4430", category: "Flooding", location: "Sampaloc, Manila", dateReported: "Oct 20, 2025", status: "RESOLVED", severity: "P3" },
-  { id: "HRZ-4431", category: "Uneven Roads", location: "Ermita, Manila", dateReported: "Oct 21, 2025", status: "PENDING", severity: "P2" },
-  { id: "HRZ-4432", category: "Fallen Tree", location: "Binondo, Manila", dateReported: "Oct 21, 2025", status: "RESOLVED", severity: "P5" },
-  { id: "HRZ-4433", category: "Garbage Buildup", location: "Tondo, Manila", dateReported: "Oct 22, 2025", status: "IN_PROGRESS", severity: "P4" },
-  { id: "HRZ-4434", category: "Potholes", location: "Quiapo, Manila", dateReported: "Oct 22, 2025", status: "RESOLVED", severity: "P3" },
-  { id: "HRZ-4435", category: "Road Debris", location: "San Andres, Manila", dateReported: "Oct 23, 2025", status: "PENDING", severity: "P2" },
-  { id: "HRZ-4436", category: "Flooding", location: "Malate, Manila", dateReported: "Oct 23, 2025", status: "RESOLVED", severity: "P5" },
-  { id: "HRZ-4437", category: "Uneven Roads", location: "Paco, Manila", dateReported: "Oct 24, 2025", status: "IN_PROGRESS", severity: "P4" },
-  { id: "HRZ-4438", category: "Fallen Tree", location: "Sampaloc, Manila", dateReported: "Oct 24, 2025", status: "RESOLVED", severity: "P3" },
-  { id: "HRZ-4439", category: "Garbage Buildup", location: "Ermita, Manila", dateReported: "Oct 25, 2025", status: "PENDING", severity: "P2" },
-  { id: "HRZ-4440", category: "Potholes", location: "Binondo, Manila", dateReported: "Oct 25, 2025", status: "RESOLVED", severity: "P5" },
-  { id: "HRZ-4441", category: "Road Debris", location: "Tondo, Manila", dateReported: "Oct 26, 2025", status: "IN_PROGRESS", severity: "P4" },
-  { id: "HRZ-4442", category: "Flooding", location: "Quiapo, Manila", dateReported: "Oct 26, 2025", status: "RESOLVED", severity: "P3" },
-  { id: "HRZ-4443", category: "Uneven Roads", location: "San Andres, Manila", dateReported: "Oct 27, 2025", status: "PENDING", severity: "P2" },
-  { id: "HRZ-4444", category: "Fallen Tree", location: "Malate, Manila", dateReported: "Oct 27, 2025", status: "RESOLVED", severity: "P5" },
-];
-
-const CATEGORIES = ["All Categories", "Uneven Roads", "Road Debris", "Potholes", "Flooding", "Fallen Tree", "Garbage Buildup"];
-const SEVERITIES = ["All Severities", "P1", "P2", "P3", "P4", "P5"];
-const STATUSES = ["All Statuses", "PENDING", "IN_PROGRESS", "RESOLVED"];
+const { monitoringReports: MOCK_REPORTS, constants } = mockData;
+const { categories: CATEGORIES, severities: SEVERITIES, monitoringStatuses: STATUSES } = constants;
 const ROWS_PER_PAGE = 4;
 
 const ROLE = "officer"; /*or "supervisor" for Action Buttons*/

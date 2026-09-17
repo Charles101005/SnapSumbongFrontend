@@ -208,16 +208,19 @@
 
 /* Main Area Spanning All Remaining Right Space */
 .app > .main {
- flex: 1;
- margin-left: 260px;
- width: calc(100vw - 260px);
- height: 100vh;
- padding: 40px 60px;
- overflow-y: auto;
- border: none;
- box-shadow: none;
- background-color: var(--color-bg-page);
- box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  margin-left: 260px;
+  width: calc(100vw - 260px);
+  max-width: calc(100vw - 260px);
+  height: 100vh;
+  padding: 40px 60px;
+  overflow-y: auto;
+  overflow-x: clip;
+  border: none;
+  box-shadow: none;
+  background-color: var(--color-bg-page);
+  box-sizing: border-box;
 }
 
 
@@ -690,30 +693,106 @@
 }
 
 
-@media (max-width: 800px) {
- .app {
-   overflow: auto;
+/* Sidebar Overlay (behind sidebar on mobile) */
+.sidebar-overlay {
+ display: none;
+}
+
+
+/* Hamburger Button (hidden on desktop) */
+.hamburger-btn {
+ display: none;
+}
+
+
+@media (max-width: 640px) {
+ /* Sidebar Overlay */
+ .sidebar-overlay {
+   display: block;
+   position: fixed;
+   top: 0;
+   left: 0;
+   width: 100vw;
+   height: 100vh;
+   background: rgba(15, 23, 42, 0.4);
+   z-index: 150;
+   opacity: 0;
+   pointer-events: none;
+   transition: opacity 0.25s ease;
  }
- .app > .sidebar {
-   width: 100% !important;
-   min-width: 100% !important;
-   max-width: 100% !important;
-   height: auto;
-   position: static;
-   flex-direction: row;
+ .sidebar-overlay.open {
+   opacity: 1;
+   pointer-events: auto;
+ }
+
+ /* Hamburger Button */
+ .hamburger-btn {
+   display: flex;
    align-items: center;
-   padding: 12px 16px;
+   justify-content: center;
+   position: fixed;
+   top: 12px;
+   left: 12px;
+   z-index: 160;
+   width: 40px;
+   height: 40px;
+   border-radius: 10px;
+   border: 1px solid var(--color-border);
+   background: var(--color-bg-card);
+   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+   cursor: pointer;
+   padding: 0;
+ }
+ .hamburger-btn svg {
+   width: 20px;
+   height: 20px;
+   color: var(--color-text-dark);
+ }
+
+  /* Sidebar as slide-in drawer */
+  .app {
+    overflow: auto;
+    overflow-x: clip;
+    max-width: 100vw;
+  }
+ .app > .sidebar {
+   width: 260px !important;
+   min-width: 260px !important;
+   max-width: 260px !important;
+   height: 100vh;
+   position: fixed;
+   top: 0;
+   left: 0;
+   z-index: 200;
+   transform: translateX(-100%);
+   transition: transform 0.25s ease;
+ }
+ .app > .sidebar.open {
+   transform: translateX(0);
  }
  .app > .sidebar .nav {
-   display: none;
+   display: flex;
  }
- .app > .main {
-   margin-left: 0 !important;
-   width: 100% !important;
-   height: auto;
-   padding: 20px;
- }
+
+  /* Main content */
+  .app > .main {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    min-width: 0 !important;
+    height: auto;
+    min-height: 100vh;
+    padding: 60px 16px 20px;
+    overflow-x: clip;
+  }
+
+ /* Category grid: 4 -> 2 columns */
  .app .category-grid {
    grid-template-columns: repeat(2, 1fr);
+ }
+
+ /* Reduce map height */
+ .app .map-wrap {
+   height: 180px;
  }
 }

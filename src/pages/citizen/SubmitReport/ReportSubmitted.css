@@ -145,3 +145,18 @@
     flex-direction: column;
   }
 }
+
+@media (max-width: 640px) {
+  .success-page-wrapper {
+    padding: 16px;
+  }
+  .success-title {
+    font-size: 1.4rem;
+  }
+  .success-subtitle {
+    font-size: 0.85rem;
+  }
+  .reference-number {
+    font-size: 1.25rem;
+  }
+}

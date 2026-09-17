@@ -284,3 +284,28 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* --- RESPONSIVE (mobile ≤640px) --- */
+@media (max-width: 640px) {
+  .upload-modal-overlay {
+    padding: 12px;
+  }
+  .upload-modal-card {
+    padding: 20px;
+  }
+  .upload-dropzone {
+    min-height: 180px;
+    padding: 24px 16px;
+  }
+  .preview-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .upload-modal-footer {
+    flex-direction: column;
+  }
+  .btn-upload-cancel,
+  .btn-upload-submit {
+    width: 100%;
+    justify-content: center;
+  }
+}

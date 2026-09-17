@@ -1,181 +1,42 @@
 import React, { useState } from "react";
 import "./ReportDetail.css";
+import mockData from "../../../data/mock.json";
 
-const MOCK_DETAIL_REPORTS = {
-  "HRZ-4421": {
-    id: "#HZ-4421",
-    category: "Uneven Roads",
-    location: "Sampaloc, Manila",
-    reportedSeverity: "P5",
-    status: "RESOLVED",
-    reporterComments: "Huge fissure, dangerous to vehicles",
-    media: [
-      "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=300&q=80",
-      "https://images.unsplash.com/photo-1584463688353-29c11224d4bc?w=300&q=80",
-      "https://images.unsplash.com/photo-1590682680695-43b96c480e93?w=300&q=80",
-      "https://images.unsplash.com/photo-1504432842672-1a79f78e4084?w=300&q=80",
-      "https://images.unsplash.com/photo-1517420704952-d9f39e95b43e?w=300&q=80",
-    ],
-    timeline: [
-      {
-        status: "PENDING",
-        color: "pending",
-        performedBy: "Elena Gomez",
-        date: "Oct 7, 2025",
-        time: "3:30 pm",
-        activity: {
-          logId: "#LOG-6818",
-          role: "Right Officer",
-          module: "Report Management",
-          primaryAction: "Created new road hazard report #HZ-4421",
-          description: "Reporter submitted a new road hazard report for uneven roads in Sampaloc, Manila with severity level P5.",
-        },
+const { detailReports } = mockData;
+
+const FALLBACK_REPORT = {
+  id: null,
+  category: "Uneven Roads",
+  location: "Sampaloc, Manila",
+  reportedSeverity: "P5",
+  status: "RESOLVED",
+  reporterComments: "Huge fissure, dangerous to vehicles",
+  media: [
+    "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=300&q=80",
+  ],
+  timeline: [
+    {
+      status: "PENDING",
+      color: "pending",
+      performedBy: "System",
+      date: "Oct 14, 2025",
+      time: "8:00 am",
+      activity: {
+        logId: "#LOG-6825",
+        role: "System",
+        module: "Report Management",
+        primaryAction: "Created new road hazard report",
+        description: "System automatically created a new road hazard report.",
       },
-      {
-        status: "ONGOING",
-        color: "ongoing",
-        performedBy: "Elena Gomez",
-        date: "Oct 10, 2025",
-        time: "3:30 pm",
-        activity: {
-          logId: "#LOG-6819",
-          role: "Right Officer",
-          module: "Report Management",
-          primaryAction: "Updated report status #HZ-4421",
-          description: "Administrator updated the status of road hazard report #HZ-4421 from PENDING to ONGOING and added internal notes regarding crew dispatch.",
-        },
-      },
-      {
-        status: "RESOLVED",
-        color: "resolved",
-        performedBy: "Elena Gomez",
-        date: "Oct 14, 2025",
-        time: "3:34 pm",
-        activity: {
-          logId: "#LOG-6820",
-          role: "Right Officer",
-          module: "Report Management",
-          primaryAction: "Resolved report #HZ-4421",
-          description: "Administrator marked road hazard report #HZ-4421 as RESOLVED after crew completed repair work on the uneven road.",
-        },
-      },
-    ],
-  },
-  "HRZ-4422": {
-    id: "#HZ-4422",
-    category: "Road Debris",
-    location: "Ermita, Manila",
-    reportedSeverity: "P4",
-    status: "RESOLVED",
-    reporterComments: "Fallen tree branches blocking the main road after heavy rain.",
-    media: [
-      "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=300&q=80",
-    ],
-    timeline: [
-      {
-        status: "PENDING",
-        color: "pending",
-        performedBy: "Carlos Reyes",
-        date: "Oct 15, 2025",
-        time: "10:00 am",
-        activity: {
-          logId: "#LOG-6821",
-          role: "Right Officer",
-          module: "Report Management",
-          primaryAction: "Created new road hazard report #HZ-4422",
-          description: "Reporter submitted a new road hazard report for road debris in Ermita, Manila with severity level P4.",
-        },
-      },
-      {
-        status: "ONGOING",
-        color: "ongoing",
-        performedBy: "Carlos Reyes",
-        date: "Oct 16, 2025",
-        time: "2:15 pm",
-        activity: {
-          logId: "#LOG-6822",
-          role: "Right Officer",
-          module: "Report Management",
-          primaryAction: "Updated report status #HZ-4422",
-          description: "Administrator updated the status of road hazard report #HZ-4422 from PENDING to ONGOING and assigned cleanup crew.",
-        },
-      },
-      {
-        status: "RESOLVED",
-        color: "resolved",
-        performedBy: "Carlos Reyes",
-        date: "Oct 17, 2025",
-        time: "9:45 am",
-        activity: {
-          logId: "#LOG-6823",
-          role: "Right Officer",
-          module: "Report Management",
-          primaryAction: "Resolved report #HZ-4422",
-          description: "Administrator marked road hazard report #HZ-4422 as RESOLVED after crew removed fallen tree branches.",
-        },
-      },
-    ],
-  },
-  "HRZ-4423": {
-    id: "#HZ-4423",
-    category: "Potholes",
-    location: "Brgy 724, Manila",
-    reportedSeverity: "P3",
-    status: "PENDING",
-    reporterComments: "Deep pothole near the school zone, risk to children.",
-    media: [
-      "https://images.unsplash.com/photo-1584463688353-29c11224d4bc?w=300&q=80",
-    ],
-    timeline: [
-      {
-        status: "PENDING",
-        color: "pending",
-        performedBy: "Maria Santos",
-        date: "Oct 16, 2025",
-        time: "11:00 am",
-        activity: {
-          logId: "#LOG-6824",
-          role: "Right Officer",
-          module: "Report Management",
-          primaryAction: "Created new road hazard report #HZ-4423",
-          description: "Reporter submitted a new road hazard report for potholes in Brgy 724, Manila with severity level P3.",
-        },
-      },
-    ],
-  },
+    },
+  ],
 };
 
 function getReportDetail(reportId) {
-  if (MOCK_DETAIL_REPORTS[reportId]) return MOCK_DETAIL_REPORTS[reportId];
+  if (detailReports[reportId]) return detailReports[reportId];
   const fallbackId = `HRZ-${reportId.split("-").pop()}`;
-  if (MOCK_DETAIL_REPORTS[fallbackId]) return MOCK_DETAIL_REPORTS[fallbackId];
-  return {
-    id: `#${reportId}`,
-    category: "Uneven Roads",
-    location: "Sampaloc, Manila",
-    reportedSeverity: "P5",
-    status: "RESOLVED",
-    reporterComments: "Huge fissure, dangerous to vehicles",
-    media: [
-      "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=300&q=80",
-    ],
-    timeline: [
-      {
-        status: "PENDING",
-        color: "pending",
-        performedBy: "System",
-        date: "Oct 14, 2025",
-        time: "8:00 am",
-        activity: {
-          logId: "#LOG-6825",
-          role: "System",
-          module: "Report Management",
-          primaryAction: "Created new road hazard report",
-          description: "System automatically created a new road hazard report.",
-        },
-      },
-    ],
-  };
+  if (detailReports[fallbackId]) return detailReports[fallbackId];
+  return { ...FALLBACK_REPORT, id: `#${reportId}` };
 }
 
 export default function ReportDetail({ reportId, onClose }) {

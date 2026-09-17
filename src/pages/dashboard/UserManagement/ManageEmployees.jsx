@@ -2,51 +2,10 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import "./ManageEmployees.css";
+import mockData from "../../../data/mock.json";
 
-const MOCK_EMPLOYEES = [
-  {
-    id: 1,
-    name: "Juan Dela Cruz",
-    email: "juan.delacruz@lgu.gov.ph",
-    role: "ADMIN",
-    status: "ACTIVE",
-    lastActivity: "2 mins ago",
-  },
-  {
-    id: 2,
-    name: "Maria Santos",
-    email: "maria.santos@lgu.gov.ph",
-    role: "REPORT OFFICER",
-    status: "DEACTIVATED",
-    lastActivity: "15 hours ago",
-  },
-  {
-    id: 3,
-    name: "Ricardo Ramos",
-    email: "ricardo.ramos@lgu.gov.ph",
-    role: "REPORT OFFICER",
-    status: "ACTIVE",
-    lastActivity: "3 days ago",
-  },
-  {
-    id: 4,
-    name: "Elena Gomez",
-    email: "elena.gomez@lgu.gov.ph",
-    role: "ADMIN",
-    status: "ACTIVE",
-    lastActivity: "5 mins ago",
-  },
-  {
-    id: 5,
-    name: "Carlos Reyes",
-    email: "carlos.reyes@lgu.gov.ph",
-    role: "SUPERVISOR",
-    status: "ACTIVE",
-    lastActivity: "1 hour ago",
-  },
-];
-
-const TABS = ["All Employees", "Admins", "Report Officer", "Supervisor"];
+const { employees: MOCK_EMPLOYEES, constants } = mockData;
+const { employeeTabs: TABS } = constants;
 const ROWS_PER_PAGE = 4;
 
 function UserPlusIcon() {
