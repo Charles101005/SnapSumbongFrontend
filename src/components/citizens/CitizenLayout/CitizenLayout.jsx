@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { getCurrentUser } from "../../../api/accounts";
+// Reuses the existing "app shell" (.app / .sidebar / .main) styles that used
+// to live only inside ReportHazards — the DOM structure below is unchanged,
+// just moved up a level so it can wrap more than one route.
 import "../../../pages/citizen/ReportHazards/ReportHazards.css";
 
+// This layout is shared by every citizen-facing page (Report Hazard, My
+// Reports, Account Settings) so the sidebar/nav only has to be built once,
+// and each page gets its own real URL instead of being an internal view
+// switch inside a single page component.
 export default function CitizenLayout() {
   const [user, setUser] = useState({
     firstName: "",
@@ -11,6 +18,10 @@ export default function CitizenLayout() {
     email: "",
     role: "",
   });
+
+  // Mobile sidebar toggle — the sidebar is off-canvas on small screens and
+  // slides in via the .open class, dismissed by the overlay or a nav click.
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -27,7 +38,7 @@ export default function CitizenLayout() {
           role: data.role || "",
         });
       } catch {
-
+        // Not logged in, or session expired — leave the sidebar blank rather than guessing.
       }
     })();
 
@@ -44,11 +55,18 @@ export default function CitizenLayout() {
 
   const navItemClass = ({ isActive }) => `nav-item ${isActive ? "active" : ""}`;
   const accountSettingsClass = ({ isActive }) => `account-settings ${isActive ? "active" : ""}`;
+  const closeSidebar = () => setSidebarOpen(false);
 
   return (
     <div className="app">
+      {/* Mobile Sidebar Overlay */}
+      <div
+        className={`sidebar-overlay ${sidebarOpen ? "open" : ""}`}
+        onClick={closeSidebar}
+      />
+
       {/* Sidebar */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-top">
           <div className="brand">
             <div className="brand-icon">
@@ -62,7 +80,7 @@ export default function CitizenLayout() {
 
           <nav className="nav">
             {/* My Reports Option */}
-            <NavLink to="/my-reports" className={navItemClass}>
+            <NavLink to="/my-reports" className={navItemClass} onClick={closeSidebar}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
@@ -74,7 +92,7 @@ export default function CitizenLayout() {
             </NavLink>
 
             {/* Report Hazard Option */}
-            <NavLink to="/report-hazards" className={navItemClass}>
+            <NavLink to="/report-hazards" className={navItemClass} onClick={closeSidebar}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
                 <line x1="12" y1="8" x2="12" y2="16"></line>
@@ -95,7 +113,7 @@ export default function CitizenLayout() {
           <div className="user-meta">
             <span className="user-name">{fullName || "Guest"}</span>
             <span className="user-role">{user.role || "Citizen"}</span>
-            <NavLink to="/account-settings" className={accountSettingsClass}>
+            <NavLink to="/account-settings" className={accountSettingsClass} onClick={closeSidebar}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3"></circle>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -108,6 +126,20 @@ export default function CitizenLayout() {
 
       {/* Routed Content Pane — each citizen page renders here via its own URL */}
       <main className="main">
+        {/* Mobile hamburger button */}
+        <button
+          className="hamburger-btn"
+          type="button"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open menu"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+
         <Outlet context={{ user, updateUser }} />
       </main>
     </div>
