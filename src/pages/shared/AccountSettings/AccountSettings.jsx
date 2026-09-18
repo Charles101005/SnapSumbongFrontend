@@ -1,18 +1,77 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import PersonalDetails from "./PersonalDetails";
 import ChangePassword from "./ChangePassword";
 import DeactivateAccount from "./DeactivateAccount";
+import { getProfile, updateProfile } from "../../../api/accounts";
 import "./AccountSettings.css";
 
-export default function AccountSettings({ user, onUpdateUser }) {
+// `user`/`onUpdateUser` come from CitizenLayout via outlet context — they're
+// the *thin* identity (firstName/lastName/email/role) used by the sidebar.
+// This component fetches the *full* profile itself (contact number,
+// notification preference, profile picture) and, whenever an edit changes
+// something the sidebar also displays, calls onUpdateUser to keep it in sync.
+export default function AccountSettings({ onUpdateUser }) {
   const [currentView, setCurrentView] = useState("settings"); // 'settings' | 'personal-details' | 'change-password' | 'deactivate'
-  const [emailNotifications, setEmailNotifications] = useState(true);
+
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState("");
+
+  const [notifyUpdating, setNotifyUpdating] = useState(false);
+  const [notifyError, setNotifyError] = useState("");
+
+  const loadProfile = useCallback(async () => {
+    setProfileLoading(true);
+    setProfileError("");
+    try {
+      const data = await getProfile();
+      setProfile(data);
+    } catch {
+      setProfileError("Couldn't load your account details. Please refresh the page.");
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
+
+  // Called by PersonalDetails after a successful save — merges the fresh
+  // profile in here, and syncs the sidebar's cached name via onUpdateUser.
+  const handleProfileSaved = (updatedProfile) => {
+    setProfile(updatedProfile);
+    if (onUpdateUser) {
+      onUpdateUser({
+        firstName: updatedProfile.first_name,
+        middleName: updatedProfile.middle_name,
+        lastName: updatedProfile.last_name,
+        email: updatedProfile.email,
+      });
+    }
+    setCurrentView("settings");
+  };
+
+  const handleToggleNotifications = async (checked) => {
+    const previous = profile.is_notified;
+    setProfile((prev) => ({ ...prev, is_notified: checked }));
+    setNotifyUpdating(true);
+    setNotifyError("");
+    try {
+      await updateProfile({ is_notified: checked });
+    } catch {
+      setProfile((prev) => ({ ...prev, is_notified: previous }));
+      setNotifyError("Couldn't update your notification preference. Please try again.");
+    } finally {
+      setNotifyUpdating(false);
+    }
+  };
 
   if (currentView === "personal-details") {
     return (
       <PersonalDetails
-        user={user}
-        onUpdateUser={onUpdateUser}
+        profile={profile}
+        onSaved={handleProfileSaved}
         onBack={() => setCurrentView("settings")}
       />
     );
@@ -26,7 +85,23 @@ export default function AccountSettings({ user, onUpdateUser }) {
     return <DeactivateAccount onBack={() => setCurrentView("settings")} />;
   }
 
-  const fullName = `${user.firstName} ${user.lastName}`.trim();
+  if (profileLoading) {
+    return (
+      <div className="account-settings-container">
+        <p className="settings-loading-state">Loading your account...</p>
+      </div>
+    );
+  }
+
+  if (profileError || !profile) {
+    return (
+      <div className="account-settings-container">
+        <div className="settings-error-banner">{profileError || "Something went wrong."}</div>
+      </div>
+    );
+  }
+
+  const fullName = `${profile.first_name} ${profile.last_name}`.trim();
 
   return (
     <div className="account-settings-container">
@@ -61,23 +136,14 @@ export default function AccountSettings({ user, onUpdateUser }) {
           <div className="card-body personal-info-body">
             <div className="avatar-wrapper">
               <div className="profile-avatar">
-                <svg viewBox="0 0 24 24" fill="#cfd8dc" width="70%" height="70%">
-                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                </svg>
+                {profile.profile_picture ? (
+                  <img src={profile.profile_picture} alt="Profile" />
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="#cfd8dc" width="70%" height="70%">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                  </svg>
+                )}
               </div>
-              <button type="button" className="camera-btn" aria-label="Upload Avatar">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z" />
-                  <circle cx="12" cy="13" r="4" />
-                </svg>
-              </button>
             </div>
 
             <div className="info-grid">
@@ -88,12 +154,12 @@ export default function AccountSettings({ user, onUpdateUser }) {
 
               <div className="info-field">
                 <span className="field-label">EMAIL ADDRESS</span>
-                <span className="field-value">{user.email}</span>
+                <span className="field-value">{profile.email}</span>
               </div>
 
               <div className="info-field">
                 <span className="field-label">PHONE NUMBER</span>
-                <span className="field-value">+63 912 345 6789</span>
+                <span className="field-value">{profile.contact_number || "Not set"}</span>
               </div>
 
               <div className="info-field edit-action-field">
@@ -140,7 +206,7 @@ export default function AccountSettings({ user, onUpdateUser }) {
           <div className="card-body row-between">
             <div>
               <div className="setting-title">Password</div>
-              <div className="setting-desc">Last changed 3 months ago</div>
+              <div className="setting-desc">Keep your account secure with a strong password.</div>
             </div>
             <button
               type="button"
@@ -176,13 +242,15 @@ export default function AccountSettings({ user, onUpdateUser }) {
               <div className="setting-desc">
                 Get notified on your report status changes
               </div>
+              {notifyError && <div className="settings-error-banner inline">{notifyError}</div>}
             </div>
 
             <label className="checkbox-container">
               <input
                 type="checkbox"
-                checked={emailNotifications}
-                onChange={(e) => setEmailNotifications(e.target.checked)}
+                checked={profile.is_notified}
+                disabled={notifyUpdating}
+                onChange={(e) => handleToggleNotifications(e.target.checked)}
               />
               <span className="checkmark"></span>
             </label>
@@ -212,7 +280,8 @@ export default function AccountSettings({ user, onUpdateUser }) {
             <div>
               <div className="setting-title">Deactivate Account</div>
               <div className="setting-desc">
-                Temporarily hide your profile and reports. You can reactivate anytime.
+                Hides your profile and reports. This can't be undone from
+                here — you'll need to contact support to reactivate.
               </div>
             </div>
             <button

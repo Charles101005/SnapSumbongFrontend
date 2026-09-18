@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import './MyReport.css';
 import { getReports, getReportDetail, getHazardCategories } from '../../../api/reports';
+import { getReportMetrics } from '../../../api/analytics';
 import { hazardMarkerIcon } from '../../../utils/leafletHelpers';
 
 const ROWS_PER_PAGE = 5; // Matches the backend's SmallListPagination page size.
@@ -55,8 +56,8 @@ export default function MyReport() {
   const [pageMeta, setPageMeta] = useState({ count: 0, totalPages: 1 });
 
   // --- Summary stat cards ---
-  // The API has no aggregate/stats endpoint, so these are derived from a few
-  // lightweight requests (page_size=1, we only read the `count`).
+  // Backed by GET /analytics/hazard-report/, which returns the authoritative
+  // per-status counts already scoped to this user by the backend.
   const [stats, setStats] = useState({ total: null, resolved: null, inProgress: null, pending: null });
 
   // --- Detail view state ---
@@ -75,8 +76,6 @@ export default function MyReport() {
   const [appliedCategoryId, setAppliedCategoryId] = useState('');
   const [appliedStatus, setAppliedStatus] = useState('');
   const [appliedDate, setAppliedDate] = useState('');
-  // Search has no server-side equivalent on this endpoint, so it only
-  // filters within whatever page is currently loaded.
   const [appliedSearch, setAppliedSearch] = useState('');
 
   // --- Load hazard categories once, for the filter dropdown ---
@@ -107,6 +106,7 @@ export default function MyReport() {
         if (appliedCategoryId) params.category_id = appliedCategoryId;
         if (appliedStatus) params.status = appliedStatus;
         if (appliedDate) params.created_at = appliedDate;
+        if (appliedSearch) params.q = appliedSearch;
 
         const data = await getReports(params);
         if (cancelled) return;
@@ -125,7 +125,7 @@ export default function MyReport() {
     return () => {
       cancelled = true;
     };
-  }, [appliedCategoryId, appliedStatus, appliedDate, currentPage]);
+  }, [appliedCategoryId, appliedStatus, appliedDate, appliedSearch, currentPage]);
 
   // --- Load summary counts once on mount ---
   useEffect(() => {
@@ -133,18 +133,13 @@ export default function MyReport() {
 
     (async () => {
       try {
-        const [total, resolved, inProgress, pending] = await Promise.all([
-          getReports({ page_size: 1 }),
-          getReports({ page_size: 1, status: 'RESOLVED' }),
-          getReports({ page_size: 1, status: 'IN_PROGRESS' }),
-          getReports({ page_size: 1, status: 'PENDING' }),
-        ]);
+        const data = await getReportMetrics();
         if (cancelled) return;
         setStats({
-          total: total.count,
-          resolved: resolved.count,
-          inProgress: inProgress.count,
-          pending: pending.count,
+          total: data.total_count,
+          resolved: data.count_by_status?.resolved ?? 0,
+          inProgress: data.count_by_status?.in_progress ?? 0,
+          pending: data.count_by_status?.pending ?? 0,
         });
       } catch {
         // Leave stats blank rather than showing misleading numbers.
@@ -176,17 +171,6 @@ export default function MyReport() {
     setAppliedSearch('');
     setCurrentPage(1);
   };
-
-  // Client-side search over just the currently-loaded page.
-  const visibleReports = useMemo(() => {
-    if (!appliedSearch) return reports;
-    const q = appliedSearch.toLowerCase();
-    return reports.filter(
-      (report) =>
-        report.report_number.toLowerCase().includes(q) ||
-        report.category.toLowerCase().includes(q)
-    );
-  }, [reports, appliedSearch]);
 
   const totalPages = Math.max(1, pageMeta.totalPages);
   const startRow = pageMeta.count === 0 ? 0 : (currentPage - 1) * ROWS_PER_PAGE + 1;
@@ -461,7 +445,7 @@ export default function MyReport() {
             <SearchIcon />
             <input
               type="text"
-              placeholder="Search by Report ID or Category"
+              placeholder="Search"
               value={tempSearch}
               onChange={(e) => setTempSearch(e.target.value)}
             />
@@ -504,8 +488,8 @@ export default function MyReport() {
               <tr>
                 <td colSpan="5" className="empty-table-message">{listError}</td>
               </tr>
-            ) : visibleReports.length > 0 ? (
-              visibleReports.map((report) => (
+            ) : reports.length > 0 ? (
+              reports.map((report) => (
                 <tr key={report.report_number}>
                   <td className="report-id-cell">{report.report_number}</td>
                   <td>{report.category}</td>

@@ -1,5 +1,15 @@
 import React, { useState } from "react";
 import "./ChangePassword.css";
+import { changePassword } from "../../../api/accounts";
+
+const formatApiError = (err) => {
+  if (!err) return "Something went wrong. Please try again.";
+  if (typeof err.detail === "string") return err.detail;
+  const messages = Object.values(err)
+    .flat()
+    .filter((v) => typeof v === "string");
+  return messages.length > 0 ? messages.join(" ") : "Something went wrong. Please try again.";
+};
 
 export default function ChangePassword({ onBack }) {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -10,16 +20,57 @@ export default function ChangePassword({ onBack }) {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleSubmit = (e) => {
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (newPassword !== confirmPassword) {
-      alert("New passwords do not match.");
+    setError("");
+
+    if (newPassword.length < 8) {
+      setError("New password must be at least 8 characters.");
       return;
     }
-    // Handle password update logic here
-    alert("Password updated successfully!");
-    if (onBack) onBack();
+    if (newPassword !== confirmPassword) {
+      setError("New passwords do not match.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      setSuccess(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      setError(formatApiError(err));
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  if (success) {
+    return (
+      <div className="change-password-container">
+        <div className="change-password-card">
+          <div className="change-password-header">
+            <h1>Password Updated</h1>
+            <p>Your password has been changed. Your other sessions have been signed out for security.</p>
+          </div>
+          <div className="form-actions-row">
+            <button type="button" className="btn-save-changes" onClick={onBack}>
+              Back to Settings
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="change-password-container">
@@ -76,6 +127,7 @@ export default function ChangePassword({ onBack }) {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
+                minLength={8}
               />
               <button
                 type="button"
@@ -96,16 +148,8 @@ export default function ChangePassword({ onBack }) {
                 </svg>
               </button>
             </div>
-
-            {/* Password Strength Meter */}
-            <div className="strength-bar-container">
-              <span className="strength-segment active red"></span>
-              <span className="strength-segment"></span>
-              <span className="strength-segment"></span>
-              <span className="strength-segment"></span>
-            </div>
             <p className="field-hint">
-              Password must include numbers and symbols.
+              Password must be at least 8 characters and pass your account's security requirements.
             </p>
           </div>
 
@@ -142,9 +186,11 @@ export default function ChangePassword({ onBack }) {
             </div>
           </div>
 
+          {error && <p className="field-hint" style={{ color: "#dc2626" }}>{error}</p>}
+
           {/* Action Buttons */}
           <div className="form-actions-row">
-            <button type="submit" className="btn-save-changes">
+            <button type="submit" className="btn-save-changes" disabled={isSaving}>
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -155,9 +201,9 @@ export default function ChangePassword({ onBack }) {
               >
                 <polyline points="20 6 9 17 4 12" />
               </svg>
-              Save Changes
+              {isSaving ? "Saving..." : "Save Changes"}
             </button>
-            <button type="button" className="btn-cancel-flat" onClick={onBack}>
+            <button type="button" className="btn-cancel-flat" onClick={onBack} disabled={isSaving}>
               Cancel
             </button>
           </div>

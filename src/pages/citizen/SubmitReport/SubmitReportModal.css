@@ -19,6 +19,8 @@
   border-radius: 20px;
   width: 100%;
   max-width: 400px;
+  max-height: 90vh;
+  overflow-y: auto;
   padding: 28px 24px 24px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
   display: flex;
@@ -57,6 +59,103 @@
   color: #64748b;
   margin: 0 0 20px 0;
   line-height: 1.4;
+}
+
+.modal-subtitle-tight {
+  margin: 0 0 12px 0;
+}
+
+/* Report Summary */
+.report-summary {
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summary-top-row {
+  display: flex;
+  gap: 12px;
+}
+
+.summary-photo {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #eef2f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.summary-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.summary-photo-count {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background: rgba(15, 23, 42, 0.75);
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 6px;
+}
+
+.summary-fields {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+}
+
+.summary-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.summary-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.summary-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.35;
+}
+
+.summary-description .summary-value {
+  white-space: normal;
+  font-weight: 500;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* Option Cards Group */
@@ -108,12 +207,18 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.option-card:active .custom-radio {
+  transform: scale(0.9);
 }
 
 .option-card.selected .custom-radio {
   border-color: #1d82f5;
   background-color: #1d82f5;
   box-shadow: inset 0 0 0 3px #ffffff;
+  transform: scale(1.05);
 }
 
 /* Option Texts */
@@ -149,9 +254,72 @@
   height: 100%;
 }
 
-/* Action Buttons */
-.btn-confirm {
+/* Anonymity checkbox toggle */
+.anonymous-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 20px 0;
+  padding: 4px 2px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+.anonymous-toggle-row input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.anonymous-checkbox {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 2px solid #cbd5e1;
+  flex-shrink: 0;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+}
+
+.anonymous-toggle-row input[type="checkbox"]:checked + .anonymous-checkbox {
+  border-color: #1d82f5;
+  background-color: #1d82f5;
+}
+
+.anonymous-toggle-row input[type="checkbox"]:checked + .anonymous-checkbox::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 0px;
+  width: 5px;
+  height: 9px;
+  border: solid #ffffff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.anonymous-toggle-row:active .anonymous-checkbox {
+  transform: scale(0.9);
+}
+
+/* Action Buttons */
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+  align-self: stretch;
+}
+
+.btn-confirm {
+  flex: 1;
+  box-sizing: border-box;
   padding: 12px;
   background-color: #1d82f5;
   color: #ffffff;
@@ -159,6 +327,7 @@
   border-radius: 10px;
   font-size: 0.95rem;
   font-weight: 600;
+  text-align: center;
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
@@ -168,18 +337,23 @@
 }
 
 .btn-modal-cancel {
-  width: 100%;
-  padding: 10px;
-  background: transparent;
-  color: #64748b;
-  border: none;
-  font-size: 0.875rem;
-  font-weight: 500;
+  flex: 1;
+  box-sizing: border-box;
+  padding: 12px;
+  background: #ffffff;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: center;
   cursor: pointer;
-  margin-top: 6px;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .btn-modal-cancel:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
   color: #0f172a;
 }
 

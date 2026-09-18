@@ -64,6 +64,7 @@ export default function HazardReportForm() {
     (cat) => selectedCategoryIds.includes(cat.hazard_id) && !quickPickIds.includes(cat.hazard_id)
   );
   const isOtherCategorySelected = otherSelectedCategories.length > 0;
+  const selectedCategoryName = categories.find((cat) => cat.hazard_id === selectedCategoryIds[0])?.hazard_name || "";
 
   // --- Load categories on mount ---
   useEffect(() => {
@@ -501,6 +502,10 @@ export default function HazardReportForm() {
         onClose={() => setIsModalOpen(false)}
         onConfirm={handleFinalSubmit}
         userName={fullName}
+        photos={photos}
+        categoryName={selectedCategoryName}
+        locationAddress={locationData.address}
+        description={description}
       />
     </>
   );

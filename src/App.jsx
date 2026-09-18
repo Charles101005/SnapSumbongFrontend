@@ -56,8 +56,8 @@ function App() {
     return (
         <Routes>
             <Route path="/" element={<LoginPage />} />
-           {/*} <Route path="/" element={<MonitoringDashboard />} /> */}
-           {/*} <Route path="/" element={<ReportHazards />} /> */}
+            <Route path="/" element={<MonitoringDashboard />} /> 
+            <Route path="/" element={<ReportHazards />} /> 
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ResetPass />} />
             <Route path="/verify-email" element={<VerifyEmail />} />

@@ -1,8 +1,18 @@
 import React, { useState } from "react";
 import "./SubmitReportModal.css";
 
-export default function SubmitReportModal({ isOpen, onClose, onConfirm, userName = "Marcus Chen" }) {
+export default function SubmitReportModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  userName = "Marcus Chen",
+  photos = [],
+  categoryName = "",
+  locationAddress = "",
+  description = "",
+}) {
   const [submissionType, setSubmissionType] = useState("named"); // 'named' | 'anonymous'
+  const isAnonymous = submissionType === "anonymous";
 
   if (!isOpen) return null;
 
@@ -22,65 +32,69 @@ export default function SubmitReportModal({ isOpen, onClose, onConfirm, userName
         </div>
 
         {/* Modal Header */}
-        <h2 className="modal-title">Submit Report</h2>
+        <h2 className="modal-title">Summary of Report</h2>
         <p className="modal-subtitle">
-          Would you like to submit with your name or anonymously?
+          Please review your report before submitting.
         </p>
 
-        {/* Radio Option Cards */}
-        <div className="options-group">
-          {/* Option 1: Submit with Name */}
-          <label className={`option-card ${submissionType === "named" ? "selected" : ""}`}>
-            <input
-              type="radio"
-              name="submissionType"
-              value="named"
-              checked={submissionType === "named"}
-              onChange={() => setSubmissionType("named")}
-            />
-            <div className="custom-radio"></div>
-            <div className="option-text">
-              <span className="option-label">Submit with Name</span>
-              <span className="option-sublabel">{userName}</span>
+        {/* Report Summary */}
+        <div className="report-summary">
+          <div className="summary-top-row">
+            <div className="summary-photo">
+              {photos.length > 0 ? (
+                <img src={photos[0].previewUrl} alt="Hazard preview" />
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                  <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+              )}
+              {photos.length > 1 && (
+                <span className="summary-photo-count">+{photos.length - 1}</span>
+              )}
             </div>
-            <div className="option-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            </div>
-          </label>
 
-          {/* Option 2: Submit Anonymously */}
-          <label className={`option-card ${submissionType === "anonymous" ? "selected" : ""}`}>
-            <input
-              type="radio"
-              name="submissionType"
-              value="anonymous"
-              checked={submissionType === "anonymous"}
-              onChange={() => setSubmissionType("anonymous")}
-            />
-            <div className="custom-radio"></div>
-            <div className="option-text">
-              <span className="option-label">Submit Anonymously</span>
-              <span className="option-sublabel">Anonymous User</span>
+            <div className="summary-fields">
+              <div className="summary-field">
+                <span className="summary-label">Category</span>
+                <span className="summary-value">{categoryName || "Not selected"}</span>
+              </div>
+              <div className="summary-field">
+                <span className="summary-label">Location</span>
+                <span className="summary-value" title={locationAddress}>
+                  {locationAddress || "Not set"}
+                </span>
+              </div>
             </div>
-            <div className="option-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                <line x1="1" y1="1" x2="23" y2="23" />
-              </svg>
-            </div>
-          </label>
+          </div>
+
+          <div className="summary-field summary-description">
+            <span className="summary-label">Description</span>
+            <span className="summary-value">{description || "No description provided."}</span>
+          </div>
         </div>
 
+        {/* Anonymity toggle */}
+        <label className="anonymous-toggle-row">
+          <input
+            type="checkbox"
+            checked={isAnonymous}
+            onChange={(e) => setSubmissionType(e.target.checked ? "anonymous" : "named")}
+          />
+          <span className="anonymous-checkbox"></span>
+          Submit anonymously instead
+        </label>
+
         {/* Action Buttons */}
-        <button type="button" className="btn-confirm" onClick={handleConfirm}>
-          Confirm
-        </button>
-        <button type="button" className="btn-modal-cancel" onClick={onClose}>
-          Cancel
-        </button>
+        <div className="modal-actions">
+          <button type="button" className="btn-modal-cancel" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="button" className="btn-confirm" onClick={handleConfirm}>
+            Confirm
+          </button>
+        </div>
       </div>
     </div>
   );

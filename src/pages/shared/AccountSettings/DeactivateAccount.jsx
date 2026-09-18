@@ -1,19 +1,35 @@
-import React from "react";
+import React, { useState } from "react";
 import "./DeactivateAccount.css";
+import { deactivateAccount } from "../../../api/accounts";
+import { logoutUser } from "../../../api/login";
 
-export default function DeactivateAccount({ onBack, onConfirmDeactivate }) {
-  const handleDeactivate = () => {
-    // 1. Call optional deactivation logic/callback
-    if (onConfirmDeactivate) {
-      onConfirmDeactivate();
+export default function DeactivateAccount({ onBack }) {
+  const [isDeactivating, setIsDeactivating] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleDeactivate = async () => {
+    setError("");
+    setIsDeactivating(true);
+    try {
+      await deactivateAccount();
+
+      // The account is now inactive server-side; also end this session's
+      // auth cookies rather than just clearing local storage, which never
+      // actually touched the httpOnly refresh/access cookies.
+      try {
+        await logoutUser();
+      } catch {
+        // Even if logout fails, the account is already deactivated — proceed
+        // with the local cleanup and redirect regardless.
+      }
+
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = "/";
+    } catch {
+      setError("Couldn't deactivate your account. Please try again.");
+      setIsDeactivating(false);
     }
-
-    // 2. Clear stored auth state/tokens if applicable
-    localStorage.clear();
-    sessionStorage.clear();
-
-    // 3. Hard redirect to the standalone login page/root route
-    window.location.href = "/";
   };
 
   return (
@@ -40,16 +56,29 @@ export default function DeactivateAccount({ onBack, onConfirmDeactivate }) {
         <p className="deactivate-description">
           Are you sure you want to deactivate your account?
           <br />
-          This action will hide your profile and reports, but you can reactivate anytime.
+          This will hide your profile and reports immediately, and can't be
+          undone from here — you'll need to contact support to reactivate.
         </p>
+
+        {error && <p className="deactivate-description" style={{ color: "#dc2626" }}>{error}</p>}
 
         {/* Actions */}
         <div className="deactivate-actions">
-          <button type="button" className="btn-deactivate-cancel" onClick={onBack}>
+          <button
+            type="button"
+            className="btn-deactivate-cancel"
+            onClick={onBack}
+            disabled={isDeactivating}
+          >
             Cancel
           </button>
-          <button type="button" className="btn-deactivate-confirm" onClick={handleDeactivate}>
-            Deactivate
+          <button
+            type="button"
+            className="btn-deactivate-confirm"
+            onClick={handleDeactivate}
+            disabled={isDeactivating}
+          >
+            {isDeactivating ? "Deactivating..." : "Deactivate"}
           </button>
         </div>
       </div>
