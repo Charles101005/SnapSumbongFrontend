@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import MapAutoResize from "../../../components/shared/MapAutoResize";
 import PinLocationPage from "../PinLocation/PinLocation";
 import SubmitReportModal from "../SubmitReport/SubmitReportModal";
 import UploadPhoto from "../UploadPhoto/UploadPhoto";
@@ -323,6 +324,7 @@ export default function HazardReportForm() {
                   >
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                     <Marker position={locationData.coords} icon={hazardMarkerIcon} />
+                    <MapAutoResize />
                   </MapContainer>
                   <div className="map-click-hint">Click to adjust</div>
                 </div>

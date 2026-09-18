@@ -1,6 +1,8 @@
 .reports-list-container,
 .reports-detail-container {
   padding: 32px;
+  max-width: 1400px;
+  margin: 0 auto;
   background-color: #f8fafc;
   min-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -84,6 +86,7 @@
 /* Filters Card */
 .filters-card {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   gap: 16px;
 }
@@ -92,7 +95,11 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  flex: 1;
+  /* Fluid basis instead of plain flex:1 — lets each field wrap onto its
+     own row once the card gets too narrow to fit everything on one line
+     (previously the row just overflowed the card on tablet widths). */
+  flex: 1 1 150px;
+  min-width: 0;
 }
 
 .filter-group label {
@@ -113,7 +120,11 @@
 
 .filter-actions {
   display: flex;
+  flex: 0 0 auto;
   gap: 8px;
+  /* Without a shrink-safe basis, this group was one of the items forced
+     off the edge of the card when the row ran out of room. */
+  margin-left: auto;
 }
 
 .btn-apply {
@@ -138,7 +149,7 @@
 
 /* Search Input Styles */
 .search-filter-group {
-  flex: 1.5;
+  flex: 1 1 220px;
 }
 
 .search-input-wrapper {
@@ -522,6 +533,12 @@
   height: 120px;
   border-radius: 8px;
   overflow: hidden;
+  /* Same fix as .map-wrap in ReportHazards.css: establishes a local
+     stacking context so Leaflet's internal panes/controls (which use
+     z-index up to 1000 by default) are contained here instead of being
+     compared against app-level chrome like the mobile sidebar (z-index
+     200) and its overlay (150). */
+  z-index: 1;
 }
 
 .map-preview-box img {
@@ -579,6 +596,14 @@
   .detail-side-column {
     order: -1;
   }
+
+  /* The 240px photo column + a flexible remainder works fine on desktop,
+     but once the outer .detail-layout above has already gone single-column,
+     that fixed 240px stops leaving enough room for the description/map
+     column and it wraps into an unreadably narrow sliver. Stack instead. */
+  .submission-content-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Mobile: matches the .app hamburger-btn breakpoint used by CitizenLayout,
@@ -632,11 +657,84 @@
     flex: 1;
   }
 
-  /* Table keeps its horizontal scroll (min-width: 640px on .reports-table)
-     so wide columns stay readable instead of squishing */
-  .reports-table th,
+  /* Reports table -> stacked cards on mobile. A 5-column table needs a
+     min-width wide enough to stay readable, which forced horizontal
+     scrolling most people never discovered (the only hint was a thin
+     scrollbar under the card). A card per report reads top-to-bottom
+     instead, with no hidden/scrollable content. */
+  .table-card {
+    overflow: visible;
+    padding: 12px;
+  }
+
+  .table-scroll-wrapper {
+    overflow-x: visible;
+  }
+
+  .reports-table {
+    min-width: 0;
+    display: block;
+  }
+
+  .reports-table thead {
+    display: none;
+  }
+
+  .reports-table tbody {
+    display: block;
+  }
+
+  .reports-table tr {
+    display: block;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+
+  .reports-table tr:last-child {
+    margin-bottom: 0;
+  }
+
   .reports-table td {
-    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #f1f5f9;
+    /* Undo the desktop sticky-first-column treatment — on mobile every
+       cell is stacked in normal flow, so pinning/compositing it no
+       longer applies. */
+    position: static;
+    background: none;
+    box-shadow: none;
+    transform: none;
+    will-change: auto;
+  }
+
+  .reports-table tr td:last-child {
+    border-bottom: none;
+  }
+
+  .reports-table td::before {
+    content: attr(data-label);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    flex-shrink: 0;
+  }
+
+  /* Action cell has no label (the button already says what it does), so
+     let the button take the full row width instead of sitting next to
+     an empty label slot. */
+  .reports-table td[data-label=""] {
+    justify-content: center;
+  }
+  .reports-table td[data-label=""]::before {
+    content: none;
   }
 
   .pagination {

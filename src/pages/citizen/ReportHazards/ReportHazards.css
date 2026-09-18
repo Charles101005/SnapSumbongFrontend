@@ -245,10 +245,14 @@
 }
 
 
-/* Form Cards Stretch Full Width cleanly */
+/* Form Cards Stretch Full Width cleanly, capped so lines of text/inputs
+   don't stretch edge-to-edge on very large/ultrawide monitors */
 .app .card,
 .app fieldset {
  width: 100% !important;
+ max-width: 1100px;
+ margin-left: auto;
+ margin-right: auto;
  background: var(--color-bg-card);
  border: 1px solid var(--color-border) !important;
  outline: none !important;
@@ -257,6 +261,14 @@
  padding: 24px 28px;
  margin-bottom: 24px;
  box-sizing: border-box;
+}
+
+/* Keep the header aligned with the (now centered-when-capped) cards above */
+.app .eyebrow,
+.app h1 {
+ max-width: 1100px;
+ margin-left: auto !important;
+ margin-right: auto !important;
 }
 
 
@@ -506,7 +518,9 @@
 
 .app .category-grid {
  display: grid;
- grid-template-columns: repeat(4, 1fr);
+ /* Fluid columns instead of a hard-coded 4, so the grid reflows smoothly
+    across tablet widths instead of squishing until the 640px breakpoint. */
+ grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
  gap: 16px;
  margin-top: 16px;
  width: 100%;
@@ -693,6 +707,23 @@
 }
 
 
+/* --- TABLET (≤1024px): keep the fixed sidebar, but stop wasting space on
+   large fixed side padding before the mobile drawer breakpoint kicks in --- */
+@media (max-width: 1024px) {
+  .app > .main {
+    padding: 32px 40px;
+  }
+}
+
+@media (max-width: 820px) {
+  .app > .main {
+    padding: 28px 24px;
+  }
+  .app .map-wrap {
+    height: 200px;
+  }
+}
+
 /* Sidebar Overlay (behind sidebar on mobile) */
 .sidebar-overlay {
  display: none;
@@ -786,7 +817,8 @@
     overflow-x: clip;
   }
 
- /* Category grid: 4 -> 2 columns */
+ /* Pin to exactly 2 columns on phones (auto-fit alone could still try 3
+    on ~375-414px widths, which is too cramped for the icon + label). */
  .app .category-grid {
    grid-template-columns: repeat(2, 1fr);
  }

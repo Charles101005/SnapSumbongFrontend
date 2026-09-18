@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import MapAutoResize from '../../../components/shared/MapAutoResize';
 import './MyReport.css';
 import { getReports, getReportDetail, getHazardCategories } from '../../../api/reports';
 import { getReportMetrics } from '../../../api/analytics';
@@ -314,6 +315,7 @@ export default function MyReport() {
                             ]}
                             icon={hazardMarkerIcon}
                           />
+                          <MapAutoResize />
                         </MapContainer>
                       </div>
                     </div>
@@ -491,15 +493,15 @@ export default function MyReport() {
             ) : reports.length > 0 ? (
               reports.map((report) => (
                 <tr key={report.report_number}>
-                  <td className="report-id-cell">{report.report_number}</td>
-                  <td>{report.category}</td>
-                  <td>{formatDate(report.created_at)}</td>
-                  <td>
+                  <td className="report-id-cell" data-label="Report ID">{report.report_number}</td>
+                  <td data-label="Category">{report.category}</td>
+                  <td data-label="Date Submitted">{formatDate(report.created_at)}</td>
+                  <td data-label="Status">
                     <span className={getStatusBadgeClass(report.status)}>
                       {getStatusLabel(report.status)}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="">
                     <button
                       className="action-view-btn"
                       onClick={() => handleViewDetails(report)}

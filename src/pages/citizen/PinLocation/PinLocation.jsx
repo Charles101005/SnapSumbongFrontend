@@ -8,6 +8,7 @@ import {
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { hazardMarkerIcon, reverseGeocode } from "../../../utils/leafletHelpers";
+import MapAutoResize from "../../../components/shared/MapAutoResize";
 import "./PinLocation.css";
 
 // Default Manila coordinates, used when no initial location is provided.
@@ -138,6 +139,7 @@ export default function PinLocationPage({ initialLocation, onConfirm, onBack }) 
               icon={hazardMarkerIcon}
               eventHandlers={{ dragend: handleMarkerDragEnd }}
             />
+            <MapAutoResize />
           </MapContainer>
 
           {/* Locate Me Control */}
