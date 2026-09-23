@@ -3,13 +3,15 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
+  width: 100%;
   height: 100vh;
   background-color: #f8fafc;
   z-index: 9999;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  /* No align/justify center here: centering an overflowing flex child clips
+     its top out of the scroll region. margin: auto on the card centers when
+     there's spare space and stays fully scrollable when content is taller
+     than the viewport. */
   padding: 24px;
   box-sizing: border-box;
   overflow-y: auto;
@@ -20,6 +22,7 @@
 .category-selection-card {
   width: 100%;
   max-width: 980px;
+  margin: auto;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
@@ -56,10 +59,10 @@
   color: #64748b;
 }
 
-/* 4x4 Grid */
+/* Fluid grid: ~4 cols desktop, 3 tablet, 2 phone (matches main form pattern) */
 .extended-category-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 12px;
 }
 
@@ -76,7 +79,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 105px;
+  min-height: 105px;
   padding: 10px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -207,12 +210,6 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 860px) {
-  .extended-category-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 @media (max-width: 640px) {
   .category-selection-overlay {
     padding: 16px;
@@ -222,7 +219,7 @@
     border-radius: 12px;
   }
   .extended-category-card {
-    height: 90px;
+    min-height: 90px;
     padding: 8px;
   }
   .extended-category-label {

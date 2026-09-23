@@ -466,8 +466,21 @@
 /* Submission Content */
 .submission-content-grid {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  /* Auto-fit + min(100%, …) floor: two columns only when each can hold
+     ~280px of real width; otherwise stacks full-width. The old fixed
+     `240px 1fr` never let the photo track shrink, so the 1fr side
+     (description + map) collapsed into a sliver whenever the detail
+     side panel was also consuming 320px. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 20px;
+  align-items: start;
+}
+
+.photos-column,
+.details-column {
+  /* Let grid children shrink below min-content so long addresses /
+     Leaflet's intrinsic width can't force overflow of the track. */
+  min-width: 0;
 }
 
 .photo-grid {
@@ -530,7 +543,9 @@
 
 .map-preview-box {
   position: relative;
-  height: 120px;
+  /* Was a fixed 120px — too short once the column has real width, and
+     looked like a vertical sliver when the column was crushed. */
+  height: clamp(150px, 20vw, 220px);
   border-radius: 8px;
   overflow: hidden;
   /* Same fix as .map-wrap in ReportHazards.css: establishes a local
@@ -583,12 +598,10 @@
 
 /* --- RESPONSIVE --- */
 
-/* Tablet: stats grid to 2 columns, detail side panel stacks below main column */
-@media (max-width: 900px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
+/* Side panel was still taking 320px down to 900px, which starved the
+   main column enough to compress the submission card's right side.
+   Stack it earlier so the report content gets full width first. */
+@media (max-width: 1100px) {
   .detail-layout {
     grid-template-columns: 1fr;
   }
@@ -596,13 +609,12 @@
   .detail-side-column {
     order: -1;
   }
+}
 
-  /* The 240px photo column + a flexible remainder works fine on desktop,
-     but once the outer .detail-layout above has already gone single-column,
-     that fixed 240px stops leaving enough room for the description/map
-     column and it wraps into an unreadably narrow sliver. Stack instead. */
-  .submission-content-grid {
-    grid-template-columns: 1fr;
+/* Tablet: stats grid to 2 columns */
+@media (max-width: 900px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -747,17 +759,32 @@
     flex-wrap: wrap;
   }
 
-  /* Detail view */
-  .submission-content-grid {
-    grid-template-columns: 1fr;
+  /* Detail view: flatten both columns into the parent grid so we can
+     interleave their children into the best mobile reading order —
+     heading sits directly above the photo, then description, then map,
+     with GPS (reference data) last. The old column-level order swap
+     pushed the photo below the map, detaching it from the section
+     heading. Desktop 2-col layout is untouched (this is mobile-only). */
+  .photos-column,
+  .details-column {
+    display: contents;
   }
 
-  .photos-column {
+  .photo-grid {
+    order: 1;
+    margin-bottom: 0; /* grid gap already provides spacing */
+  }
+
+  .user-description-section {
     order: 2;
   }
 
-  .details-column {
-    order: 1;
+  .map-view-section {
+    order: 3;
+  }
+
+  .gps-location-box {
+    order: 4;
   }
 
   .timeline-stepper {
