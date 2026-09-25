@@ -47,7 +47,9 @@ export default function MonitoringDashboard() {
         severity: filters.severity || undefined,
         from_date: filters.fromDate || undefined,
         to_date: filters.toDate || undefined,
-        exclude_closed: false,
+        // The API's exclude_closed flag filters out phase-four reports,
+        // including both resolved and closed statuses.
+        exclude_closed: true,
         page,
         page_size: PAGE_SIZE,
       });
@@ -100,6 +102,7 @@ export default function MonitoringDashboard() {
   const totalReports = Object.values(statusStats).reduce((sum, n) => sum + Number(n || 0), 0) || count;
   const categories = lookups.categories || [];
   const statuses = lookups.statuses || [];
+  const overviewStatuses = statuses.filter((status) => !["resolved", "closed"].includes(normalize(valueOf(status))));
   const severities = lookups.severities || [];
 
   const updateDraft = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
@@ -127,7 +130,7 @@ export default function MonitoringDashboard() {
         <div className="filters-row">
           <div className="filter-group"><label>Category</label><select value={draft.category} onChange={(e) => updateDraft("category", e.target.value)}><option value="">All Categories</option>{categories.map((c) => <option key={c.hazard_id} value={c.hazard_id}>{c.hazard_name}</option>)}</select></div>
           <div className="filter-group"><label>Severity</label><select value={draft.severity} onChange={(e) => updateDraft("severity", e.target.value)}><option value="">All Severities</option>{severities.map((s) => <option key={valueOf(s)} value={valueOf(s)}>{labelOf(s)}</option>)}</select></div>
-          <div className="filter-group"><label>Status</label><select value={draft.status} onChange={(e) => updateDraft("status", e.target.value)}><option value="">All Statuses</option>{statuses.map((s) => <option key={valueOf(s)} value={valueOf(s)}>{labelOf(s)}</option>)}</select></div>
+          <div className="filter-group"><label>Status</label><select value={draft.status} onChange={(e) => updateDraft("status", e.target.value)}><option value="">All Statuses</option>{overviewStatuses.map((s) => <option key={valueOf(s)} value={valueOf(s)}>{labelOf(s)}</option>)}</select></div>
           <div className="filter-group filter-search"><label>Search</label><div className="search-wrap"><SearchIcon/><input placeholder="Search" value={draft.search} onChange={(e) => updateDraft("search", e.target.value)} onKeyDown={(e) => e.key === "Enter" && applyFilters()} /></div></div>
         </div>
         <div className="filters-row filter-bottom">
