@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { loginUser } from "../../../api/login";
+import { getCurrentUser } from "../../../api/accounts";
 import { setAccessToken } from "../../../api/authToken";
 import "./LoginPage.css";
 
@@ -35,7 +36,16 @@ export default function LoginPage() {
     try {
       const data = await loginUser(email, password);
       setAccessToken(data.access);
-      navigate("/report-hazards");
+
+      // The login response only establishes authentication. Fetch the current
+      // user so we can route staff and citizens to their respective portals.
+      const currentUser = await getCurrentUser();
+
+      if (currentUser?.is_staff === true) {
+        navigate("/dashboard/monitoring");
+      } else {
+        navigate("/report-hazards");
+      }
     } catch (err) {
       setErrors({ form: err?.message || err?.detail || "Invalid email or password." });
     } finally {

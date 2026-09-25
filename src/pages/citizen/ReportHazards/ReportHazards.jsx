@@ -6,7 +6,7 @@ import MapAutoResize from "../../../components/shared/MapAutoResize";
 import PinLocationPage from "../PinLocation/PinLocation";
 import SubmitReportModal from "../SubmitReport/SubmitReportModal";
 import UploadPhoto from "../UploadPhoto/UploadPhoto";
-import CategorySelection from "../CategorySelection/CategorySelection";
+import CategorySelection, { getIconFor } from "../CategorySelection/CategorySelection";
 import { getHazardCategories, createHazardReport, uploadHazardImageFiles } from "../../../api/reports";
 import { hazardMarkerIcon, reverseGeocode } from "../../../utils/leafletHelpers";
 import "./ReportHazards.css";
@@ -419,7 +419,7 @@ export default function HazardReportForm() {
                           title={cat.description}
                         >
                           <div className="category-icon">
-                            <div className="icon-circle-fill"></div>
+                            {getIconFor(cat.hazard_name)}
                           </div>
                           <span>{cat.hazard_name}</span>
                         </div>

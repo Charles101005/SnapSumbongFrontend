@@ -1,17 +1,26 @@
 import api from "./axios";
 
-// GET /reports/hazard-category/ -> [{ hazard_id, hazard_name, description }]
+// GET /reports/hazard-category/
 export const getHazardCategories = async () => {
     try {
         const response = await api.get("reports/hazard-category/");
         return response.data;
     } catch (error) {
-        throw error.response.data;
+        throw error.response?.data || error;
+    }
+};
+
+// GET /reports/lookup/ -> { categories, statuses, severities }
+export const getReportLookups = async () => {
+    try {
+        const response = await api.get("reports/lookup/");
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error;
     }
 };
 
 // GET /reports/image-signature/?image_count=N
-// -> { api_key, upload_url, upload_preset, asset_folder, use_asset_folder_as_public_id_prefix, timestamp, image_signatures: [{ public_id, signature }] }
 export const getImageUploadSignature = async (imageCount) => {
     try {
         const response = await api.get("reports/image-signature/", {
@@ -19,12 +28,11 @@ export const getImageUploadSignature = async (imageCount) => {
         });
         return response.data;
     } catch (error) {
-        throw error.response.data;
+        throw error.response?.data || error;
     }
 };
 
-// Uploads files directly to Cloudinary using signed credentials from the backend.
-// Returns an array of secure_url strings in the same order as `files`.
+// Upload files directly to Cloudinary using signed credentials from the API.
 export const uploadHazardImages = async (files, signatureData) => {
     const {
         upload_url,
@@ -42,8 +50,8 @@ export const uploadHazardImages = async (files, signatureData) => {
 
     const uploadOne = async (file, index) => {
         const { public_id, signature } = image_signatures[index];
-
         const formData = new FormData();
+
         formData.append("file", file);
         formData.append("api_key", api_key);
         formData.append("timestamp", timestamp);
@@ -60,62 +68,78 @@ export const uploadHazardImages = async (files, signatureData) => {
             method: "POST",
             body: formData,
         });
-
         const data = await response.json();
 
-        if (!response.ok) {
-            throw data;
-        }
-
+        if (!response.ok) throw data;
         return data.secure_url;
     };
 
     return Promise.all(files.map((file, index) => uploadOne(file, index)));
 };
 
-// Convenience helper: request a signature for `files.length` images and upload them all.
 export const uploadHazardImageFiles = async (files) => {
     if (!files || files.length === 0) return [];
-
     const signatureData = await getImageUploadSignature(files.length);
     return uploadHazardImages(files, signatureData);
 };
 
 // POST /reports/
-// payload: { category_id, latitude, longitude, address, description, is_anonymous, image_urls }
-// -> { report_number, reported_by, created_at }
 export const createHazardReport = async (payload) => {
     try {
         const response = await api.post("reports/", payload);
         return response.data;
     } catch (error) {
-        throw error.response.data;
+        throw error.response?.data || error;
     }
 };
 
-// GET /reports/?category_id=&status=&created_at=YYYY-MM-DD&page=&page_size=
-// Only category_id, status and created_at (exact date) are supported server-side filters;
-// there is no free-text search filter on this endpoint.
-// -> { count, total_pages, current_page, next, previous,
-//      results: [{ report_number, category, status, created_at }] }
+// GET /reports/
+// Staff filters: q, category_id, status, exclude_closed, severity, from_date, to_date,
+// page and page_size.
 export const getReports = async (params = {}) => {
     try {
         const response = await api.get("reports/", { params });
         return response.data;
     } catch (error) {
-        throw error.response.data;
+        throw error.response?.data || error;
     }
 };
 
 // GET /reports/:report_number/
-// -> { report_number, status, latitude, longitude, address, description,
-//      image_urls, status_timeline: [{ status, created_at }] }
-// Note: category and remarks are NOT part of this response yet.
 export const getReportDetail = async (reportNumber) => {
     try {
-        const response = await api.get(`reports/${reportNumber}/`);
+        const response = await api.get(`reports/${encodeURIComponent(reportNumber)}/`);
         return response.data;
     } catch (error) {
-        throw error.response.data;
+        throw error.response?.data || error;
     }
+};
+
+// GET /reports/history/:report_number/
+export const getReportHistoryDetail = async (reportNumber) => {
+    try {
+        const response = await api.get(`reports/history/${encodeURIComponent(reportNumber)}/`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error;
+    }
+};
+
+// PATCH /reports/:report_number/
+// The backend accepts status, severity, remarks and resolution_image_urls.
+export const updateReport = async (reportNumber, payload) => {
+    try {
+        const response = await api.patch(
+            `reports/${encodeURIComponent(reportNumber)}/`,
+            payload
+        );
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error;
+    }
+};
+
+// The same signed-image endpoint is used by staff for resolution evidence.
+export const uploadResolutionImages = async (files) => {
+    return uploadHazardImageFiles(files);
 };

@@ -1,4 +1,8 @@
-import { Link, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { getCurrentUser } from "../../api/accounts";
+import { logoutUser } from "../../api/login";
+import { clearAccessToken } from "../../api/authToken";
 import "./Sidebar.css";
 
 function RocketIcon() {
@@ -74,11 +78,38 @@ function LogoutIcon() {
 
 export default function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+
+  useEffect(() => {
+    getCurrentUser().then(setUser).catch(() => setUser(null));
+  }, []);
   const path = location.pathname;
 
   const isActive = (route) => path === route;
   const isMonitoringActive = path.startsWith("/dashboard/monitoring");
   const isUserMgmtActive = path.startsWith("/dashboard/users");
+  const permissions = user?.permissions || [];
+  const can = (permission) => permissions.includes(permission);
+  const canReports = can("report:read_all") || can("report:read_assigned") || can("report:read_own");
+  const canAnalytics = can("analytic:read_dashboard") || can("analytic:read_all_metrics") || can("analytic:read_assigned_metrics") || can("analytic:read_own_metrics");
+  const canUsers = can("user:read_all") || can("employee:read_all") || can("role:read_all");
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    setLogoutError("");
+    try {
+      await logoutUser();
+      clearAccessToken();
+      navigate("/", { replace: true });
+    } catch {
+      setLogoutError("Couldn't log out. Please try again.");
+      setLoggingOut(false);
+    }
+  };
 
   return (
     <aside className="sidebar">
@@ -87,11 +118,14 @@ export default function Sidebar() {
           <div className="sidebar-logo">
             <RocketIcon />
           </div>
-          <span className="sidebar-brand-name">SnapSumbong</span>
+          <div className="sidebar-brand-text">
+            <span className="sidebar-brand-name">SnapSumbong</span>
+            <span className="sidebar-brand-tagline">LGU Monitoring</span>
+          </div>
         </div>
 
         <nav className="sidebar-nav">
-          <div className="sidebar-nav-section">
+          {canUsers && <div className="sidebar-nav-section">
             <Link
               to="/dashboard/users/roles"
               className={`sidebar-nav-item parent ${isUserMgmtActive ? "active" : ""}`}
@@ -119,17 +153,17 @@ export default function Sidebar() {
                 Citizens
               </Link>
             </div>
-          </div>
+          </div>}
 
-          <Link
+          {canReports && <Link
             to="/dashboard/report-management"
             className={`sidebar-nav-item ${isActive("/dashboard/report-management") ? "active" : ""}`}
           >
             <ClipboardIcon />
             <span>Report Management</span>
-          </Link>
+          </Link>}
 
-          <div className="sidebar-nav-section">
+          {canAnalytics && <div className="sidebar-nav-section">
             <Link
               to="/dashboard/monitoring"
               className={`sidebar-nav-item parent ${isMonitoringActive ? "active" : ""}`}
@@ -157,15 +191,15 @@ export default function Sidebar() {
                 Analytics
               </Link>
             </div>
-          </div>
+          </div>}
 
-          <Link
+          {can("audit:read_report_logs") || can("audit:read_system_logs") ? <Link
             to="/dashboard/audit-trail"
             className={`sidebar-nav-item ${isActive("/dashboard/audit-trail") ? "active" : ""}`}
           >
             <AuditTrailIcon />
             <span>Audit Trail</span>
-          </Link>
+          </Link> : null}
         </nav>
       </div>
 
@@ -175,14 +209,15 @@ export default function Sidebar() {
             <UserIcon />
           </div>
           <div className="sidebar-user-info">
-            <span className="sidebar-user-name">Admin User</span>
-            <span className="sidebar-user-role">Supervisor</span>
+            <span className="sidebar-user-name">{user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.email : "Loading..."}</span>
+            <span className="sidebar-user-role">{user?.role || "Field Officer"}</span>
           </div>
         </div>
-        <button className="sidebar-logout">
+        <button className="sidebar-logout" type="button" onClick={handleLogout} disabled={loggingOut}>
           <LogoutIcon />
-          <span>Logout</span>
+          <span>{loggingOut ? "Logging out..." : "Logout"}</span>
         </button>
+        {logoutError && <span className="sidebar-logout-error" role="alert">{logoutError}</span>}
       </div>
     </aside>
   );

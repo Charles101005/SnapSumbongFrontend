@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { NavLink, Outlet } from "react-router-dom";
-import { getCurrentUser } from "../../../api/accounts";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { getCurrentUser, getProfile } from "../../../api/accounts";
+import { logoutUser } from "../../../api/login";
+import { clearAccessToken } from "../../../api/authToken";
 // Reuses the existing "app shell" (.app / .sidebar / .main) styles that used
 // to live only inside ReportHazards — the DOM structure below is unchanged,
 // just moved up a level so it can wrap more than one route.
@@ -11,31 +13,44 @@ import "../../../pages/citizen/ReportHazards/ReportHazards.css";
 // and each page gets its own real URL instead of being an internal view
 // switch inside a single page component.
 export default function CitizenLayout() {
+  const navigate = useNavigate();
   const [user, setUser] = useState({
     firstName: "",
     middleName: "",
     lastName: "",
     email: "",
     role: "",
+    profilePicture: "",
   });
 
   // Mobile sidebar toggle — the sidebar is off-canvas on small screens and
   // slides in via the .open class, dismissed by the overlay or a nav click.
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       try {
-        const data = await getCurrentUser();
+        const [userResult, profileResult] = await Promise.allSettled([
+          getCurrentUser(),
+          getProfile(),
+        ]);
         if (cancelled) return;
+        if (userResult.status !== "fulfilled") return;
+        const data = userResult.value;
+        const profilePicture = profileResult.status === "fulfilled"
+          ? profileResult.value.profile_picture || ""
+          : "";
         setUser({
           firstName: data.first_name || "",
           middleName: data.middle_name || "",
           lastName: data.last_name || "",
           email: data.email || "",
           role: data.role || "",
+          profilePicture,
         });
       } catch {
         // Not logged in, or session expired — leave the sidebar blank rather than guessing.
@@ -56,6 +71,19 @@ export default function CitizenLayout() {
   const navItemClass = ({ isActive }) => `nav-item ${isActive ? "active" : ""}`;
   const accountSettingsClass = ({ isActive }) => `account-settings ${isActive ? "active" : ""}`;
   const closeSidebar = () => setSidebarOpen(false);
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    setLogoutError("");
+    try {
+      await logoutUser();
+      clearAccessToken();
+      navigate("/", { replace: true });
+    } catch {
+      setLogoutError("Couldn't log out. Please try again.");
+      setLoggingOut(false);
+    }
+  };
 
   return (
     <div className="app">
@@ -105,10 +133,18 @@ export default function CitizenLayout() {
 
         <div className="user-card">
           <div className="avatar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
+            {user.profilePicture ? (
+              <img
+                src={user.profilePicture}
+                alt=""
+                onError={() => setUser((prev) => ({ ...prev, profilePicture: "" }))}
+              />
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            )}
           </div>
           <div className="user-meta">
             <span className="user-name">{fullName || "Guest"}</span>
@@ -120,6 +156,15 @@ export default function CitizenLayout() {
               </svg>
               Account Settings
             </NavLink>
+            <button className="user-logout" type="button" onClick={handleLogout} disabled={loggingOut}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              {loggingOut ? "Logging out..." : "Log out"}
+            </button>
+            {logoutError && <span className="user-logout-error" role="alert">{logoutError}</span>}
           </div>
         </div>
       </aside>

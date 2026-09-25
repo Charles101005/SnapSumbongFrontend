@@ -118,6 +118,17 @@
   overflow: hidden;
 }
 
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  padding: 5px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: #f1f5f9;
+  object-fit: contain;
+  object-position: center;
+}
+
 .camera-btn {
   position: absolute;
   bottom: 0;

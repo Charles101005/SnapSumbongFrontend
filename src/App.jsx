@@ -10,6 +10,7 @@ import NewPass from "./pages/auth/NewPass/NewPass";
 import MonitoringDashboard from "./pages/dashboard/Monitoring/MonitoringDashboard";
 import ReportManagement from "./pages/dashboard/ReportManagement/ReportManagement";
 import ReportsHistory from "./pages/dashboard/Monitoring/ReportsHistory";
+import ReportDetail from "./pages/dashboard/Monitoring/ReportDetail";
 import Analytics from "./pages/dashboard/Monitoring/Analytics";
 import ViewRoles from "./pages/dashboard/UserManagement/ViewRoles";
 import AddNewRole from "./pages/dashboard/UserManagement/AddNewRole";
@@ -84,6 +85,7 @@ function App() {
             <Route path="/dashboard/report-management" element={<ReportManagement />} />
             <Route path="/dashboard/monitoring" element={<MonitoringDashboard />} />
             <Route path="/dashboard/monitoring/history" element={<ReportsHistory />} />
+            <Route path="/dashboard/monitoring/report-details" element={<ReportDetail />} />
             <Route path="/dashboard/monitoring/analytics" element={<Analytics />} />
             <Route path="/dashboard/audit-trail" element={<AuditTrail />} />
         </Routes>

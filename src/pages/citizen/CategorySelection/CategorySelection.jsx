@@ -111,7 +111,7 @@ const ICON_RULES = [
   ) },
 ];
 
-function getIconFor(name = "") {
+export function getIconFor(name = "") {
   const rule = ICON_RULES.find((r) => r.match.test(name));
   return rule ? rule.icon : DEFAULT_ICON;
 }

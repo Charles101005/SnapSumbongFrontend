@@ -192,6 +192,54 @@
  color: var(--color-primary);
 }
 
+.app > .sidebar .user-logout {
+ display: inline-flex;
+ align-items: center;
+ gap: 6px;
+ margin-top: 4px;
+ padding: 0;
+ border: 0;
+ background: transparent;
+ color: #b42318;
+ font: inherit;
+ font-size: 11.5px;
+ font-weight: 500;
+ line-height: 1;
+ cursor: pointer;
+}
+
+.app > .sidebar .user-logout:hover {
+ color: #912018;
+}
+
+.app > .sidebar .user-logout:disabled {
+ cursor: wait;
+ opacity: .65;
+}
+
+.app > .sidebar .user-logout svg {
+ width: 14px;
+ height: 14px;
+ flex-shrink: 0;
+}
+
+.app > .sidebar .avatar img {
+ width: 100%;
+ height: 100%;
+ padding: 2px;
+ box-sizing: border-box;
+ border-radius: 50%;
+ object-fit: contain;
+ object-position: center;
+ background: #f1f5f9;
+}
+
+.app > .sidebar .user-logout-error {
+ color: #b42318;
+ font-size: 10px;
+ line-height: 1.3;
+}
+
 
 .app > .sidebar .account-settings svg,
 .app > .sidebar .account-settings img,

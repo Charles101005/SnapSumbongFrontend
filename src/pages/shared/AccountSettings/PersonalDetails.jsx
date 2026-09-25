@@ -115,7 +115,7 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
             <div className="avatar-container">
               <div className="avatar-placeholder">
                 {profilePicture ? (
-                  <img src={profilePicture} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
+                  <img className="profile-picture-preview" src={profilePicture} alt="Profile" />
                 ) : (
                   <svg viewBox="0 0 24 24" fill="#cfd8dc" width="70%" height="70%">
                     <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />

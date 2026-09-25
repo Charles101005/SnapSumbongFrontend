@@ -1,225 +1,36 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
+import { getReportLookups, getReports } from "../../../api/reports";
 import "./ReportsHistory.css";
-import mockData from "../../../data/mock.json";
 
-const { reportsHistory: MOCK_REPORTS, constants } = mockData;
-const { categories: CATEGORIES, severities: SEVERITIES, historyStatuses: STATUSES } = constants;
-const ROWS_PER_PAGE = 9;
+const PAGE_SIZE = 9;
+const valueOf = (item) => item?.value || item;
+const labelOf = (item) => item?.label || item;
+const normalize = (value) => String(value || "").toLowerCase().replace(/[\s-]+/g, "_");
+const prettifyStatus = (status) => normalize(status).split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ").replace(/^On Hold$/i, "On-Hold");
+const displayStatus = (status, statuses = []) => {
+  const match = statuses.find((s) => valueOf(s) === status || labelOf(s) === status);
+  return match ? labelOf(match) : (status ? prettifyStatus(status) : "—");
+};
 
-function SearchIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-  );
-}
+function SearchIcon(){return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>}
+function FilterIcon(){return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>}
 
-function FilterIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-    </svg>
-  );
-}
-
-export default function ReportsHistory() {
-  const [draftCategory, setDraftCategory] = useState("All Categories");
-  const [draftSeverity, setDraftSeverity] = useState("All Severities");
-  const [draftStatus, setDraftStatus] = useState("All Statuses");
-  const [draftSearch, setDraftSearch] = useState("");
-  const [draftDateFrom, setDraftDateFrom] = useState("");
-  const [draftDateTo, setDraftDateTo] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("All Categories");
-  const [severityFilter, setSeverityFilter] = useState("All Severities");
-  const [statusFilter, setStatusFilter] = useState("All Statuses");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-
-  const filteredReports = useMemo(() => {
-    return MOCK_REPORTS.filter((report) => {
-      if (categoryFilter !== "All Categories" && report.category !== categoryFilter) return false;
-      if (severityFilter !== "All Severities" && report.severity !== severityFilter) return false;
-      if (statusFilter !== "All Statuses" && report.status !== statusFilter) return false;
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        const match =
-          report.id.toLowerCase().includes(q) ||
-          report.category.toLowerCase().includes(q) ||
-          report.location.toLowerCase().includes(q);
-        if (!match) return false;
-      }
-      return true;
-    });
-  }, [categoryFilter, severityFilter, statusFilter, searchQuery]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredReports.length / ROWS_PER_PAGE));
-  const safePage = Math.min(currentPage, totalPages);
-  const paginatedReports = filteredReports.slice((safePage - 1) * ROWS_PER_PAGE, safePage * ROWS_PER_PAGE);
-  const startRow = filteredReports.length === 0 ? 0 : (safePage - 1) * ROWS_PER_PAGE + 1;
-  const endRow = Math.min(safePage * ROWS_PER_PAGE, filteredReports.length);
-
-  const handleApplyFilters = () => {
-    setCategoryFilter(draftCategory);
-    setSeverityFilter(draftSeverity);
-    setStatusFilter(draftStatus);
-    setSearchQuery(draftSearch);
-    setDateFrom(draftDateFrom);
-    setDateTo(draftDateTo);
-    setCurrentPage(1);
-  };
-
-  const handleReset = () => {
-    setDraftCategory("All Categories");
-    setDraftSeverity("All Severities");
-    setDraftStatus("All Statuses");
-    setDraftSearch("");
-    setDraftDateFrom("");
-    setDraftDateTo("");
-    setCategoryFilter("All Categories");
-    setSeverityFilter("All Severities");
-    setStatusFilter("All Statuses");
-    setSearchQuery("");
-    setDateFrom("");
-    setDateTo("");
-    setCurrentPage(1);
-  };
-
-  return (
-    <DashboardLayout title="Report History">
-      <div className="section-header">
-        <h2 className="section-title">Report History Overview</h2>
-        <p className="section-subtitle">View historical logs and status updates for all submitted reports.</p>
-      </div>
-
-      <div className="filters-section">
-        <div className="filters-row">
-          <div className="filter-group">
-            <label className="filter-label">Category</label>
-            <select className="filter-select" value={draftCategory} onChange={(e) => setDraftCategory(e.target.value)}>
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
-          <div className="filter-group">
-            <label className="filter-label">Severity</label>
-            <select className="filter-select" value={draftSeverity} onChange={(e) => setDraftSeverity(e.target.value)}>
-              {SEVERITIES.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-          <div className="filter-group">
-            <label className="filter-label">Status</label>
-            <select className="filter-select" value={draftStatus} onChange={(e) => setDraftStatus(e.target.value)}>
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-          <div className="filter-group filter-group-search">
-            <label className="filter-label">Search</label>
-            <div className="search-input-wrapper">
-              <SearchIcon />
-              <input
-                type="text"
-                className="filter-input"
-                placeholder="Search"
-                value={draftSearch}
-                onChange={(e) => setDraftSearch(e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
-        <div className="filters-row filters-row-secondary">
-          <div className="filter-group">
-            <label className="filter-label">Date Range</label>
-            <div className="date-range-wrapper">
-              <input type="date" className="filter-date" value={draftDateFrom} onChange={(e) => setDraftDateFrom(e.target.value)} placeholder="mm/dd/yyyy" />
-              <span className="date-range-separator">to</span>
-              <input type="date" className="filter-date" value={draftDateTo} onChange={(e) => setDraftDateTo(e.target.value)} placeholder="mm/dd/yyyy" />
-            </div>
-          </div>
-          <div className="filter-actions">
-            <button className="btn-apply" onClick={handleApplyFilters}>
-              <FilterIcon />
-              Apply Filters
-            </button>
-            <button className="btn-reset" onClick={handleReset}>Reset</button>
-          </div>
-        </div>
-      </div>
-
-      <div className="table-container">
-        <table className="reports-table">
-          <thead>
-            <tr>
-              <th>REPORT ID</th>
-              <th>CATEGORY</th>
-              <th>LOCATION</th>
-              <th>DATE REPORTED</th>
-              <th>STATUS</th>
-              <th>SEVERITY</th>
-              <th>ACTION</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedReports.length > 0 ? (
-              paginatedReports.map((report) => (
-                <tr key={report.id}>
-                  <td><span className="report-id-link">{report.id}</span></td>
-                  <td>{report.category}</td>
-                  <td>{report.location}</td>
-                  <td>{report.dateReported}</td>
-                  <td>
-                    <span className={`status-badge status-${report.status.toLowerCase()}`}>
-                      {report.status.replace("_", " ")}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`severity-badge severity-${report.severity.toLowerCase()}`}>
-                      {report.severity}
-                    </span>
-                  </td>
-                  <td><Link to="/dashboard/report-management" className="action-link">Manage</Link></td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="7" className="empty-table-message">No reports found matching your filters.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="pagination">
-        <span className="pagination-info">
-          Showing {startRow} to {endRow} of {filteredReports.length} reports
-        </span>
-        <div className="pagination-buttons">
-          <button className="pagination-btn" disabled={safePage <= 1} onClick={() => setCurrentPage((p) => p - 1)}>
-            Previous
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <button
-              key={page}
-              className={`pagination-btn ${page === safePage ? "active" : ""}`}
-              onClick={() => setCurrentPage(page)}
-            >
-              {page}
-            </button>
-          ))}
-          <button className="pagination-btn" disabled={safePage >= totalPages} onClick={() => setCurrentPage((p) => p + 1)}>
-            Next
-          </button>
-        </div>
-      </div>
-    </DashboardLayout>
-  );
+export default function ReportsHistory(){
+  const [lookups,setLookups]=useState({categories:[],statuses:[],severities:[]});
+  const [reports,setReports]=useState([]);const [count,setCount]=useState(0);const [totalPages,setTotalPages]=useState(1);const [page,setPage]=useState(1);const [loading,setLoading]=useState(false);const [error,setError]=useState("");
+  const empty={category:"",severity:"",status:"",search:"",fromDate:"",toDate:""};
+  const [filters,setFilters]=useState(empty);const [draft,setDraft]=useState(empty);
+  useEffect(()=>{getReportLookups().then(setLookups).catch(()=>{});},[]);
+  useEffect(()=>{(async()=>{try{setLoading(true);setError("");const data=await getReports({q:filters.search||undefined,category_id:filters.category||undefined,severity:filters.severity||undefined,status:filters.status||undefined,from_date:filters.fromDate||undefined,to_date:filters.toDate||undefined,exclude_closed:false,page,page_size:PAGE_SIZE});setReports(data.results||[]);setCount(data.count||0);setTotalPages(Math.max(1,data.total_pages||1));}catch(err){setError(err?.detail||err?.message||"Unable to load report history.");}finally{setLoading(false);}})();},[page,filters]);
+  const set=(key,value)=>setDraft(v=>({...v,[key]:value}));
+  const apply=()=>{setPage(1);setFilters(draft)};const reset=()=>{setPage(1);setDraft(empty);setFilters(empty)};
+  return <DashboardLayout title="Report History"><div className="section-header"><h2 className="section-title">Report History Overview</h2><p className="section-subtitle">View historical logs and status updates for all submitted reports.</p></div>
+    <div className="filters-section"><div className="filters-row"><div className="filter-group"><label>Category</label><select value={draft.category} onChange={e=>set("category",e.target.value)}><option value="">All Categories</option>{lookups.categories.map(c=><option key={c.hazard_id} value={c.hazard_id}>{c.hazard_name}</option>)}</select></div><div className="filter-group"><label>Severity</label><select value={draft.severity} onChange={e=>set("severity",e.target.value)}><option value="">All Severities</option>{lookups.severities.map(s=><option key={valueOf(s)} value={valueOf(s)}>{labelOf(s)}</option>)}</select></div><div className="filter-group"><label>Status</label><select value={draft.status} onChange={e=>set("status",e.target.value)}><option value="">All Statuses</option>{lookups.statuses.map(s=><option key={valueOf(s)} value={valueOf(s)}>{labelOf(s)}</option>)}</select></div><div className="filter-group filter-search"><label>Search</label><div className="search-wrap"><SearchIcon/><input placeholder="Search" value={draft.search} onChange={e=>set("search",e.target.value)} onKeyDown={e=>e.key==="Enter"&&apply()}/></div></div></div>
+      <div className="filters-row filter-bottom"><div className="filter-group"><label>Date Range</label><div className="date-range"><span>From</span><input type="date" value={draft.fromDate} onChange={e=>set("fromDate",e.target.value)}/><span>to</span><input type="date" value={draft.toDate} onChange={e=>set("toDate",e.target.value)}/></div></div><div className="filter-actions"><button className="btn-apply" onClick={apply}><FilterIcon/>Apply Filters</button><button className="btn-reset" onClick={reset}>Reset</button></div></div></div>
+      {error&&<div className="form-error">{typeof error==="string"?error:JSON.stringify(error)}</div>}
+      <div className="table-container"><table className="reports-table"><thead><tr><th>REPORT ID</th><th>CATEGORY</th><th>LOCATION</th><th>DATE REPORTED</th><th>STATUS</th><th>SEVERITY</th><th>ACTION</th></tr></thead><tbody>{loading?<tr><td colSpan="7" className="empty-table-message">Loading reports...</td></tr>:reports.length?reports.map(report=><tr key={report.report_number}><td className="report-number">{report.report_number}</td><td>{report.category}</td><td>{report.address||"—"}</td><td>{new Date(report.created_at).toLocaleDateString()}</td><td><span className={`status-badge status-${normalize(report.status)}`}>{displayStatus(report.status, lookups.statuses)}</span></td><td><span className={`severity-badge severity-${String(report.severity||"").toLowerCase()}`}>{report.severity||"—"}</span></td><td><Link to={`/dashboard/monitoring/report-details?report=${encodeURIComponent(report.report_number)}`} className="action-link">View Details</Link></td></tr>):<tr><td colSpan="7" className="empty-table-message">No reports found.</td></tr>}</tbody></table></div>
+      <div className="pagination"><span>Showing {reports.length?((page-1)*PAGE_SIZE)+1:0} to {Math.min(page*PAGE_SIZE,count)} of {count} reports</span><div><button disabled={page<=1} onClick={()=>setPage(p=>p-1)}>Previous</button><button disabled={page>=totalPages} onClick={()=>setPage(p=>p+1)}>Next</button></div></div>
+  </DashboardLayout>
 }

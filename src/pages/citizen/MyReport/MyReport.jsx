@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import MapAutoResize from '../../../components/shared/MapAutoResize';
@@ -13,11 +13,10 @@ const ROWS_PER_PAGE = 5; // Matches the backend's SmallListPagination page size.
 // values, so we map them to a display label and a badge class here.
 const STATUS_META = {
   NEW: { label: 'New', badgeClass: 'status-new' },
-  OPEN: { label: 'Open', badgeClass: 'status-open' },
-  IN_PROGRESS: { label: 'In Progress', badgeClass: 'status-in-progress' },
-  PENDING: { label: 'Pending', badgeClass: 'status-pending' },
+  ASSIGNED: { label: 'Assigned', badgeClass: 'status-assigned' },
+  UNDER_REVIEW: { label: 'Under Review', badgeClass: 'status-under-review' },
   ON_HOLD: { label: 'On Hold', badgeClass: 'status-on-hold' },
-  UNDER_REPAIR: { label: 'Under Repair', badgeClass: 'status-under-repair' },
+  DISPATCHED: { label: 'Dispatched', badgeClass: 'status-dispatched' },
   RESOLVED: { label: 'Resolved', badgeClass: 'status-resolved' },
   CLOSED: { label: 'Closed', badgeClass: 'status-closed' },
 };
@@ -26,9 +25,10 @@ const STATUS_OPTIONS = Object.entries(STATUS_META).map(([value, meta]) => ({
   label: meta.label,
 }));
 
-const getStatusLabel = (status) => STATUS_META[status]?.label || status;
+const normalizeStatus = (status) => String(status || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+const getStatusLabel = (status) => STATUS_META[normalizeStatus(status)]?.label || status;
 const getStatusBadgeClass = (status) =>
-  `status-badge ${STATUS_META[status]?.badgeClass || ''}`;
+  `status-badge ${STATUS_META[normalizeStatus(status)]?.badgeClass || ''}`;
 
 const formatDate = (isoString) => {
   if (!isoString) return '';
@@ -59,7 +59,7 @@ export default function MyReport() {
   // --- Summary stat cards ---
   // Backed by GET /analytics/hazard-report/, which returns the authoritative
   // per-status counts already scoped to this user by the backend.
-  const [stats, setStats] = useState({ total: null, resolved: null, inProgress: null, pending: null });
+  const [stats, setStats] = useState({ total: null, resolved: null, underReview: null, dispatched: null });
 
   // --- Detail view state ---
   const [selectedReportRow, setSelectedReportRow] = useState(null); // the clicked row (has `category`)
@@ -139,8 +139,8 @@ export default function MyReport() {
         setStats({
           total: data.total_count,
           resolved: data.count_by_status?.resolved ?? 0,
-          inProgress: data.count_by_status?.in_progress ?? 0,
-          pending: data.count_by_status?.pending ?? 0,
+          underReview: data.count_by_status?.under_review ?? 0,
+          dispatched: data.count_by_status?.dispatched ?? 0,
         });
       } catch {
         // Leave stats blank rather than showing misleading numbers.
@@ -196,6 +196,23 @@ export default function MyReport() {
     setSelectedReportRow(null);
     setSelectedReportDetail(null);
     setDetailError('');
+  };
+
+  // --- Lightbox (photo viewer) + map modal state ---
+  const [lightbox, setLightbox] = useState(null); // { images: string[], index: number }
+  const [mapModalOpen, setMapModalOpen] = useState(false);
+
+  const openLightbox = (images, index) => {
+    if (!images || !images.length) return;
+    setLightbox({ images, index });
+  };
+  const closeLightbox = () => setLightbox(null);
+  const navigateLightbox = (delta) => {
+    setLightbox((current) => {
+      if (!current) return current;
+      const next = (current.index + delta + current.images.length) % current.images.length;
+      return { ...current, index: next };
+    });
   };
 
   // --- DETAIL VIEW ---
@@ -259,7 +276,13 @@ export default function MyReport() {
                     {selectedReportDetail.image_urls && selectedReportDetail.image_urls.length > 0 ? (
                       <div className="photo-grid">
                         {selectedReportDetail.image_urls.map((src, i) => (
-                          <img key={i} src={src} alt={`Submission proof ${i + 1}`} />
+                          <img
+                            key={i}
+                            src={src}
+                            alt={`Submission proof ${i + 1}`}
+                            className="clickable-thumb"
+                            onClick={() => openLightbox(selectedReportDetail.image_urls, i)}
+                          />
                         ))}
                       </div>
                     ) : (
@@ -289,7 +312,14 @@ export default function MyReport() {
 
                     <div className="map-view-section">
                       <h4>ATTACHED MAP VIEW</h4>
-                      <div className="map-preview-box">
+                      <div
+                        className="map-preview-box clickable-map"
+                        onClick={() => setMapModalOpen(true)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter') setMapModalOpen(true); }}
+                        aria-label="Open larger map view"
+                      >
                         <MapContainer
                           key={`${selectedReportDetail.latitude}-${selectedReportDetail.longitude}`}
                           center={[
@@ -317,6 +347,11 @@ export default function MyReport() {
                           />
                           <MapAutoResize />
                         </MapContainer>
+                        <div className="map-expand-hint">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                          </svg>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -328,16 +363,47 @@ export default function MyReport() {
             <div className="detail-side-column">
               <div className="card resolution-proof-card">
                 <h3>LGU Resolution Proof</h3>
-                <div className="proof-placeholder-box">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z" />
-                    <circle cx="12" cy="13" r="4" />
-                  </svg>
-                  <p>Photo of the repair will appear here once the case is marked 'Resolved'</p>
-                </div>
+                {selectedReportDetail.resolution_image_urls && selectedReportDetail.resolution_image_urls.length > 0 ? (
+                  <div className="photo-grid resolution-proof-grid">
+                    {selectedReportDetail.resolution_image_urls.map((src, i) => (
+                      <img
+                        key={i}
+                        src={src}
+                        alt={`Resolution proof ${i + 1}`}
+                        className="clickable-thumb"
+                        onClick={() => openLightbox(selectedReportDetail.resolution_image_urls, i)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="proof-placeholder-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z" />
+                      <circle cx="12" cy="13" r="4" />
+                    </svg>
+                    <p>Photo of the repair will appear here once the case is marked 'Resolved'</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
+        )}
+
+        {lightbox && (
+          <Lightbox
+            images={lightbox.images}
+            index={lightbox.index}
+            onClose={closeLightbox}
+            onNavigate={navigateLightbox}
+          />
+        )}
+
+        {mapModalOpen && selectedReportDetail && (
+          <MapModal
+            latitude={selectedReportDetail.latitude}
+            longitude={selectedReportDetail.longitude}
+            onClose={() => setMapModalOpen(false)}
+          />
         )}
       </div>
     );
@@ -379,29 +445,28 @@ export default function MyReport() {
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon in-progress-icon">
+          <div className="stat-icon under-review-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
             </svg>
           </div>
           <div>
-            <span className="stat-label">IN PROGRESS</span>
-            <div className="stat-value">{stats.inProgress ?? '—'}</div>
+            <span className="stat-label">UNDER REVIEW</span>
+            <div className="stat-value">{stats.underReview ?? '—'}</div>
           </div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon pending-icon">
+          <div className="stat-icon dispatched-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
+              <path d="M4 12h15" />
+              <path d="m13 6 6 6-6 6" />
             </svg>
           </div>
           <div>
-            <span className="stat-label">PENDING</span>
-            <div className="stat-value">{stats.pending ?? '—'}</div>
+            <span className="stat-label">DISPATCHED</span>
+            <div className="stat-value">{stats.dispatched ?? '—'}</div>
           </div>
         </div>
       </div>
@@ -543,6 +608,104 @@ export default function MyReport() {
             Next
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function Lightbox({ images, index, onClose, onNavigate }) {
+  const touchStartX = useRef(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+      else if (e.key === 'ArrowRight') onNavigate(1);
+      else if (e.key === 'ArrowLeft') onNavigate(-1);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, onNavigate]);
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const delta = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(delta) > 40) onNavigate(delta > 0 ? -1 : 1);
+    touchStartX.current = null;
+  };
+
+  return (
+    <div className="lightbox-overlay" onClick={onClose}>
+      <button className="lightbox-close" onClick={onClose} aria-label="Close">&times;</button>
+      {images.length > 1 && (
+        <button
+          className="lightbox-nav lightbox-prev"
+          onClick={(e) => { e.stopPropagation(); onNavigate(-1); }}
+          aria-label="Previous photo"
+        >
+          &#8249;
+        </button>
+      )}
+      <div
+        className="lightbox-content"
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        <img src={images[index]} alt={`Photo ${index + 1} of ${images.length}`} />
+        {images.length > 1 && (
+          <span className="lightbox-counter">{index + 1} / {images.length}</span>
+        )}
+      </div>
+      {images.length > 1 && (
+        <button
+          className="lightbox-nav lightbox-next"
+          onClick={(e) => { e.stopPropagation(); onNavigate(1); }}
+          aria-label="Next photo"
+        >
+          &#8250;
+        </button>
+      )}
+    </div>
+  );
+}
+
+function MapModal({ latitude, longitude, onClose }) {
+  const lat = Number(latitude);
+  const lon = Number(longitude);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className="lightbox-overlay" onClick={onClose}>
+      <button className="lightbox-close" onClick={onClose} aria-label="Close">&times;</button>
+      <div className="map-modal-content" onClick={(e) => e.stopPropagation()}>
+        <MapContainer
+          key={`modal-${lat}-${lon}`}
+          center={[lat, lon]}
+          zoom={17}
+          style={{ width: '100%', height: '100%' }}
+          attributionControl={false}
+        >
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <Marker position={[lat, lon]} icon={hazardMarkerIcon} />
+          <MapAutoResize />
+        </MapContainer>
+        <a
+          className="map-modal-external-link"
+          href={`https://www.google.com/maps?q=${lat},${lon}`}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+        >
+          Open in Google Maps ↗
+        </a>
       </div>
     </div>
   );

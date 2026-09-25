@@ -47,6 +47,7 @@ export default function AccountSettings({ onUpdateUser }) {
         middleName: updatedProfile.middle_name,
         lastName: updatedProfile.last_name,
         email: updatedProfile.email,
+        profilePicture: updatedProfile.profile_picture || "",
       });
     }
     setCurrentView("settings");
