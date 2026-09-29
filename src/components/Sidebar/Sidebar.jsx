@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { getCurrentUser } from "../../api/accounts";
-import { logoutUser } from "../../api/login";
-import { clearAccessToken } from "../../api/authToken";
+import { useAuth } from "../../context/authContext";
 import "./Sidebar.css";
 
 function RocketIcon() {
@@ -78,7 +77,7 @@ function LogoutIcon() {
 
 export default function Sidebar() {
   const location = useLocation();
-  const navigate = useNavigate();
+  const { logout } = useAuth();
   const [user, setUser] = useState(null);
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
@@ -102,9 +101,7 @@ export default function Sidebar() {
     setLoggingOut(true);
     setLogoutError("");
     try {
-      await logoutUser();
-      clearAccessToken();
-      navigate("/", { replace: true });
+      await logout();
     } catch {
       setLogoutError("Couldn't log out. Please try again.");
       setLoggingOut(false);

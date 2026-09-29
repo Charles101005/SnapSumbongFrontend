@@ -61,6 +61,11 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         clearAccessToken();
+        const path = window.location.pathname;
+        const isPublicPath = ["/", "/register", "/forgot-password", "/verify-email", "/new-password"].includes(path);
+        if (!isPublicPath) {
+          window.location.replace("/");
+        }
         return Promise.reject(refreshError);
       }
     }

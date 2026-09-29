@@ -1,17 +1,25 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { loginUser } from "../../../api/login";
 import { getCurrentUser } from "../../../api/accounts";
 import { setAccessToken } from "../../../api/authToken";
+import { useAuth, homePathFor } from "../../../context/authContext";
 import "./LoginPage.css";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { status, user, setSession } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (status === "authenticated" && user) {
+      navigate(homePathFor(user), { replace: true });
+    }
+  }, [status, user, navigate]);
 
   const validate = () => {
     const newErrors = {};
@@ -40,12 +48,9 @@ export default function LoginPage() {
       // The login response only establishes authentication. Fetch the current
       // user so we can route staff and citizens to their respective portals.
       const currentUser = await getCurrentUser();
+      setSession(currentUser);
 
-      if (currentUser?.is_staff === true) {
-        navigate("/dashboard/monitoring");
-      } else {
-        navigate("/report-hazards");
-      }
+      navigate(homePathFor(currentUser), { replace: true });
     } catch (err) {
       setErrors({ form: err?.message || err?.detail || "Invalid email or password." });
     } finally {

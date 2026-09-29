@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { NavLink, Outlet } from "react-router-dom";
 import { getCurrentUser, getProfile } from "../../../api/accounts";
-import { logoutUser } from "../../../api/login";
-import { clearAccessToken } from "../../../api/authToken";
+import { useAuth } from "../../../context/authContext";
 // Reuses the existing "app shell" (.app / .sidebar / .main) styles that used
 // to live only inside ReportHazards — the DOM structure below is unchanged,
 // just moved up a level so it can wrap more than one route.
@@ -13,7 +12,7 @@ import "../../../pages/citizen/ReportHazards/ReportHazards.css";
 // and each page gets its own real URL instead of being an internal view
 // switch inside a single page component.
 export default function CitizenLayout() {
-  const navigate = useNavigate();
+  const { logout } = useAuth();
   const [user, setUser] = useState({
     firstName: "",
     middleName: "",
@@ -76,9 +75,7 @@ export default function CitizenLayout() {
     setLoggingOut(true);
     setLogoutError("");
     try {
-      await logoutUser();
-      clearAccessToken();
-      navigate("/", { replace: true });
+      await logout();
     } catch {
       setLogoutError("Couldn't log out. Please try again.");
       setLoggingOut(false);
