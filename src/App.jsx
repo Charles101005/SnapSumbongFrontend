@@ -23,6 +23,7 @@ import ManageCitizens from "./pages/dashboard/UserManagement/ManageCitizens";
 import CitizenProfile from "./pages/dashboard/UserManagement/CitizenProfile";
 import AuditTrail from "./pages/dashboard/AuditTrail/AuditTrail";
 
+import HomePage from "./pages/citizen/Home/HomePage";
 import ReportHazards from "./pages/citizen/ReportHazards/ReportHazards";
 import PinLocation from "./pages/citizen/PinLocation/PinLocation";
 import ReportSubmitted from "./pages/citizen/SubmitReport/ReportSubmitted";
@@ -48,6 +49,7 @@ function AppRoutes() {
             {/* Citizen portal: requires a logged-in citizen */}
             <Route element={<RequireAuth role="citizen" />}>
                 <Route element={<CitizenLayout />}>
+                    <Route path="/home" element={<HomePage />} />
                     <Route path="/report-hazards" element={<ReportHazards />} />
                     <Route path="/my-reports" element={<MyReport />} />
                     <Route path="/account-settings" element={<AccountSettingsRoute />} />

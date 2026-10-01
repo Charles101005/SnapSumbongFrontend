@@ -1,0 +1,231 @@
+/* Citizen homepage — scoped .home-* classes. Reuses the globally bundled
+   .card / .stats-grid / .stat-* / .status-badge styles from ReportHazards.css
+   and MyReport.css, and caps content at 1100px to line up with the cards
+   and page header defined in ReportHazards.css. */
+
+.home-page {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* --- Hero / quick actions --- */
+.home-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.home-hero-copy {
+  min-width: 0;
+}
+
+.home-hero-copy p {
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+  max-width: 56ch;
+}
+
+.home-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.home-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--color-primary);
+  color: #ffffff;
+  padding: 12px 24px;
+  border-radius: var(--radius-lg);
+  font-size: 13.5px;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+  transition: background-color 0.15s ease;
+}
+
+.home-btn-primary:hover {
+  background: var(--color-primary-hover);
+}
+
+.home-btn-primary svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.home-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-card);
+  color: var(--color-text-body);
+  font-size: 13.5px;
+  font-weight: 700;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.home-btn-secondary:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* --- Recent reports --- */
+.home-view-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-primary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.home-view-all:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
+.home-view-all svg {
+  width: 15px;
+  height: 15px;
+}
+
+.home-muted {
+  margin: 0;
+  padding: 8px 0;
+  font-size: 13.5px;
+  color: var(--color-text-muted);
+}
+
+.home-error {
+  color: var(--color-error);
+}
+
+.home-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 0;
+}
+
+.home-empty p {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--color-text-muted);
+}
+
+.home-empty p:first-child {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--color-text-dark);
+}
+
+.home-empty .home-btn-primary {
+  margin-top: 10px;
+}
+
+.home-recent-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.home-recent-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 1.4fr) minmax(0, 2fr) minmax(110px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 4px;
+}
+
+.home-recent-row + .home-recent-row {
+  border-top: 1px solid var(--color-border-light);
+}
+
+.home-recent-head {
+  padding-top: 0;
+  padding-bottom: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--color-text-placeholder);
+}
+
+.home-report-id {
+  font-weight: 700;
+  color: var(--color-text-dark);
+  overflow-wrap: anywhere;
+}
+
+.home-report-category {
+  font-size: 13.5px;
+  color: var(--color-text-body);
+}
+
+.home-report-date {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* --- TABLET (≤900px): hero no longer has room to sit beside its buttons --- */
+@media (max-width: 900px) {
+  .home-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* --- MOBILE (≤640px): stacked recent-report rows (header row hidden) --- */
+@media (max-width: 640px) {
+  .home-recent-head {
+    display: none;
+  }
+
+  .home-recent-row:not(.home-recent-head) {
+    grid-template-columns: 1fr auto;
+    row-gap: 4px;
+  }
+
+  .home-recent-row .home-report-id {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .home-recent-row > span:last-child {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .home-recent-row .home-report-category {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .home-recent-row .home-report-date {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  .home-hero-actions {
+    width: 100%;
+  }
+
+  .home-btn-primary,
+  .home-btn-secondary {
+    flex: 1 1 auto;
+  }
+}
