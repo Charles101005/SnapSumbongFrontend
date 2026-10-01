@@ -399,11 +399,24 @@
   content: '';
   position: absolute;
   top: 14px;
-  left: 10%;
-  right: 10%;
+  left: 12.5%;
+  right: 12.5%;
   height: 2px;
   background: #e2e8f0;
   z-index: 1;
+}
+
+/* Blue progress segment: spans from the first node to the last reached node.
+   --tl-progress is the 0-based index of the current step (set inline in JSX). */
+.timeline-stepper::after {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: 12.5%;
+  height: 2px;
+  background: #2563eb;
+  z-index: 1;
+  width: calc(var(--tl-progress, 0) * 25%);
 }
 
 .timeline-step {
@@ -432,6 +445,10 @@
 }
 
 .step-node svg { width: 14px; height: 14px; }
+
+.timeline-step.upcoming .step-node {
+  color: #cbd5e1;
+}
 
 .timeline-step.upcoming .step-label {
   color: #94a3b8;
@@ -978,7 +995,8 @@
     row-gap: 16px;
   }
 
-  .timeline-stepper::before {
+  .timeline-stepper::before,
+  .timeline-stepper::after {
     display: none;
   }
 

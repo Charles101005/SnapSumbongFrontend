@@ -590,6 +590,7 @@
  transition: all 0.15s ease-in-out;
  box-shadow: none !important;
  user-select: none;
+ position: relative;
 }
 
 

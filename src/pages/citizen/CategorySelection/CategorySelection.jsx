@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import CategoryInfoButton from "../../../components/CategoryInfoButton/CategoryInfoButton";
 import "./CategorySelection.css";
 
 const DEFAULT_ICON = (
@@ -189,8 +190,11 @@ export default function CategorySelection({
                   key={cat.hazard_id}
                   className={`extended-category-card ${isSelected ? "selected" : ""}`}
                   onClick={() => toggleCategory(cat.hazard_id)}
-                  title={cat.description}
                 >
+                  <CategoryInfoButton
+                    categoryName={cat.hazard_name}
+                    description={cat.description}
+                  />
                   <div className="extended-icon-wrapper">{getIconFor(cat.hazard_name)}</div>
                   <span className="extended-category-label">{cat.hazard_name}</span>
                   {isSelected && <span className="extended-check-badge">&#10003;</span>}

@@ -1,0 +1,87 @@
+/* Corner info badge — anchored to the top-left of its category card
+   (the card itself must be position: relative). */
+.cat-info {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+}
+
+.cat-info-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 50%;
+  background: #f8fafc;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.cat-info-btn:hover,
+.cat-info-btn.active {
+  border-color: #1d82f5;
+  background: #1d82f5;
+  color: #ffffff;
+}
+
+.cat-info-btn svg {
+  width: 11px;
+  height: 11px;
+  display: block;
+}
+
+/* Description popover */
+.cat-info-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  bottom: auto;
+  left: 0;
+  right: auto;
+  width: 240px;
+  max-width: calc(100vw - 24px);
+  padding: 10px 12px;
+  box-sizing: border-box;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+  text-align: left;
+  cursor: default;
+  user-select: text;
+  z-index: 30;
+}
+
+.cat-info-popover.flip-up {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+.cat-info-popover.align-right {
+  left: auto;
+  right: 0;
+}
+
+.cat-info-title {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.25;
+}
+
+.cat-info-text {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: #475569;
+  line-height: 1.45;
+}
+
+/* ReportHazards scoping: `.app .category-card span { font-size: 13px !important }`
+   only matches span elements, and the popover text lives in <p>, so the rules
+   above win without !important. */

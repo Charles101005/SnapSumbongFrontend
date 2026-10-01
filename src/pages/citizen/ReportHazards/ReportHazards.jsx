@@ -7,6 +7,7 @@ import PinLocationPage from "../PinLocation/PinLocation";
 import SubmitReportModal from "../SubmitReport/SubmitReportModal";
 import UploadPhoto from "../UploadPhoto/UploadPhoto";
 import CategorySelection, { getIconFor } from "../CategorySelection/CategorySelection";
+import CategoryInfoButton from "../../../components/CategoryInfoButton/CategoryInfoButton";
 import { getHazardCategories, createHazardReport, uploadHazardImageFiles } from "../../../api/reports";
 import { hazardMarkerIcon, reverseGeocode } from "../../../utils/leafletHelpers";
 import "./ReportHazards.css";
@@ -416,8 +417,11 @@ export default function HazardReportForm() {
                           key={cat.hazard_id}
                           className={`category-card ${selectedCategoryIds.includes(cat.hazard_id) ? "selected" : ""}`}
                           onClick={() => handleCategoryClick(cat.hazard_id)}
-                          title={cat.description}
                         >
+                          <CategoryInfoButton
+                            categoryName={cat.hazard_name}
+                            description={cat.description}
+                          />
                           <div className="category-icon">
                             {getIconFor(cat.hazard_name)}
                           </div>

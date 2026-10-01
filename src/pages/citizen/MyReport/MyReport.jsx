@@ -11,9 +11,11 @@ const ROWS_PER_PAGE = 5; // Matches the backend's SmallListPagination page size.
 
 // Mirrors HazardReports.Status on the backend. The API returns these raw
 // values, so we map them to a display label and a badge class here.
+// Citizens see ASSIGNED as "Pending" (the default status of a fresh report);
+// the staff dashboard keeps the backend's own "Assigned" label.
 const STATUS_META = {
   NEW: { label: 'New', badgeClass: 'status-new' },
-  ASSIGNED: { label: 'Assigned', badgeClass: 'status-assigned' },
+  ASSIGNED: { label: 'Pending', badgeClass: 'status-assigned' },
   UNDER_REVIEW: { label: 'Under Review', badgeClass: 'status-under-review' },
   ON_HOLD: { label: 'On Hold', badgeClass: 'status-on-hold' },
   DISPATCHED: { label: 'Dispatched', badgeClass: 'status-dispatched' },
@@ -25,8 +27,32 @@ const STATUS_OPTIONS = Object.entries(STATUS_META).map(([value, meta]) => ({
   label: meta.label,
 }));
 
+// Fixed 4-step resolution timeline. Each backend status maps to a step index
+// so every report always shows the same four milestones.
+const STATUS_TO_STEP = {
+  NEW: 0,
+  ASSIGNED: 0,
+  UNDER_REVIEW: 1,
+  ON_HOLD: 1,
+  DISPATCHED: 2,
+  RESOLVED: 3,
+  CLOSED: 3,
+};
+
+const TIMELINE_STEPS = [
+  // `expected` is the status a step waits on when it has no history yet
+  // (mirrors the backend's main statuses per phase).
+  { expected: 'Assigned', pendingIcon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6' },
+  { expected: 'Under Review', pendingIcon: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M21 21l-4.35-4.35' },
+  { expected: 'Dispatched', pendingIcon: 'M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.1-2.1z' },
+  { expected: 'Resolved', pendingIcon: 'M22 11.08V12a10 10 0 1 1-5.93-9.14 M22 4 12 14.01l-3-3' },
+];
+
 const normalizeStatus = (status) => String(status || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
 const getStatusLabel = (status) => STATUS_META[normalizeStatus(status)]?.label || status;
+// Timeline step labels use the backend's own casing for On-Hold.
+const getTimelineStatusLabel = (status) =>
+  normalizeStatus(status) === 'ON_HOLD' ? 'On-Hold' : getStatusLabel(status);
 const getStatusBadgeClass = (status) =>
   `status-badge ${STATUS_META[normalizeStatus(status)]?.badgeClass || ''}`;
 
@@ -217,6 +243,33 @@ export default function MyReport() {
 
   // --- DETAIL VIEW ---
   if (selectedReportRow) {
+    // Fixed 4-step timeline: every step always renders, with the label
+    // reflecting the actual status recorded for that step.
+    const timelineEntries = selectedReportDetail?.status_timeline || [];
+    const currentStatus = selectedReportDetail?.status;
+    const currentStep = STATUS_TO_STEP[normalizeStatus(currentStatus)] ?? 0;
+    const steps = TIMELINE_STEPS.map((step, idx) => {
+      // Entries are chronological (backend orders audit logs by created_at).
+      const phaseEntries = timelineEntries.filter(
+        (item) => STATUS_TO_STEP[normalizeStatus(item.status)] === idx
+      );
+      const latestPhaseEntry = phaseEntries[phaseEntries.length - 1];
+      // The current step always shows the report's live status; completed
+      // steps show their most recent recorded status.
+      const targetStatus = idx === currentStep ? currentStatus : latestPhaseEntry?.status;
+      const entry =
+        [...phaseEntries]
+          .reverse()
+          .find((item) => normalizeStatus(item.status) === normalizeStatus(targetStatus)) ||
+        latestPhaseEntry;
+
+      return {
+        ...step,
+        label: getTimelineStatusLabel(targetStatus || step.expected),
+        date: entry?.created_at || '',
+      };
+    });
+
     return (
       <div className="reports-detail-container">
         <button className="back-link-btn" onClick={handleBackToList}>
@@ -253,20 +306,40 @@ export default function MyReport() {
               {/* Resolution Timeline */}
               <div className="card timeline-card">
                 <h3>RESOLUTION TIMELINE</h3>
-                <div className="timeline-stepper">
-                  {(selectedReportDetail.status_timeline || []).map((step, idx) => (
-                    <div key={idx} className="timeline-step completed">
-                      <div className="step-node">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
+                <div className="timeline-stepper" style={{ '--tl-progress': currentStep }}>
+                  {steps.map((step, idx) => {
+                    const reached = idx <= currentStep;
+                    return (
+                      <div
+                        key={step.expected}
+                        className={`timeline-step ${reached ? 'completed' : 'upcoming'}`}
+                      >
+                        <div className="step-node">
+                          {reached ? (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          ) : (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d={step.pendingIcon} />
+                            </svg>
+                          )}
+                        </div>
+                        <div className="step-label">{step.label}</div>
+                        <div className="step-date">
+                          {reached ? formatDate(step.date) || '—' : 'Pending'}
+                        </div>
                       </div>
-                      <div className="step-label">{getStatusLabel(step.status)}</div>
-                      <div className="step-date">{formatDate(step.created_at)}</div>
+                      );
+                    })}
+                  </div>
+                  {selectedReportDetail.remarks && (
+                    <div className="remarks-box">
+                      <span className="remarks-title">REMARKS:</span>
+                      <p>{selectedReportDetail.remarks}</p>
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
 
               {/* Original Report Submission */}
               <div className="card submission-card">
