@@ -277,3 +277,46 @@
   color: #ffffff;
   border-color: var(--color-primary);
 }
+
+/* ===== PAGE SCOPED LAYOUT & POLISH =====
+   Scoped under .manage-employees-page so these overrides win only on this
+   page and can never leak into ViewRoles / Monitoring / other pages that
+   share .reports-table / .pagination class names. */
+.manage-employees-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.manage-employees-page .section-header {
+  margin-bottom: 0;
+}
+
+.manage-employees-page .reports-table thead {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.manage-employees-page .reports-table th {
+  color: var(--color-text-muted);
+}
+
+.manage-employees-page .reports-table td {
+  padding: 0.875rem 1rem;
+  vertical-align: middle;
+}
+
+.manage-employees-page .reports-table tbody tr {
+  transition: background-color 0.15s;
+}
+
+.manage-employees-page .pagination-info {
+  font-size: var(--text-sm);
+}
+
+.manage-employees-page .pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 0.875rem;
+}

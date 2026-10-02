@@ -1,21 +1,67 @@
-/* ===== ROLE BADGES ===== */
+/* ===== ROLE BADGES =====
+   Values intentionally identical to ManageEmployees.css / EmployeeProfile.css
+   so the bundle-wide duplicate rules always agree regardless of CSS order. */
 .role-badge {
   display: inline-block;
   padding: 0.2rem 0.625rem;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   font-size: var(--text-xs);
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 
 .role-admin {
-  background-color: var(--color-warning-light);
-  color: var(--color-amber-text);
+  background-color: #f3e8ff;
+  color: #7c3aed;
 }
 
 .role-report-officer {
-  background-color: var(--color-primary-light);
-  color: var(--color-primary);
+  background-color: var(--color-info-bg);
+  color: var(--color-info-text);
+}
+
+/* ===== PAGE SCOPED LAYOUT =====
+   All polish rules below are scoped under .audit-trail-page so they can
+   never leak into other pages that share .reports-table / .pagination. */
+.audit-trail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.audit-trail-page .section-header {
+  margin-bottom: 0;
+}
+
+.audit-trail-page .reports-table thead {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.audit-trail-page .reports-table th {
+  color: var(--color-text-muted);
+}
+
+.audit-trail-page .reports-table td {
+  padding: 0.875rem 1rem;
+  vertical-align: middle;
+}
+
+.audit-trail-page .reports-table tbody tr {
+  transition: background-color 0.15s;
+}
+
+.audit-trail-page .pagination-info {
+  font-size: var(--text-sm);
+}
+
+.audit-trail-page .pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 0.875rem;
 }
 
 /* ===== ACTIVITY DETAILS MODAL ===== */

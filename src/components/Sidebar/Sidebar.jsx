@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { getCurrentUser } from "../../api/accounts";
 import { useAuth } from "../../context/authContext";
+import { MOCK_ALL_ACCESS } from "../../shared/config/env";
 import "./Sidebar.css";
 
 function RocketIcon() {
@@ -15,8 +16,18 @@ function RocketIcon() {
   );
 }
 
-function UserManagementIcon() {
+function GridIcon() {
   return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
+function UserManagementIcon() {  return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
       <circle cx="9" cy="7" r="4" />
@@ -91,7 +102,10 @@ export default function Sidebar() {
   const isMonitoringActive = path.startsWith("/dashboard/monitoring");
   const isUserMgmtActive = path.startsWith("/dashboard/users");
   const permissions = user?.permissions || [];
-  const can = (permission) => permissions.includes(permission);
+  // MOCK_ALL_ACCESS short-circuits the permission check so every staff member
+  // sees every section. Flip the flag in src/shared/config/env.js to restore
+  // role-based visibility driven by user.permissions.
+  const can = (permission) => MOCK_ALL_ACCESS || permissions.includes(permission);
   const canReports = can("report:read_all") || can("report:read_assigned") || can("report:read_own");
   const canAnalytics = can("analytic:read_dashboard") || can("analytic:read_all_metrics") || can("analytic:read_assigned_metrics") || can("analytic:read_own_metrics");
   const canUsers = can("user:read_all") || can("employee:read_all") || can("role:read_all");
@@ -122,6 +136,14 @@ export default function Sidebar() {
         </div>
 
         <nav className="sidebar-nav">
+          <Link
+            to="/dashboard"
+            className={`sidebar-nav-item ${isActive("/dashboard") ? "active" : ""}`}
+          >
+            <GridIcon />
+            <span>Dashboard</span>
+          </Link>
+
           {canUsers && <div className="sidebar-nav-section">
             <Link
               to="/dashboard/users/roles"
@@ -141,7 +163,7 @@ export default function Sidebar() {
                 to="/dashboard/users/employees"
                 className={`sidebar-subnav-item ${isActive("/dashboard/users/employees") ? "active" : ""}`}
               >
-                Manage Employees
+                LGU Employees
               </Link>
               <Link
                 to="/dashboard/users/citizens"

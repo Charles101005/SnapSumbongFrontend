@@ -3,7 +3,7 @@ import { createContext, useContext } from "react";
 export const AuthContext = createContext(null);
 
 export function homePathFor(user) {
-  return user?.is_staff === true ? "/dashboard/monitoring" : "/home";
+  return user?.is_staff === true ? "/dashboard" : "/home";
 }
 
 export function useAuth() {

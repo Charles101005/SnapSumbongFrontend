@@ -162,125 +162,126 @@ export default function AuditTrail() {
 
   return (
     <DashboardLayout title="Audit Trail">
-      <div className="section-header">
-        <h2 className="section-title">Audit Trail Logs</h2>
-        <p className="section-subtitle">Records and displays all system activities performed by administrators, LGU staff, and users.</p>
-      </div>
+      <div className="audit-trail-page">
+        <div className="section-header">
+          <h2 className="section-title">Audit Trail Logs</h2>
+          <p className="section-subtitle">Records and displays all system activities performed by administrators, LGU staff, and users.</p>
+        </div>
 
-      <div className="filters-section">
-        <div className="filters-row">
-          <div className="filter-group filter-group-search">
-            <label className="filter-label">Search Activities</label>
-            <div className="search-input-wrapper">
-              <SearchIcon />
-              <input
-                type="text"
-                className="filter-input"
-                placeholder="Search users or activities..."
-                value={draftSearch}
-                onChange={(e) => setDraftSearch(e.target.value)}
-              />
+        <div className="filter-card">
+          <div className="filter-row">
+            <div className="filter-field filter-field-search">
+              <label className="filter-label">Search Activities</label>
+              <div className="filter-search-wrap">
+                <SearchIcon />
+                <input
+                  type="text"
+                  className="filter-input"
+                  placeholder="Search users or activities..."
+                  value={draftSearch}
+                  onChange={(e) => setDraftSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleApplyFilters()}
+                />
+              </div>
+            </div>
+            <div className="filter-field">
+              <label className="filter-label">Module</label>
+              <select className="filter-select" value={draftModule} onChange={(e) => setDraftModule(e.target.value)}>
+                {MODULES.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div className="filter-field">
+              <label className="filter-label">User Role</label>
+              <select className="filter-select" value={draftRole} onChange={(e) => setDraftRole(e.target.value)}>
+                {USER_ROLES.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </div>
+            <div className="filter-field">
+              <label className="filter-label">Date Range</label>
+              <div className="date-range-wrapper">
+                <input type="date" className="filter-date" value={draftDateFrom} onChange={(e) => setDraftDateFrom(e.target.value)} placeholder="mm/dd/yyyy" />
+                <span className="date-range-separator">to</span>
+                <input type="date" className="filter-date" value={draftDateTo} onChange={(e) => setDraftDateTo(e.target.value)} placeholder="mm/dd/yyyy" />
+              </div>
+            </div>
+            <div className="filter-buttons">
+              <button className="btn-filter-apply" onClick={handleApplyFilters}>
+                <FilterIcon />
+                Apply Filters
+              </button>
+              <button className="btn-filter-reset" onClick={handleReset}>Reset</button>
             </div>
           </div>
-          <div className="filter-group">
-            <label className="filter-label">Module</label>
-            <select className="filter-select" value={draftModule} onChange={(e) => setDraftModule(e.target.value)}>
-              {MODULES.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </div>
-          <div className="filter-group">
-            <label className="filter-label">User Role</label>
-            <select className="filter-select" value={draftRole} onChange={(e) => setDraftRole(e.target.value)}>
-              {USER_ROLES.map((r) => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-          </div>
         </div>
-        <div className="filters-row filters-row-secondary">
-          <div className="filter-group">
-            <label className="filter-label">Date Range</label>
-            <div className="date-range-wrapper">
-              <input type="date" className="filter-date" value={draftDateFrom} onChange={(e) => setDraftDateFrom(e.target.value)} placeholder="mm/dd/yyyy" />
-              <span className="date-range-separator">to</span>
-              <input type="date" className="filter-date" value={draftDateTo} onChange={(e) => setDraftDateTo(e.target.value)} placeholder="mm/dd/yyyy" />
-            </div>
-          </div>
-          <div className="filter-actions">
-            <button className="btn-apply" onClick={handleApplyFilters}>
-              <FilterIcon />
-              Apply Filters
-            </button>
-            <button className="btn-reset" onClick={handleReset}>Reset</button>
-          </div>
-        </div>
-      </div>
 
-      <div className="table-container">
-        <table className="reports-table">
-          <thead>
-            <tr>
-              <th>LOG ID</th>
-              <th>USER NAME</th>
-              <th>ROLE</th>
-              <th>ACTION PERFORMED</th>
-              <th>MODULE</th>
-              <th>DATE &amp; TIME</th>
-              <th>DETAILS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedLogs.length > 0 ? (
-              paginatedLogs.map((log) => (
-                <tr key={log.id}>
-                  <td><span className="report-id-link">{log.id}</span></td>
-                  <td>{log.userName}</td>
-                  <td>
-                    <span className={`role-badge role-${log.role.toLowerCase().replace(" ", "-")}`}>
-                      {log.role}
-                    </span>
-                  </td>
-                  <td>{log.action}</td>
-                  <td>{log.module}</td>
-                  <td>{log.date}</td>
-                  <td>
-                    <button className="action-link action-view-btn" onClick={() => setSelectedLog(log)}>
-                      View Details
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
+        <div className="table-container">
+          <table className="reports-table">
+            <thead>
               <tr>
-                <td colSpan="7" className="empty-table-message">No audit logs found matching your filters.</td>
+                <th>LOG ID</th>
+                <th>USER NAME</th>
+                <th>ROLE</th>
+                <th>ACTION PERFORMED</th>
+                <th>MODULE</th>
+                <th>DATE &amp; TIME</th>
+                <th>DETAILS</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {paginatedLogs.length > 0 ? (
+                paginatedLogs.map((log) => (
+                  <tr key={log.id}>
+                    <td><span className="report-id-link">{log.id}</span></td>
+                    <td>{log.userName}</td>
+                    <td>
+                      <span className={`role-badge role-${log.role.toLowerCase().replace(" ", "-")}`}>
+                        {log.role}
+                      </span>
+                    </td>
+                    <td>{log.action}</td>
+                    <td>{log.module}</td>
+                    <td>{log.date}</td>
+                    <td>
+                      <button className="action-link action-view-btn" onClick={() => setSelectedLog(log)}>
+                        View Details
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="7" className="empty-table-message">No audit logs found matching your filters.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
-      <div className="pagination">
-        <span className="pagination-info">
-          Showing {startRow} to {endRow} of {filteredLogs.length} entries
-        </span>
-        <div className="pagination-buttons">
-          <button className="pagination-btn" disabled={safePage <= 1} onClick={() => setCurrentPage((p) => p - 1)}>
-            Previous
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <button
-              key={page}
-              className={`pagination-btn ${page === safePage ? "active" : ""}`}
-              onClick={() => setCurrentPage(page)}
-            >
-              {page}
+        <div className="pagination">
+          <span className="pagination-info">
+            Showing {startRow} to {endRow} of {filteredLogs.length} entries
+          </span>
+          <div className="pagination-buttons">
+            <button className="pagination-btn" disabled={safePage <= 1} onClick={() => setCurrentPage((p) => p - 1)}>
+              Previous
             </button>
-          ))}
-          <button className="pagination-btn" disabled={safePage >= totalPages} onClick={() => setCurrentPage((p) => p + 1)}>
-            Next
-          </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button
+                key={page}
+                className={`pagination-btn ${page === safePage ? "active" : ""}`}
+                onClick={() => setCurrentPage(page)}
+              >
+                {page}
+              </button>
+            ))}
+            <button className="pagination-btn" disabled={safePage >= totalPages} onClick={() => setCurrentPage((p) => p + 1)}>
+              Next
+            </button>
+          </div>
         </div>
       </div>
 

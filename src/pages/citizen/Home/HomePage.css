@@ -81,6 +81,14 @@
   color: var(--color-primary);
 }
 
+/* Consistent keyboard focus ring on the page's custom interactive elements */
+.home-btn-primary:focus-visible,
+.home-btn-secondary:focus-visible,
+.home-view-all:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
 /* --- Recent reports --- */
 .home-view-all {
   display: inline-flex;
@@ -145,7 +153,10 @@
 
 .home-recent-row {
   display: grid;
-  grid-template-columns: minmax(130px, 1.4fr) minmax(0, 2fr) minmax(110px, 1fr) auto;
+  /* Fixed status track keeps the header and every row on identical column
+     boundaries — an `auto` track sized itself to that row's badge, so the
+     wider "UNDER REVIEW" badge shifted the first row's other columns. */
+  grid-template-columns: minmax(130px, 1.4fr) minmax(0, 2fr) minmax(110px, 1fr) 140px;
   align-items: center;
   gap: 12px;
   padding: 12px 4px;
@@ -153,6 +164,10 @@
 
 .home-recent-row + .home-recent-row {
   border-top: 1px solid var(--color-border-light);
+}
+
+.home-recent-row .status-badge {
+  white-space: nowrap;
 }
 
 .home-recent-head {
@@ -180,22 +195,25 @@
   color: var(--color-text-muted);
 }
 
-/* --- TABLET (≤900px): hero no longer has room to sit beside its buttons --- */
-@media (max-width: 900px) {
+/* --- LAPTOP (≤1024px): the actions cluster is ~340px wide and no longer
+   leaves the hero copy enough room to read without heavy wrapping --- */
+@media (max-width: 1024px) {
   .home-hero {
     flex-direction: column;
     align-items: flex-start;
   }
 }
 
-/* --- MOBILE (≤640px): stacked recent-report rows (header row hidden) --- */
-@media (max-width: 640px) {
+/* --- SMALL TABLET (≤820px): the 4-column list needs ~416px minimum but the
+   fixed 260px sidebar leaves as little as ~333px at these widths — stack the
+   rows (two lines) instead of letting the card overflow horizontally. --- */
+@media (max-width: 820px) {
   .home-recent-head {
     display: none;
   }
 
   .home-recent-row:not(.home-recent-head) {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     row-gap: 4px;
   }
 
@@ -211,13 +229,29 @@
   }
 
   .home-recent-row .home-report-category {
-    grid-column: 1 / -1;
+    grid-column: 1;
     grid-row: 2;
   }
 
   .home-recent-row .home-report-date {
-    grid-column: 1 / -1;
-    grid-row: 3;
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+  }
+}
+
+/* --- MOBILE (≤640px): matches the .app hamburger/drawer breakpoint --- */
+@media (max-width: 640px) {
+  /* Tighter than the shared .app .card padding (24/28) — wins on
+     specificity, and only on this page's cards. */
+  .app .home-page .card {
+    padding: 18px 16px;
+  }
+
+  /* The shared .app h1 rule forces 24px !important everywhere — scale the
+     greeting down on phones with a more specific !important rule. */
+  .app .home-page h1 {
+    font-size: 20px !important;
   }
 
   .home-hero-actions {

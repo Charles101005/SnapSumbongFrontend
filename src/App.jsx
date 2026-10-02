@@ -22,6 +22,7 @@ import EmployeeProfile from "./pages/dashboard/UserManagement/EmployeeProfile";
 import ManageCitizens from "./pages/dashboard/UserManagement/ManageCitizens";
 import CitizenProfile from "./pages/dashboard/UserManagement/CitizenProfile";
 import AuditTrail from "./pages/dashboard/AuditTrail/AuditTrail";
+import DashboardHome from "./pages/dashboard/Home/DashboardHome";
 
 import HomePage from "./pages/citizen/Home/HomePage";
 import ReportHazards from "./pages/citizen/ReportHazards/ReportHazards";
@@ -60,6 +61,7 @@ function AppRoutes() {
 
             {/* Staff portal: requires a logged-in staff member */}
             <Route element={<RequireAuth role="staff" />}>
+                <Route path="/dashboard" element={<DashboardHome />} />
                 <Route path="/dashboard/users/roles" element={<ViewRoles />} />
                 <Route path="/dashboard/users/roles/add" element={<AddNewRole />} />
                 <Route path="/dashboard/users/roles/:id" element={<ManageRole />} />
