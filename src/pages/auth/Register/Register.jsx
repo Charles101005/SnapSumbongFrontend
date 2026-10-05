@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { registerUser } from "../../../api/register";
 import { setAuthFlow } from "../../../shared/authFlowStorage";
+import { validatePassword } from "../../../utils/passwordValidation";
 import "./Register.css";
 
 export default function Register() {
@@ -22,7 +23,10 @@ export default function Register() {
         if (!email) newErrors.email = "Email is required";
         else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = "Enter a valid email address.";
         if (!password) newErrors.password = "Password is required";
-        else if (password.length < 8) newErrors.password = "Password must be at least 8 characters long.";
+        else {
+            const passwordError = validatePassword(password, { email, firstName, lastName });
+            if (passwordError) newErrors.password = passwordError;
+        }
         return newErrors;
     };
 

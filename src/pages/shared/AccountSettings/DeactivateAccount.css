@@ -58,6 +58,12 @@
   margin: 0 0 28px 0;
 }
 
+/* Keeps the description's layout/size when it doubles as the error line. */
+.deactivate-description.error-text {
+  color: var(--color-error);
+  font-size: 0.9rem;
+}
+
 .deactivate-actions {
   display: flex;
   gap: 12px;

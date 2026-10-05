@@ -1,5 +1,10 @@
 import api from "./axios";
 
+// Thrown when the request never reached the server (offline, DNS, timeout) —
+// keeps the { detail } contract pages already read instead of leaking a
+// TypeError from accessing error.response on a network failure.
+const networkError = () => ({ detail: "Can't reach the server. Check your connection and try again." });
+
 // GET /accounts/auth/user/
 // -> { email, first_name, last_name, middle_name, role, is_staff, permissions }
 export const getCurrentUser = async () => {
@@ -7,7 +12,8 @@ export const getCurrentUser = async () => {
         const response = await api.get("accounts/auth/user/");
         return response.data;
     } catch (error) {
-        throw error.response.data;
+        if (error.response?.data) throw error.response.data;
+        throw networkError();
     }
 };
 
@@ -18,7 +24,8 @@ export const getProfile = async () => {
         const response = await api.get("accounts/profile/");
         return response.data;
     } catch (error) {
-        throw error.response.data;
+        if (error.response?.data) throw error.response.data;
+        throw networkError();
     }
 };
 
@@ -29,7 +36,8 @@ export const updateProfile = async (payload) => {
         const response = await api.patch("accounts/profile/", payload);
         return response.data;
     } catch (error) {
-        throw error.response.data;
+        if (error.response?.data) throw error.response.data;
+        throw networkError();
     }
 };
 
@@ -40,7 +48,8 @@ export const changePassword = async (payload) => {
         const response = await api.post("accounts/profile/change-password/", payload);
         return response.data;
     } catch (error) {
-        throw error.response.data;
+        if (error.response?.data) throw error.response.data;
+        throw networkError();
     }
 };
 
@@ -50,7 +59,8 @@ export const deactivateAccount = async () => {
         const response = await api.post("accounts/profile/deactivate/");
         return response.data;
     } catch (error) {
-        throw error.response.data;
+        if (error.response?.data) throw error.response.data;
+        throw networkError();
     }
 };
 
@@ -61,7 +71,8 @@ export const getProfileImageUploadSignature = async () => {
         const response = await api.get("accounts/profile/image-signature/");
         return response.data;
     } catch (error) {
-        throw error.response.data;
+        if (error.response?.data) throw error.response.data;
+        throw networkError();
     }
 };
 

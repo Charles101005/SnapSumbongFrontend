@@ -1,15 +1,8 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import "./ChangePassword.css";
 import { changePassword } from "../../../api/accounts";
-
-const formatApiError = (err) => {
-  if (!err) return "Something went wrong. Please try again.";
-  if (typeof err.detail === "string") return err.detail;
-  const messages = Object.values(err)
-    .flat()
-    .filter((v) => typeof v === "string");
-  return messages.length > 0 ? messages.join(" ") : "Something went wrong. Please try again.";
-};
+import { validatePassword } from "../../../utils/passwordValidation";
+import { mapApiErrors } from "../../../utils/apiErrors";
 
 export default function ChangePassword({ onBack }) {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -21,21 +14,24 @@ export default function ChangePassword({ onBack }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState(false);
+
+  const validate = () => {
+    const newErrors = {};
+    if (!currentPassword) newErrors.currentPassword = "Current password is required.";
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) newErrors.newPassword = passwordError;
+    if (!confirmPassword) newErrors.confirmPassword = "Please confirm your new password.";
+    else if (newPassword !== confirmPassword) newErrors.confirmPassword = "New passwords do not match.";
+    return newErrors;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-
-    if (newPassword.length < 8) {
-      setError("New password must be at least 8 characters.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError("New passwords do not match.");
-      return;
-    }
+    const validationErrors = validate();
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) return;
 
     setIsSaving(true);
     try {
@@ -48,7 +44,14 @@ export default function ChangePassword({ onBack }) {
       setNewPassword("");
       setConfirmPassword("");
     } catch (err) {
-      setError(formatApiError(err));
+      const mapped = mapApiErrors(err, {
+        fields: { current_password: "currentPassword", new_password: "newPassword" },
+        codes: { INCORRECT_ACCOUNT_CREDENTIALS: "currentPassword" },
+      });
+      if (err?.error_code === "INCORRECT_ACCOUNT_CREDENTIALS") {
+        mapped.currentPassword = "Current password is incorrect.";
+      }
+      setErrors(mapped);
     } finally {
       setIsSaving(false);
     }
@@ -82,7 +85,7 @@ export default function ChangePassword({ onBack }) {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="change-password-form">
+        <form onSubmit={handleSubmit} className="change-password-form" noValidate>
           {/* Current Password */}
           <div className="form-group">
             <label htmlFor="currentPassword">Current Password</label>
@@ -93,7 +96,7 @@ export default function ChangePassword({ onBack }) {
                 placeholder="Enter current password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                required
+                className={errors.currentPassword ? "input-error" : ""}
               />
               <button
                 type="button"
@@ -114,6 +117,7 @@ export default function ChangePassword({ onBack }) {
                 </svg>
               </button>
             </div>
+            {errors.currentPassword && <p className="error-text">{errors.currentPassword}</p>}
           </div>
 
           {/* New Password */}
@@ -126,8 +130,7 @@ export default function ChangePassword({ onBack }) {
                 placeholder="Minimum 8 characters"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                required
-                minLength={8}
+                className={errors.newPassword ? "input-error" : ""}
               />
               <button
                 type="button"
@@ -148,6 +151,7 @@ export default function ChangePassword({ onBack }) {
                 </svg>
               </button>
             </div>
+            {errors.newPassword && <p className="error-text">{errors.newPassword}</p>}
             <p className="field-hint">
               Password must be at least 8 characters and pass your account's security requirements.
             </p>
@@ -163,7 +167,7 @@ export default function ChangePassword({ onBack }) {
                 placeholder="Repeat new password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                required
+                className={errors.confirmPassword ? "input-error" : ""}
               />
               <button
                 type="button"
@@ -184,9 +188,10 @@ export default function ChangePassword({ onBack }) {
                 </svg>
               </button>
             </div>
+            {errors.confirmPassword && <p className="error-text">{errors.confirmPassword}</p>}
           </div>
 
-          {error && <p className="field-hint" style={{ color: "#dc2626" }}>{error}</p>}
+          {errors.form && <p className="error-text">{errors.form}</p>}
 
           {/* Action Buttons */}
           <div className="form-actions-row">

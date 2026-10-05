@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import "./DeactivateAccount.css";
 import { deactivateAccount } from "../../../api/accounts";
 import { logoutUser } from "../../../api/login";
@@ -26,8 +26,8 @@ export default function DeactivateAccount({ onBack }) {
       localStorage.clear();
       sessionStorage.clear();
       window.location.href = "/";
-    } catch {
-      setError("Couldn't deactivate your account. Please try again.");
+    } catch (err) {
+      setError(err?.detail || "Couldn't deactivate your account. Please try again.");
       setIsDeactivating(false);
     }
   };
@@ -60,7 +60,7 @@ export default function DeactivateAccount({ onBack }) {
           undone from here — you'll need to contact support to reactivate.
         </p>
 
-        {error && <p className="deactivate-description" style={{ color: "#dc2626" }}>{error}</p>}
+        {error && <p className="deactivate-description error-text">{error}</p>}
 
         {/* Actions */}
         <div className="deactivate-actions">

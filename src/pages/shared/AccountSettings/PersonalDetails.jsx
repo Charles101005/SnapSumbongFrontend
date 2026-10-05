@@ -1,16 +1,7 @@
-import React, { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import "./PersonalDetails.css";
 import { updateProfile, uploadProfileImage } from "../../../api/accounts";
-
-// Flattens DRF-style field errors ({ field: ["msg", ...] }) into one string.
-const formatApiError = (err) => {
-  if (!err) return "Something went wrong. Please try again.";
-  if (typeof err.detail === "string") return err.detail;
-  const messages = Object.values(err)
-    .flat()
-    .filter((v) => typeof v === "string");
-  return messages.length > 0 ? messages.join(" ") : "Something went wrong. Please try again.";
-};
+import { mapApiErrors } from "../../../utils/apiErrors";
 
 export default function PersonalDetails({ profile, onSaved, onBack }) {
   const [formData, setFormData] = useState({
@@ -27,7 +18,7 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
   const fileInputRef = useRef(null);
 
   const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState("");
+  const [errors, setErrors] = useState({});
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -55,9 +46,28 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
     }
   };
 
+  const validate = () => {
+    const newErrors = {};
+    if (!formData.lastName) newErrors.lastName = "Last name is required.";
+    if (!formData.firstName) newErrors.firstName = "First name is required.";
+    if (!formData.email) newErrors.email = "Email is required.";
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Enter a valid email address.";
+
+    // Only validated when actually changing — mirrors the payload condition
+    // below so a legacy stored value can't block edits to other fields.
+    const contactChanged =
+      formData.contactNumber && formData.contactNumber !== (profile?.contact_number || "");
+    if (contactChanged && !/^\d{11}$/.test(formData.contactNumber)) {
+      newErrors.contactNumber = "Phone number must be 11 digits.";
+    }
+    return newErrors;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSaveError("");
+    const validationErrors = validate();
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) return;
 
     // Only send fields that actually changed, matching the endpoint's
     // partial-update contract and avoiding needless re-validation (e.g. the
@@ -82,7 +92,17 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
       await updateProfile(payload);
       onSaved({ ...profile, ...payload });
     } catch (err) {
-      setSaveError(formatApiError(err));
+      setErrors(
+        mapApiErrors(err, {
+          fields: {
+            last_name: "lastName",
+            first_name: "firstName",
+            middle_name: "middleName",
+            email: "email",
+            contact_number: "contactNumber",
+          },
+        })
+      );
     } finally {
       setIsSaving(false);
     }
@@ -109,7 +129,7 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
 
       {/* Main Card Form */}
       <div className="details-card">
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           {/* Profile Photo Section */}
           <section className="photo-section">
             <div className="avatar-container">
@@ -158,7 +178,7 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
                   {isUploadingPhoto ? "Uploading..." : "Change Photo"}
                 </button>
               </div>
-              {photoError && <p className="field-hint" style={{ color: "#dc2626" }}>{photoError}</p>}
+              {photoError && <p className="error-text">{photoError}</p>}
             </div>
           </section>
 
@@ -179,9 +199,10 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
                   name="lastName"
                   value={formData.lastName}
                   onChange={handleChange}
-                  required
+                  className={errors.lastName ? "input-error" : ""}
                 />
               </div>
+              {errors.lastName && <p className="error-text">{errors.lastName}</p>}
             </div>
 
             <div className="form-group">
@@ -197,9 +218,10 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
                   name="firstName"
                   value={formData.firstName}
                   onChange={handleChange}
-                  required
+                  className={errors.firstName ? "input-error" : ""}
                 />
               </div>
+              {errors.firstName && <p className="error-text">{errors.firstName}</p>}
             </div>
 
             <div className="form-group">
@@ -215,8 +237,10 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
                   name="middleName"
                   value={formData.middleName}
                   onChange={handleChange}
+                  className={errors.middleName ? "input-error" : ""}
                 />
               </div>
+              {errors.middleName && <p className="error-text">{errors.middleName}</p>}
             </div>
 
             <div className="form-group">
@@ -232,9 +256,10 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  required
+                  className={errors.email ? "input-error" : ""}
                 />
               </div>
+              {errors.email && <p className="error-text">{errors.email}</p>}
             </div>
 
             <div className="form-group">
@@ -251,12 +276,14 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
                   maxLength={11}
                   value={formData.contactNumber}
                   onChange={handleChange}
+                  className={errors.contactNumber ? "input-error" : ""}
                 />
               </div>
+              {errors.contactNumber && <p className="error-text">{errors.contactNumber}</p>}
             </div>
           </div>
 
-          {saveError && <p className="field-hint" style={{ color: "#dc2626" }}>{saveError}</p>}
+          {errors.form && <p className="error-text">{errors.form}</p>}
 
           <div className="form-actions">
             <button type="button" className="btn-cancel" onClick={onBack} disabled={isSaving}>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { resetPassword } from "../../../api/passwordReset";
 import { getAuthFlow, clearAuthFlow } from "../../../shared/authFlowStorage";
+import { validatePassword } from "../../../utils/passwordValidation";
 import "./NewPass.css";
 
 export default function NewPass() {
@@ -38,8 +39,9 @@ export default function NewPass() {
 
         if (!newPassword) {
             newErrors.password = "Password is required";
-        } else if (newPassword.length < 8) {
-            newErrors.password = "Password must be at least 8 characters long";
+        } else {
+            const passwordError = validatePassword(newPassword, { email });
+            if (passwordError) newErrors.password = passwordError;
         }
 
         if (!confirmPassword) {
