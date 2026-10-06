@@ -254,7 +254,7 @@ export default function DashboardHome() {
           <section className="dh-panel">
             <div className="dh-panel-head">
               <h2 className="dh-panel-title">Management Overview</h2>
-              <Link to="/dashboard/monitoring/analytics" className="dh-panel-link">View Report</Link>
+              <Link to="/dashboard/operations/analytics" className="dh-panel-link">View Report</Link>
             </div>
             <div className="dh-progress-list">
               {overviewBars.map((bar) => (
@@ -277,7 +277,7 @@ export default function DashboardHome() {
           <section className="dh-panel">
             <div className="dh-panel-head">
               <h2 className="dh-panel-title">Recent Reports</h2>
-              <Link to="/dashboard/report-management" className="dh-panel-link">View All</Link>
+              <Link to="/dashboard/operations" className="dh-panel-link">View All</Link>
             </div>
             <div className="dh-table-wrap">
               <table className="dh-table">
@@ -297,7 +297,7 @@ export default function DashboardHome() {
                         <td><span className={`severity-badge severity-${String(report.severity || "").toLowerCase()}`}>{report.severity || "—"}</span></td>
                         <td>
                           <Link
-                            to={`/dashboard/report-management?report=${encodeURIComponent(report.report_number)}`}
+                            to="/dashboard/operations"
                             className="dh-action-link"
                           >
                             Manage
@@ -327,7 +327,7 @@ export default function DashboardHome() {
                       <span>{alert.address || "Location unavailable"}</span>
                     </div>
                     <Link
-                      to={`/dashboard/report-management?report=${encodeURIComponent(alert.report_number)}`}
+                      to="/dashboard/operations"
                       className="dh-alert-view"
                     >
                       View

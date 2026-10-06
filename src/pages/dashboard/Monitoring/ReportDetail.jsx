@@ -36,7 +36,7 @@ export default function ReportDetail() {
   const [timelineError, setTimelineError] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [selectedTimelineEvent, setSelectedTimelineEvent] = useState(null);
-  const goBack = () => navigate("/dashboard/monitoring/history");
+  const goBack = () => navigate("/dashboard/operations/history");
 
   useEffect(() => {
     let cancelled = false;

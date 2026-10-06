@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { getCurrentUser } from "../../api/accounts";
 import { useAuth } from "../../context/authContext";
 import { MOCK_ALL_ACCESS } from "../../shared/config/env";
+import { STATUS_VIEWS, useStatusCounts } from "../../hooks/useStatusCounts";
 import "./Sidebar.css";
 
 function RocketIcon() {
@@ -33,15 +34,6 @@ function UserManagementIcon() {  return (
       <circle cx="9" cy="7" r="4" />
       <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  );
-}
-
-function ClipboardIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-      <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
     </svg>
   );
 }
@@ -96,17 +88,21 @@ export default function Sidebar() {
   useEffect(() => {
     getCurrentUser().then(setUser).catch(() => setUser(null));
   }, []);
+  const { counts: statusCounts, loaded: statusCountsLoaded } = useStatusCounts();
   const path = location.pathname;
 
   const isActive = (route) => path === route;
-  const isMonitoringActive = path.startsWith("/dashboard/monitoring");
+  const isOperationsActive = path.startsWith("/dashboard/operations");
   const isUserMgmtActive = path.startsWith("/dashboard/users");
+  // Status views deep-link the shared table via /dashboard/operations?status=…
+  const statusParam = (new URLSearchParams(location.search).get("status") || "").toLowerCase();
+  const activeStatus = STATUS_VIEWS.some((view) => view.status === statusParam) ? statusParam : "";
+  const isOverviewActive = isActive("/dashboard/operations") && !activeStatus;
   const permissions = user?.permissions || [];
   // MOCK_ALL_ACCESS short-circuits the permission check so every staff member
   // sees every section. Flip the flag in src/shared/config/env.js to restore
   // role-based visibility driven by user.permissions.
   const can = (permission) => MOCK_ALL_ACCESS || permissions.includes(permission);
-  const canReports = can("report:read_all") || can("report:read_assigned") || can("report:read_own");
   const canAnalytics = can("analytic:read_dashboard") || can("analytic:read_all_metrics") || can("analytic:read_assigned_metrics") || can("analytic:read_own_metrics");
   const canUsers = can("user:read_all") || can("employee:read_all") || can("role:read_all");
 
@@ -174,38 +170,35 @@ export default function Sidebar() {
             </div>
           </div>}
 
-          {canReports && <Link
-            to="/dashboard/report-management"
-            className={`sidebar-nav-item ${isActive("/dashboard/report-management") ? "active" : ""}`}
-          >
-            <ClipboardIcon />
-            <span>Report Management</span>
-          </Link>}
-
           {canAnalytics && <div className="sidebar-nav-section">
             <Link
-              to="/dashboard/monitoring"
-              className={`sidebar-nav-item parent ${isMonitoringActive ? "active" : ""}`}
+              to="/dashboard/operations"
+              className={`sidebar-nav-item parent ${isOperationsActive ? "active" : ""}`}
             >
               <MonitorIcon />
-              <span>Monitoring</span>
+              <span>Operations</span>
             </Link>
             <div className="sidebar-subnav">
               <Link
-                to="/dashboard/monitoring"
-                className={`sidebar-subnav-item ${isActive("/dashboard/monitoring") ? "active" : ""}`}
+                to="/dashboard/operations"
+                className={`sidebar-subnav-item ${isOverviewActive ? "active" : ""}`}
               >
                 Reports Overview
               </Link>
+              <span className="sidebar-subnav-label">Status Views</span>
+              {STATUS_VIEWS.map((view) => (
+                <Link
+                  key={view.status}
+                  to={{ pathname: "/dashboard/operations", search: `?status=${view.status}` }}
+                  className={`sidebar-subnav-item with-badge ${isActive("/dashboard/operations") && activeStatus === view.status ? "active" : ""}`}
+                >
+                  <span>{view.label}</span>
+                  <span className="sidebar-count-badge">{statusCountsLoaded ? statusCounts[view.key] : "—"}</span>
+                </Link>
+              ))}
               <Link
-                to="/dashboard/monitoring/history"
-                className={`sidebar-subnav-item ${isActive("/dashboard/monitoring/history") ? "active" : ""}`}
-              >
-                Reports History
-              </Link>
-              <Link
-                to="/dashboard/monitoring/analytics"
-                className={`sidebar-subnav-item ${isActive("/dashboard/monitoring/analytics") ? "active" : ""}`}
+                to="/dashboard/operations/analytics"
+                className={`sidebar-subnav-item ${isActive("/dashboard/operations/analytics") ? "active" : ""}`}
               >
                 Analytics
               </Link>

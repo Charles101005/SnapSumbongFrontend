@@ -667,3 +667,84 @@
     bottom: 12px;
   }
 }
+/* ================================
+   MODAL SHELL (Update action from Reports Overview)
+   ================================ */
+
+.mgmt-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(15, 23, 42, 0.68);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  overflow-y: auto;
+}
+
+.mgmt-modal {
+  width: min(100%, 760px);
+  max-height: calc(100vh - 5rem);
+  overflow-y: auto;
+}
+
+.mgmt-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.9rem;
+  margin-bottom: 1.15rem;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.mgmt-modal-heading {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-text-dark);
+}
+
+.mgmt-modal-close {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: #fff;
+  color: var(--color-text-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.mgmt-modal-close:hover {
+  background-color: var(--color-bg-page);
+  color: var(--color-text-dark);
+}
+
+/* Success banner - mirrored from .form-error (MonitoringDashboard.css),
+   referenced by the save flow but previously defined nowhere. */
+.form-success {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  padding: 0.6rem 0.75rem;
+  border-radius: 7px;
+  font-size: 0.68rem;
+}
+
+@media (max-width: 720px) {
+  .mgmt-modal-overlay {
+    padding: 1rem 0.75rem;
+  }
+
+  .mgmt-modal {
+    max-height: calc(100vh - 2rem);
+  }
+}

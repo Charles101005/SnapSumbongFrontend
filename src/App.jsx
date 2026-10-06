@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthProvider";
 import { useAuth } from "./context/authContext";
 import RequireAuth from "./components/guards/RequireAuth";
@@ -8,7 +8,6 @@ import ResetPass from "./pages/auth/ResetPass/ResetPass";
 import VerifyEmail from "./pages/auth/ResetPassVerify/VerifyEmail";
 import NewPass from "./pages/auth/NewPass/NewPass";
 import MonitoringDashboard from "./pages/dashboard/Monitoring/MonitoringDashboard";
-import ReportManagement from "./pages/dashboard/ReportManagement/ReportManagement";
 import ReportsHistory from "./pages/dashboard/Monitoring/ReportsHistory";
 import ReportDetail from "./pages/dashboard/Monitoring/ReportDetail";
 import Analytics from "./pages/dashboard/Monitoring/Analytics";
@@ -31,6 +30,18 @@ import ReportSubmitted from "./pages/citizen/SubmitReport/ReportSubmitted";
 import CitizenLayout from "./components/citizens/CitizenLayout/CitizenLayout";
 import MyReport from "./pages/citizen/MyReport/MyReport";
 import AccountSettingsRoute from "./pages/shared/AccountSettings/AccountSettingsRoute";
+
+// Old /dashboard/monitoring[/*] URLs (bookmarks, in-app links) keep working:
+// preserve the path suffix and query string when forwarding to /dashboard/operations.
+const LEGACY_PREFIX = "/dashboard/monitoring";
+function LegacyMonitoringRedirect() {
+    const location = useLocation();
+    const suffix = location.pathname.startsWith(LEGACY_PREFIX)
+        ? location.pathname.slice(LEGACY_PREFIX.length).replace(/^\//, "")
+        : "";
+    const target = `/dashboard/operations${suffix ? `/${suffix}` : ""}${location.search}`;
+    return <Navigate to={target} replace />;
+}
 
 function AppRoutes() {
     const { status } = useAuth();
@@ -71,11 +82,15 @@ function AppRoutes() {
                 <Route path="/dashboard/users/employees/:id" element={<EmployeeProfile />} />
                 <Route path="/dashboard/users/citizens" element={<ManageCitizens />} />
                 <Route path="/dashboard/users/citizens/:id" element={<CitizenProfile />} />
-                <Route path="/dashboard/report-management" element={<ReportManagement />} />
-                <Route path="/dashboard/monitoring" element={<MonitoringDashboard />} />
-                <Route path="/dashboard/monitoring/history" element={<ReportsHistory />} />
-                <Route path="/dashboard/monitoring/report-details" element={<ReportDetail />} />
-                <Route path="/dashboard/monitoring/analytics" element={<Analytics />} />
+                {/* The standalone Report Management page now lives inside the
+                    Operations Reports Overview table as a modal. */}
+                <Route path="/dashboard/report-management" element={<Navigate to="/dashboard/operations" replace />} />
+                <Route path="/dashboard/operations" element={<MonitoringDashboard />} />
+                <Route path="/dashboard/operations/history" element={<ReportsHistory />} />
+                <Route path="/dashboard/operations/report-details" element={<ReportDetail />} />
+                <Route path="/dashboard/operations/analytics" element={<Analytics />} />
+                <Route path="/dashboard/monitoring" element={<LegacyMonitoringRedirect />} />
+                <Route path="/dashboard/monitoring/*" element={<LegacyMonitoringRedirect />} />
                 <Route path="/dashboard/audit-trail" element={<AuditTrail />} />
             </Route>
 

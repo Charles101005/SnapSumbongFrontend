@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import { getReportLookups, getReports } from "../../../api/reports";
+import { REPORT_STATUSES } from "../../../hooks/useStatusCounts";
+import ReportManagementModal from "./ReportManagementModal";
 import "./MonitoringDashboard.css";
 
 const PAGE_SIZE = 10;
@@ -25,16 +27,33 @@ function SearchIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" f
 function FilterIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>; }
 
 export default function MonitoringDashboard() {
+  // The sidebar Status Views deep-link this table via ?status=…; the URL is
+  // the source of truth for which status filter is applied.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawStatus = (searchParams.get("status") || "").trim().toLowerCase();
+  const urlStatus = REPORT_STATUSES.includes(rawStatus) ? rawStatus.toUpperCase() : "";
   const [lookups, setLookups] = useState({ categories: [], statuses: [], severities: [] });
   const [statusStats, setStatusStats] = useState({});
   const [reports, setReports] = useState([]);
   const [count, setCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({ category: "", severity: "", status: "", search: "", fromDate: "", toDate: "" });
+  const [filters, setFilters] = useState({ category: "", severity: "", status: urlStatus, search: "", fromDate: "", toDate: "" });
   const [draft, setDraft] = useState(filters);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Report number whose Update modal is open, or null when closed.
+  const [editingReport, setEditingReport] = useState(null);
+
+  // Adjust state when the URL status changes (sidebar click or browser
+  // navigation) — see react.dev "adjusting some state when a prop changes".
+  const [prevUrlStatus, setPrevUrlStatus] = useState(urlStatus);
+  if (prevUrlStatus !== urlStatus) {
+    setPrevUrlStatus(urlStatus);
+    setPage(1);
+    setFilters((current) => ({ ...current, status: urlStatus }));
+    setDraft((current) => ({ ...current, status: urlStatus }));
+  }
 
   const load = async () => {
     try {
@@ -47,9 +66,10 @@ export default function MonitoringDashboard() {
         severity: filters.severity || undefined,
         from_date: filters.fromDate || undefined,
         to_date: filters.toDate || undefined,
-        // The API's exclude_closed flag filters out phase-four reports,
-        // including both resolved and closed statuses.
-        exclude_closed: true,
+        // exclude_closed hides phase-four reports (resolved + closed). Only
+        // apply it on the unfiltered overview — status views like Resolved
+        // must still return their own rows.
+        exclude_closed: !filters.status,
         page,
         page_size: PAGE_SIZE,
       });
@@ -102,18 +122,24 @@ export default function MonitoringDashboard() {
   const totalReports = Object.values(statusStats).reduce((sum, n) => sum + Number(n || 0), 0) || count;
   const categories = lookups.categories || [];
   const statuses = lookups.statuses || [];
-  const overviewStatuses = statuses.filter((status) => !["resolved", "closed"].includes(normalize(valueOf(status))));
   const severities = lookups.severities || [];
 
   const updateDraft = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
-  const applyFilters = () => { setPage(1); setFilters(draft); };
+  const syncStatusParam = (status) => setSearchParams((prev) => {
+    const next = new URLSearchParams(prev);
+    if (status) next.set("status", String(status).toLowerCase());
+    else next.delete("status");
+    return next;
+  }, { replace: true });
+  const applyFilters = () => { setPage(1); setFilters(draft); syncStatusParam(draft.status); };
   const reset = () => {
     const empty = { category: "", severity: "", status: "", search: "", fromDate: "", toDate: "" };
     setPage(1); setDraft(empty); setFilters(empty);
+    syncStatusParam("");
   };
 
   return (
-    <DashboardLayout title="Monitoring Dashboard - Table View">
+    <DashboardLayout title="Operations - Reports Overview">
       <div className="section-header">
         <h2 className="section-title">Reports Overview</h2>
         <p className="section-subtitle">Manage and monitor citizen reports for community improvement.</p>
@@ -130,7 +156,7 @@ export default function MonitoringDashboard() {
         <div className="filters-row">
           <div className="filter-group"><label>Category</label><select value={draft.category} onChange={(e) => updateDraft("category", e.target.value)}><option value="">All Categories</option>{categories.map((c) => <option key={c.hazard_id} value={c.hazard_id}>{c.hazard_name}</option>)}</select></div>
           <div className="filter-group"><label>Severity</label><select value={draft.severity} onChange={(e) => updateDraft("severity", e.target.value)}><option value="">All Severities</option>{severities.map((s) => <option key={valueOf(s)} value={valueOf(s)}>{labelOf(s)}</option>)}</select></div>
-          <div className="filter-group"><label>Status</label><select value={draft.status} onChange={(e) => updateDraft("status", e.target.value)}><option value="">All Statuses</option>{overviewStatuses.map((s) => <option key={valueOf(s)} value={valueOf(s)}>{labelOf(s)}</option>)}</select></div>
+          <div className="filter-group"><label>Status</label><select value={draft.status} onChange={(e) => updateDraft("status", e.target.value)}><option value="">All Statuses</option>{statuses.map((s) => <option key={valueOf(s)} value={valueOf(s)}>{labelOf(s)}</option>)}</select></div>
           <div className="filter-group filter-search"><label>Search</label><div className="search-wrap"><SearchIcon/><input placeholder="Search" value={draft.search} onChange={(e) => updateDraft("search", e.target.value)} onKeyDown={(e) => e.key === "Enter" && applyFilters()} /></div></div>
         </div>
         <div className="filters-row filter-bottom">
@@ -149,7 +175,12 @@ export default function MonitoringDashboard() {
               <tr key={report.report_number}>
                 <td className="report-number">{report.report_number}</td><td>{report.category}</td><td>{report.address || "—"}</td><td>{new Date(report.created_at).toLocaleDateString()}</td>
                 <td><span className={`status-badge status-${statusClass(report.status)}`}>{displayStatus(report.status, statuses)}</span></td><td><span className={`severity-badge severity-${String(report.severity || "").toLowerCase()}`}>{report.severity || "—"}</span></td>
-                <td><Link to={`/dashboard/report-management?report=${encodeURIComponent(report.report_number)}`} className="action-link">Manage</Link></td>
+                <td>
+                  <div className="table-actions">
+                    <Link to={`/dashboard/operations/report-details?report=${encodeURIComponent(report.report_number)}`} className="action-link">View</Link>
+                    <button type="button" className="action-link action-link-button" onClick={() => setEditingReport(report.report_number)}>Edit</button>
+                  </div>
+                </td>
               </tr>
             )) : <tr><td colSpan="7" className="empty-table-message">No reports found.</td></tr>}
           </tbody>
@@ -157,6 +188,15 @@ export default function MonitoringDashboard() {
       </div>
 
       <div className="pagination"><span>Showing {reports.length ? ((page - 1) * PAGE_SIZE) + 1 : 0} to {Math.min(page * PAGE_SIZE, count)} of {count} reports</span><div><button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</button><button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</button></div></div>
+
+      {editingReport && (
+        <ReportManagementModal
+          reportNumber={editingReport}
+          lookups={lookups}
+          onClose={() => setEditingReport(null)}
+          onSaved={() => { load(); loadStatusStats(statuses); }}
+        />
+      )}
     </DashboardLayout>
   );
 }

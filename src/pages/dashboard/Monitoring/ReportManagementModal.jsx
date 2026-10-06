@@ -1,18 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import MapAutoResize from "../../../components/shared/MapAutoResize";
 import { hazardMarkerIcon } from "../../../utils/leafletHelpers";
-import {
-  getReportDetail,
-  getReportLookups,
-  getReports,
-  updateReport,
-  uploadResolutionImages,
-} from "../../../api/reports";
-import "./ReportManagement.css";
+import { getReportDetail, updateReport, uploadResolutionImages } from "../../../api/reports";
+import "./ReportManagementModal.css";
 
 const FALLBACK_STATUSES = ["New", "Assigned", "Under Review", "On-Hold", "Dispatched", "Resolved", "Closed"];
 const FALLBACK_SEVERITIES = ["P1", "P2", "P3", "P4", "P5"];
@@ -76,12 +68,7 @@ const formatDate = (value) => {
   return date.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 };
 
-export default function ReportManagement() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const requestedReport = searchParams.get("report");
-
-  const [lookups, setLookups] = useState({ categories: [], statuses: [], severities: [] });
-  const [selectedReportNumber, setSelectedReportNumber] = useState(requestedReport || "");
+export default function ReportManagementModal({ reportNumber, lookups, onClose, onSaved }) {
   const [report, setReport] = useState(null);
   const [severity, setSeverity] = useState("");
   const [status, setStatus] = useState("");
@@ -92,93 +79,85 @@ export default function ReportManagement() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [noReports, setNoReports] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [mapExpanded, setMapExpanded] = useState(false);
 
-  // Close the lightbox on Escape.
-  useEffect(() => {
-    if (!lightboxSrc) return;
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") setLightboxSrc(null);
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [lightboxSrc]);
+  // Reset display state when the dialog switches to a different report —
+  // React's "adjusting state when a prop changes" pattern (same as
+  // MonitoringDashboard), which keeps the reset out of an effect.
+  const [loadedNumber, setLoadedNumber] = useState(null);
+  if (loadedNumber !== reportNumber) {
+    setLoadedNumber(reportNumber);
+    setReport(null);
+    setSuccess("");
+    setError("");
+    setLoadingDetail(Boolean(reportNumber));
+  }
 
+  const statuses = lookups?.statuses?.length ? lookups.statuses : FALLBACK_STATUSES;
+  const severities = lookups?.severities?.length ? lookups.severities : FALLBACK_SEVERITIES;
+
+  const previewsRef = useRef([]);
+  useEffect(() => { previewsRef.current = resolutionPreviews; }, [resolutionPreviews]);
+  // Revoke generated preview URLs when the modal unmounts (closing the dialog).
+  useEffect(() => () => { previewsRef.current.forEach((src) => URL.revokeObjectURL(src)); }, []);
+
+  // Single Escape handler with priority: lightbox -> expanded map -> close modal.
   useEffect(() => {
-    if (!mapExpanded) return;
     const handleKeyDown = (event) => {
-      if (event.key === "Escape") setMapExpanded(false);
+      if (event.key !== "Escape") return;
+      if (lightboxSrc) { setLightboxSrc(null); return; }
+      if (mapExpanded) { setMapExpanded(false); return; }
+      onClose?.();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [mapExpanded]);
+  }, [lightboxSrc, mapExpanded, onClose]);
 
-  const statuses = useMemo(() => (lookups.statuses?.length ? lookups.statuses : FALLBACK_STATUSES), [lookups.statuses]);
-  const severities = useMemo(() => (lookups.severities?.length ? lookups.severities : FALLBACK_SEVERITIES), [lookups.severities]);
-
-  const loadDetail = async (reportNumber) => {
-    try {
-      setLoadingDetail(true);
-      setError("");
-      const data = await getReportDetail(reportNumber);
-      setReport(data);
-      setSeverity(data.severity || "");
-      const matchingStatus = (lookups.statuses || []).find(
-        (item) => (item.label || item) === data.status || (item.value || item) === data.status
-      );
-      setStatus(matchingStatus?.value || statusToValue(data.status));
-      setRemarks(data.remarks || "");
-      setResolutionFiles([]);
-      setResolutionPreviews([]);
-    } catch (err) {
-      setError(err?.detail || err?.message || "Unable to load report details.");
-      setReport(null);
-    } finally {
-      setLoadingDetail(false);
-    }
-  };
-
+  // Lock background scroll while the dialog is open.
   useEffect(() => {
-    getReportLookups().then(setLookups).catch(() => {});
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previousOverflow; };
   }, []);
 
-  // Pick a report to manage: the one requested via ?report=, or fall back to
-  // the first report currently in the queue.
-  useEffect(() => {
-    (async () => {
-      if (requestedReport) {
-        setSelectedReportNumber(requestedReport);
-        return;
-      }
-      if (selectedReportNumber) return;
-      try {
-        setLoadingDetail(true);
-        const data = await getReports({ exclude_closed: true, page: 1, page_size: 1 });
-        const first = data.results?.[0]?.report_number;
-        if (first) {
-          setSelectedReportNumber(first);
-          setSearchParams({ report: first }, { replace: true });
-        } else {
-          setNoReports(true);
-          setLoadingDetail(false);
-        }
-      } catch (err) {
-        setError(err?.detail || err?.message || "Unable to load reports.");
+  // Monotonic request id so a stale response can never overwrite the report
+  // currently shown (rapid Edit clicks / StrictMode double-invoked effects).
+  // Promise-chain (not async/await) so the react-hooks set-state-in-effect
+  // rule does not trace the setState calls back into the load effect below —
+  // same shape as getReportLookups().then(...) elsewhere in this codebase.
+  const loadRequestRef = useRef(0);
+  const loadDetail = (number) => {
+    const requestId = ++loadRequestRef.current;
+    return getReportDetail(number)
+      .then((data) => {
+        if (requestId !== loadRequestRef.current) return;
+        setReport(data);
+        setSeverity(data.severity || "");
+        const matchingStatus = (lookups?.statuses || []).find(
+          (item) => (item.label || item) === data.status || (item.value || item) === data.status
+        );
+        setStatus(matchingStatus?.value || statusToValue(data.status));
+        setRemarks(data.remarks || "");
+        setResolutionFiles([]);
+        setResolutionPreviews([]);
+        setError("");
         setLoadingDetail(false);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requestedReport]);
+      })
+      .catch((err) => {
+        if (requestId !== loadRequestRef.current) return;
+        setError(err?.detail || err?.message || "Unable to load report details.");
+        setReport(null);
+        setLoadingDetail(false);
+      });
+  };
 
+  // Load the requested report whenever the dialog opens for a different one.
   useEffect(() => {
-    if (selectedReportNumber) {
-      setNoReports(false);
-      loadDetail(selectedReportNumber);
-    }
+    if (!reportNumber) return;
+    loadDetail(reportNumber);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedReportNumber]);
+  }, [reportNumber]);
 
   const handlePhotoChange = (event) => {
     const selected = Array.from(event.target.files || []);
@@ -237,6 +216,7 @@ export default function ReportManagement() {
       setReport((current) => ({ ...current, ...(updated || {}), status, severity, remarks }));
       setSuccess("Report updates saved successfully.");
       await loadDetail(report.report_number);
+      onSaved?.();
     } catch (err) {
       setError(err?.detail || err?.message || "Unable to save report updates.");
     } finally {
@@ -267,21 +247,41 @@ export default function ReportManagement() {
   const shortLocation = report?.address ? report.address.split(",")[0].trim() : "";
   const cardTitle = report ? [report.category, shortLocation].filter(Boolean).join(" - ") : "";
 
+  if (!reportNumber) return null;
+
   return (
-    <DashboardLayout title="Management Overview">
-      <div className="mgmt-card">
+    <div className="mgmt-modal-overlay" onClick={onClose}>
+      <section
+        className="mgmt-card mgmt-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mgmt-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="mgmt-modal-header">
+          <h2 id="mgmt-modal-title" className="mgmt-modal-heading">Manage Report</h2>
+          <button
+            type="button"
+            className="mgmt-modal-close"
+            onClick={onClose}
+            aria-label="Close report management"
+          >
+            &times;
+          </button>
+        </header>
+
         {error && <div className="form-error mgmt-banner">{typeof error === "string" ? error : JSON.stringify(error)}</div>}
         {success && <div className="form-success mgmt-banner">{success}</div>}
 
         {loadingDetail ? (
           <div className="mgmt-empty">Loading report...</div>
-        ) : noReports || !report ? (
-          <div className="mgmt-empty">No reports to manage right now.</div>
+        ) : !report ? (
+          <div className="mgmt-empty">Report not available.</div>
         ) : (
           <>
             <div className="mgmt-header">
               <div>
-                <h2 className="mgmt-title">{cardTitle}</h2>
+                <h3 className="mgmt-title">{cardTitle}</h3>
                 <p className="mgmt-date">DATE REPORTED: {formatDate(report.created_at)}</p>
               </div>
               <span className="pill-badge" style={{ backgroundColor: statusColor.bg, color: statusColor.text }}>
@@ -455,10 +455,16 @@ export default function ReportManagement() {
             </div>
           </>
         )}
-      </div>
+      </section>
 
       {mapExpanded && report && reportCoordinates && (
-        <div className="mgmt-map-modal-overlay" onClick={() => setMapExpanded(false)}>
+        <div
+          className="mgmt-map-modal-overlay"
+          onClick={(event) => {
+            event.stopPropagation();
+            setMapExpanded(false);
+          }}
+        >
           <section
             className="mgmt-map-modal"
             role="dialog"
@@ -474,7 +480,10 @@ export default function ReportManagement() {
               <button
                 type="button"
                 className="mgmt-map-modal-close"
-                onClick={() => setMapExpanded(false)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setMapExpanded(false);
+                }}
                 aria-label="Close map"
               >
                 &times;
@@ -510,10 +519,19 @@ export default function ReportManagement() {
       )}
 
       {lightboxSrc && (
-        <div className="mgmt-lightbox-overlay" onClick={() => setLightboxSrc(null)}>
+        <div
+          className="mgmt-lightbox-overlay"
+          onClick={(event) => {
+            event.stopPropagation();
+            setLightboxSrc(null);
+          }}
+        >
           <button
             className="mgmt-lightbox-close"
-            onClick={() => setLightboxSrc(null)}
+            onClick={(event) => {
+              event.stopPropagation();
+              setLightboxSrc(null);
+            }}
             aria-label="Close"
             type="button"
           >
@@ -527,6 +545,6 @@ export default function ReportManagement() {
           />
         </div>
       )}
-    </DashboardLayout>
+    </div>
   );
 }
