@@ -44,6 +44,7 @@ body {
 
 .sidebar-top {
   padding: 1.25rem 0;
+  overflow-y: auto;
 }
 
 .sidebar-brand {
@@ -95,6 +96,7 @@ body {
   align-items: center;
   gap: 0.625rem;
   padding: 0.625rem 1.25rem;
+  font-family: inherit;
   font-size: var(--text-md);
   font-weight: 500;
   color: var(--color-text-muted);
@@ -130,11 +132,30 @@ body {
   font-weight: 600;
 }
 
+.sidebar-nav-chevron {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  color: currentColor;
+  opacity: 0.6;
+}
+
+.sidebar-nav-item.parent:hover .sidebar-nav-chevron,
+.sidebar-nav-item.parent.active .sidebar-nav-chevron {
+  opacity: 0.9;
+}
+
 .sidebar-subnav {
   display: flex;
   flex-direction: column;
   padding-left: 2.75rem;
   margin-top: 0.125rem;
+}
+
+.sidebar-subnav-group {
+  display: flex;
+  flex-direction: column;
+  padding-left: 0.625rem;
 }
 
 .sidebar-subnav-item {

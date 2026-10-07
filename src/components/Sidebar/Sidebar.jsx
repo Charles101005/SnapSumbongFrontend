@@ -68,6 +68,25 @@ function UserIcon() {
   );
 }
 
+function ChevronIcon({ expanded }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
 function LogoutIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -94,6 +113,14 @@ export default function Sidebar() {
   const isActive = (route) => path === route;
   const isOperationsActive = path.startsWith("/dashboard/operations");
   const isUserMgmtActive = path.startsWith("/dashboard/users");
+  const activeSection = isOperationsActive ? "operations" : isUserMgmtActive ? "users" : null;
+  const [openSections, setOpenSections] = useState(() => ({
+    users: activeSection === "users",
+    operations: activeSection === "operations",
+  }));
+
+  const toggleSection = (section) =>
+    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   // Status views deep-link the shared table via /dashboard/operations?status=…
   const statusParam = (new URLSearchParams(location.search).get("status") || "").toLowerCase();
   const activeStatus = STATUS_VIEWS.some((view) => view.status === statusParam) ? statusParam : "";
@@ -141,14 +168,20 @@ export default function Sidebar() {
           </Link>
 
           {canUsers && <div className="sidebar-nav-section">
-            <Link
-              to="/dashboard/users/roles"
+            <button
+              type="button"
               className={`sidebar-nav-item parent ${isUserMgmtActive ? "active" : ""}`}
+              onClick={() => toggleSection("users")}
+              aria-expanded={openSections.users}
+              aria-controls="sidebar-subnav-users"
             >
               <UserManagementIcon />
               <span>User Management</span>
-            </Link>
-            <div className="sidebar-subnav">
+              <span className="sidebar-nav-chevron">
+                <ChevronIcon expanded={openSections.users} />
+              </span>
+            </button>
+            {openSections.users && <div className="sidebar-subnav" id="sidebar-subnav-users">
               <Link
                 to="/dashboard/users/roles"
                 className={`sidebar-subnav-item ${isActive("/dashboard/users/roles") ? "active" : ""}`}
@@ -167,42 +200,50 @@ export default function Sidebar() {
               >
                 Citizens
               </Link>
-            </div>
+            </div>}
           </div>}
 
           {canAnalytics && <div className="sidebar-nav-section">
-            <Link
-              to="/dashboard/operations"
+            <button
+              type="button"
               className={`sidebar-nav-item parent ${isOperationsActive ? "active" : ""}`}
+              onClick={() => toggleSection("operations")}
+              aria-expanded={openSections.operations}
+              aria-controls="sidebar-subnav-operations"
             >
               <MonitorIcon />
               <span>Operations</span>
-            </Link>
-            <div className="sidebar-subnav">
+              <span className="sidebar-nav-chevron">
+                <ChevronIcon expanded={openSections.operations} />
+              </span>
+            </button>
+            {openSections.operations && <div className="sidebar-subnav" id="sidebar-subnav-operations">
               <Link
                 to="/dashboard/operations"
                 className={`sidebar-subnav-item ${isOverviewActive ? "active" : ""}`}
               >
                 Reports Overview
               </Link>
-              <span className="sidebar-subnav-label">Status Views</span>
-              {STATUS_VIEWS.map((view) => (
-                <Link
-                  key={view.status}
-                  to={{ pathname: "/dashboard/operations", search: `?status=${view.status}` }}
-                  className={`sidebar-subnav-item with-badge ${isActive("/dashboard/operations") && activeStatus === view.status ? "active" : ""}`}
-                >
-                  <span>{view.label}</span>
-                  <span className="sidebar-count-badge">{statusCountsLoaded ? statusCounts[view.key] : "—"}</span>
-                </Link>
-              ))}
+              <div className="sidebar-subnav-group">
+                <span className="sidebar-subnav-label">Status Views</span>
+                {STATUS_VIEWS.map((view) => (
+                  <Link
+                    key={view.status}
+                    to={{ pathname: "/dashboard/operations", search: `?status=${view.status}` }}
+                    className={`sidebar-subnav-item with-badge ${isActive("/dashboard/operations") && activeStatus === view.status ? "active" : ""}`}
+                  >
+                    <span>{view.label}</span>
+                    <span className="sidebar-count-badge">{statusCountsLoaded ? statusCounts[view.key] : "—"}</span>
+                  </Link>
+                ))}
+              </div>
               <Link
                 to="/dashboard/operations/analytics"
                 className={`sidebar-subnav-item ${isActive("/dashboard/operations/analytics") ? "active" : ""}`}
               >
                 Analytics
               </Link>
-            </div>
+            </div>}
           </div>}
 
           {can("audit:read_report_logs") || can("audit:read_system_logs") ? <Link
