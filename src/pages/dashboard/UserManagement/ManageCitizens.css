@@ -121,21 +121,32 @@
   color: var(--color-error);
 }
 
-/* ===== ACTION LINK ===== */
-.action-link {
-  background: none;
-  border: none;
-  padding: 0;
-  font-size: var(--text-base);
-  font-weight: 500;
-  cursor: pointer;
-  transition: color 0.15s;
-  color: var(--color-primary);
+/* ===== ACTION ICON BUTTONS (View / Edit) ===== */
+.action-icon-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.action-link:hover {
-  color: var(--color-primary-hover);
-  text-decoration: underline;
+.action-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-card);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.action-icon-btn:hover {
+  background-color: var(--color-bg-page);
+  border-color: var(--color-text-muted);
+  color: var(--color-text-dark);
 }
 
 .empty-table-message {

@@ -1,0 +1,201 @@
+/* ================================
+   EMPLOYEE PROFILE MODAL (Manage action from LGU Employees)
+   Form-style dialog modeled on the CitizenProfileModal.
+   ================================ */
+
+.epm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(15, 23, 42, 0.68);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  overflow-y: auto;
+}
+
+.epm-modal {
+  width: min(100%, 880px);
+  max-height: calc(100vh - 5rem);
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
+}
+
+/* ===== HEADER ===== */
+.epm-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem 1.75rem 1rem;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.epm-modal-title {
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--color-text-dark);
+}
+
+.epm-modal-subtitle {
+  margin: 0.3rem 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.epm-modal-close {
+  flex: none;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 1.75rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.epm-modal-close:hover {
+  color: var(--color-text-dark);
+}
+
+/* ===== BANNERS ===== */
+.epm-banner {
+  margin: 1rem 1.75rem 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: 7px;
+  font-size: var(--text-sm);
+}
+
+.epm-banner-error {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+}
+
+.epm-banner-success {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+/* ===== FORM ===== */
+.epm-form {
+  padding: 1.5rem 1.75rem;
+}
+
+.epm-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem 1.5rem;
+}
+
+.epm-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.epm-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-dark);
+  margin-bottom: 0.45rem;
+}
+
+.epm-required {
+  color: #dc2626;
+}
+
+.epm-input {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: #ffffff;
+  font-size: var(--text-md);
+  color: var(--color-text-dark);
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.epm-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.epm-input:disabled {
+  background-color: var(--color-bg-page);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.epm-select {
+  appearance: auto;
+  cursor: pointer;
+}
+
+.epm-select:disabled {
+  cursor: not-allowed;
+}
+
+/* ===== ACTION BUTTONS ===== */
+.epm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.epm-btn-discard,
+.epm-btn-save {
+  padding: 0.55rem 1.25rem;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.epm-btn-discard {
+  border: 1px solid var(--color-border);
+  background: #ffffff;
+  color: var(--color-text-muted);
+}
+
+.epm-btn-discard:hover {
+  background-color: var(--color-bg-page);
+}
+
+.epm-btn-save {
+  border: none;
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.epm-btn-save:hover {
+  background-color: var(--color-primary-hover);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 720px) {
+  .epm-modal-overlay {
+    padding: 1rem 0.75rem;
+  }
+
+  .epm-modal {
+    max-height: calc(100vh - 2rem);
+  }
+
+  .epm-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

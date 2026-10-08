@@ -192,7 +192,7 @@ export default function Sidebar() {
                 to="/dashboard/users/employees"
                 className={`sidebar-subnav-item ${isActive("/dashboard/users/employees") ? "active" : ""}`}
               >
-                LGU Employees
+                Employees
               </Link>
               <Link
                 to="/dashboard/users/citizens"

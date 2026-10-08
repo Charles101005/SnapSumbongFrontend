@@ -25,6 +25,8 @@ function UnderReviewIcon() { return <svg width="18" height="18" viewBox="0 0 24 
 function DispatchedIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12h15M13 6l6 6-6 6"/></svg>; }
 function SearchIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>; }
 function FilterIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>; }
+function EyeIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>; }
+function PencilIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>; }
 
 export default function MonitoringDashboard() {
   // The sidebar Status Views deep-link this table via ?status=…; the URL is
@@ -177,8 +179,23 @@ export default function MonitoringDashboard() {
                 <td><span className={`status-badge status-${statusClass(report.status)}`}>{displayStatus(report.status, statuses)}</span></td><td><span className={`severity-badge severity-${String(report.severity || "").toLowerCase()}`}>{report.severity || "—"}</span></td>
                 <td>
                   <div className="table-actions">
-                    <Link to={`/dashboard/operations/report-details?report=${encodeURIComponent(report.report_number)}`} className="action-link">View</Link>
-                    <button type="button" className="action-link action-link-button" onClick={() => setEditingReport(report.report_number)}>Edit</button>
+                    <Link
+                      to={`/dashboard/operations/report-details?report=${encodeURIComponent(report.report_number)}`}
+                      className="action-icon-btn"
+                      title={`View ${report.report_number}`}
+                      aria-label={`View ${report.report_number}`}
+                    >
+                      <EyeIcon />
+                    </Link>
+                    <button
+                      type="button"
+                      className="action-icon-btn"
+                      title={`Edit ${report.report_number}`}
+                      aria-label={`Edit ${report.report_number}`}
+                      onClick={() => setEditingReport(report.report_number)}
+                    >
+                      <PencilIcon />
+                    </button>
                   </div>
                 </td>
               </tr>

@@ -19,7 +19,6 @@ import AddEmployee from "./pages/dashboard/UserManagement/AddEmployee";
 import EmployeeCreated from "./pages/dashboard/UserManagement/EmployeeCreated";
 import EmployeeProfile from "./pages/dashboard/UserManagement/EmployeeProfile";
 import ManageCitizens from "./pages/dashboard/UserManagement/ManageCitizens";
-import CitizenProfile from "./pages/dashboard/UserManagement/CitizenProfile";
 import AuditTrail from "./pages/dashboard/AuditTrail/AuditTrail";
 import DashboardHome from "./pages/dashboard/Home/DashboardHome";
 
@@ -81,7 +80,8 @@ function AppRoutes() {
                 <Route path="/dashboard/users/employees/created" element={<EmployeeCreated />} />
                 <Route path="/dashboard/users/employees/:id" element={<EmployeeProfile />} />
                 <Route path="/dashboard/users/citizens" element={<ManageCitizens />} />
-                <Route path="/dashboard/users/citizens/:id" element={<CitizenProfile />} />
+                {/* Citizen profile management now lives in a modal opened from
+                    the Citizen Users table (same pattern as Reports Overview). */}
                 {/* The standalone Report Management page now lives inside the
                     Operations Reports Overview table as a modal. */}
                 <Route path="/dashboard/report-management" element={<Navigate to="/dashboard/operations" replace />} />

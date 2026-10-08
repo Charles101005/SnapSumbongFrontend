@@ -1,12 +1,22 @@
 import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
+import EmployeeProfileModal from "./EmployeeProfileModal";
 import "./ManageEmployees.css";
 import mockData from "../../../data/mock.json";
 
-const { employees: MOCK_EMPLOYEES, constants } = mockData;
-const { employeeTabs: TABS } = constants;
-const ROWS_PER_PAGE = 4;
+const { employees: MOCK_EMPLOYEES, employeeProfiles: MOCK_EMPLOYEE_PROFILES } = mockData;
+const ROWS_PER_PAGE = 8;
+
+const buildFullName = ({ firstName, middleName, lastName }) =>
+  [firstName, middleName ? `${middleName.charAt(0)}.` : "", lastName].filter(Boolean).join(" ");
+
+const ROLE_FILTER_OPTIONS = [
+  { value: "", label: "All Roles" },
+  { value: "ADMIN", label: "Admin" },
+  { value: "REPORT OFFICER", label: "Report Officer" },
+  { value: "SUPERVISOR", label: "Supervisor" },
+];
 
 function SearchIcon() {
   return (
@@ -36,21 +46,40 @@ function UserPlusIcon() {
   );
 }
 
+function EyeIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </svg>
+  );
+}
+
 export default function ManageEmployees() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("All Employees");
+  const [employees, setEmployees] = useState(MOCK_EMPLOYEES);
+  const [employeeProfiles, setEmployeeProfiles] = useState(MOCK_EMPLOYEE_PROFILES);
+  const [managing, setManaging] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [draftSearch, setDraftSearch] = useState("");
   const [draftStatus, setDraftStatus] = useState("");
+  const [draftRole, setDraftRole] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
 
   const filteredEmployees = useMemo(() => {
-    return MOCK_EMPLOYEES.filter((emp) => {
-      if (activeTab !== "All Employees") {
-        const roleMap = { Admins: "ADMIN", "Report Officer": "REPORT OFFICER", Supervisor: "SUPERVISOR" };
-        if (emp.role !== roleMap[activeTab]) return false;
-      }
+    return employees.filter((emp) => {
+      if (roleFilter && emp.role !== roleFilter) return false;
       if (statusFilter && emp.status !== statusFilter) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -58,7 +87,7 @@ export default function ManageEmployees() {
       }
       return true;
     });
-  }, [activeTab, statusFilter, searchQuery]);
+  }, [employees, roleFilter, statusFilter, searchQuery]);
 
   const totalEmployees = filteredEmployees.length;
   const totalPages = Math.ceil(totalEmployees / ROWS_PER_PAGE);
@@ -71,16 +100,38 @@ export default function ManageEmployees() {
   const handleApplyFilters = () => {
     setSearchQuery(draftSearch);
     setStatusFilter(draftStatus);
+    setRoleFilter(draftRole);
     setCurrentPage(1);
   };
 
   const handleReset = () => {
     setDraftSearch("");
     setDraftStatus("");
+    setDraftRole("");
     setSearchQuery("");
     setStatusFilter("");
+    setRoleFilter("");
     setCurrentPage(1);
   };
+
+  // Merge the modal's edits into the table row + profile store so the list
+  // reflects the change without a reload (mock data, session state only).
+  const handleSaved = (updates) => {
+    const managingId = managing?.id;
+    setEmployeeProfiles((current) => ({
+      ...current,
+      [managingId]: { ...current[managingId], ...updates },
+    }));
+    setEmployees((current) =>
+      current.map((emp) =>
+        emp.id === managingId
+          ? { ...emp, name: buildFullName(updates), email: updates.email, role: updates.role, status: updates.status }
+          : emp
+      )
+    );
+  };
+
+  const managingEmployee = employees.find((emp) => emp.id === managing?.id) || null;
 
   return (
     <DashboardLayout title="LGU Employees">
@@ -104,20 +155,6 @@ export default function ManageEmployees() {
           </button>
         </div>
 
-        <div className="tabs-container">
-          <div className="tabs">
-            {TABS.map((tab) => (
-              <button
-                key={tab}
-                className={`tab ${activeTab === tab ? "active" : ""}`}
-                onClick={() => { setActiveTab(tab); setCurrentPage(1); }}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-        </div>
-
         <div className="filter-card">
           <div className="filter-row">
             <div className="filter-field filter-field-search">
@@ -133,6 +170,14 @@ export default function ManageEmployees() {
                   onKeyDown={(e) => e.key === "Enter" && handleApplyFilters()}
                 />
               </div>
+            </div>
+            <div className="filter-field">
+              <label className="filter-label">Role</label>
+              <select className="filter-select" value={draftRole} onChange={(e) => setDraftRole(e.target.value)}>
+                {ROLE_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
             </div>
             <div className="filter-field">
               <label className="filter-label">Account Status</label>
@@ -179,12 +224,31 @@ export default function ManageEmployees() {
                     </td>
                     <td>
                       <span className={`status-badge status-${emp.status.toLowerCase()}`}>
-                        {emp.status}
+                        {emp.status === "ACTIVE" ? "Active" : "Deactivated"}
                       </span>
                     </td>
                     <td className="last-activity-cell">{emp.lastActivity}</td>
                     <td>
-                      <button className="action-link" onClick={() => navigate(`/dashboard/users/employees/${emp.id}`)}>Manage</button>
+                      <div className="action-icon-group">
+                        <button
+                          type="button"
+                          className="action-icon-btn"
+                          title={`View ${emp.name}`}
+                          aria-label={`View ${emp.name}`}
+                          onClick={() => setManaging({ id: emp.id, mode: "view" })}
+                        >
+                          <EyeIcon />
+                        </button>
+                        <button
+                          type="button"
+                          className="action-icon-btn"
+                          title={`Edit ${emp.name}`}
+                          aria-label={`Edit ${emp.name}`}
+                          onClick={() => setManaging({ id: emp.id, mode: "edit" })}
+                        >
+                          <PencilIcon />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -199,7 +263,7 @@ export default function ManageEmployees() {
 
         <div className="pagination">
           <span className="pagination-info">
-            Showing {startRow} to {endRow} of {totalEmployees} results
+            Showing {startRow} to {endRow} of {totalEmployees.toLocaleString()} Employees
           </span>
           <div className="pagination-buttons">
             <button
@@ -228,6 +292,16 @@ export default function ManageEmployees() {
           </div>
         </div>
       </div>
+
+      {managing?.id != null && managingEmployee && (
+        <EmployeeProfileModal
+          employee={managingEmployee}
+          profile={employeeProfiles[managing.id]}
+          mode={managing.mode}
+          onClose={() => setManaging(null)}
+          onSaved={handleSaved}
+        />
+      )}
     </DashboardLayout>
   );
 }
