@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { usePsgcAddress } from "../../../hooks/usePsgcAddress";
+import SearchableSelect from "../../../components/shared/SearchableSelect";
 import "./EmployeeProfileModal.css";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -14,144 +16,6 @@ const GENDER_OPTIONS = [
   { value: "FEMALE", label: "Female" },
   { value: "OTHER", label: "Other" },
 ];
-
-// Placeholder PH address data shaped like PSGC responses (node = value/label/children)
-// so the real PSGC API can replace this constant later — map { code, name } to
-// { value, label } at the fetch boundary and the selects keep working untouched.
-const LOCATION_OPTIONS = [
-  {
-    value: "NCR",
-    label: "National Capital Region (NCR)",
-    children: [
-      {
-        value: "METRO-MANILA",
-        label: "Metro Manila",
-        children: [
-          {
-            value: "CITY-OF-MANILA",
-            label: "City of Manila",
-            children: [
-              { value: "BRGY-TONDO", label: "Barangay Tondo" },
-              { value: "BRGY-BINONDO", label: "Barangay Binondo" },
-              { value: "BRGY-SAMPALOC", label: "Barangay Sampaloc" },
-            ],
-          },
-          {
-            value: "CITY-OF-QUEZON",
-            label: "Quezon City",
-            children: [
-              { value: "BRGY-COMMONWEALTH", label: "Barangay Commonwealth" },
-              { value: "BRGY-SANGANDAAN", label: "Barangay Sangandaan" },
-              { value: "BRGY-UP-CAMPUS", label: "Barangay UP Campus" },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    value: "CALABARZON",
-    label: "Region IV-A (CALABARZON)",
-    children: [
-      {
-        value: "CAVITE",
-        label: "Cavite",
-        children: [
-          {
-            value: "DASMARINAS",
-            label: "City of Dasmariñas",
-            children: [
-              { value: "BRGY-PALIPARAN", label: "Barangay Paliparan" },
-              { value: "BRGY-BUROL", label: "Barangay Burol" },
-              { value: "BRGY-AGUINALDO", label: "Barangay Emilio Aguinaldo" },
-            ],
-          },
-          {
-            value: "BACOOR",
-            label: "City of Bacoor",
-            children: [
-              { value: "BRGY-MOLINO", label: "Barangay Molino" },
-              { value: "BRGY-PANAPAAN", label: "Barangay Panapaan" },
-              { value: "BRGY-REAL-BACOOR", label: "Barangay Real" },
-            ],
-          },
-        ],
-      },
-      {
-        value: "LAGUNA",
-        label: "Laguna",
-        children: [
-          {
-            value: "CALAMBA",
-            label: "City of Calamba",
-            children: [
-              { value: "BRGY-POBLACION-CALAMBA", label: "Barangay Poblacion" },
-              { value: "BRGY-BAGONG-SILANG", label: "Barangay Bagong Silang" },
-              { value: "BRGY-SAN-CRISTOBAL", label: "Barangay San Cristobal" },
-            ],
-          },
-          {
-            value: "SANTA-ROSA",
-            label: "City of Santa Rosa",
-            children: [
-              { value: "BRGY-TAGAPO", label: "Barangay Tagapo" },
-              { value: "BRGY-KANLURAN", label: "Barangay Kanluran" },
-              { value: "BRGY-LABAS", label: "Barangay Labas" },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    value: "REGION-I",
-    label: "Region I (Ilocos Region)",
-    children: [
-      {
-        value: "ILOCOS-NORTE",
-        label: "Ilocos Norte",
-        children: [
-          {
-            value: "LAOAG",
-            label: "City of Laoag",
-            children: [
-              { value: "BRGY-POBLACION-LAOAG", label: "Barangay Poblacion" },
-              { value: "BRGY-CALAYAB", label: "Barangay Calayab" },
-              { value: "BRGY-NAGLAYAAN", label: "Barangay Naglayaan" },
-            ],
-          },
-          {
-            value: "BATAC",
-            label: "City of Batac",
-            children: [
-              { value: "BRGY-POBLACION-BATAC", label: "Barangay Poblacion" },
-              { value: "BRGY-SAN-JOSE", label: "Barangay San Jose" },
-              { value: "BRGY-CENTRO-BATAC", label: "Barangay Centro" },
-            ],
-          },
-        ],
-      },
-      {
-        value: "ILOCOS-SUR",
-        label: "Ilocos Sur",
-        children: [
-          {
-            value: "VIGAN",
-            label: "City of Vigan",
-            children: [
-              { value: "BRGY-POBLACION-VIGAN", label: "Barangay Poblacion" },
-              { value: "BRGY-CRISOLOGO", label: "Barangay Crisologo" },
-              { value: "BRGY-TAMAG", label: "Barangay Tamag" },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-];
-
-const findLocationNode = (nodes, value) =>
-  (nodes || []).find((node) => node.value === value) || null;
 
 export default function EmployeeProfileModal({ employee, profile, mode = "edit", onClose, onSaved }) {
   const isView = mode === "view";
@@ -232,32 +96,27 @@ export default function EmployeeProfileModal({ employee, profile, mode = "edit",
     return () => { document.body.style.overflow = previousOverflow; };
   }, []);
 
-  // Cascading address options — each level narrows the next; a parent change
-  // clears every child selection so stale combinations can't be saved.
-  const selectedRegion = findLocationNode(LOCATION_OPTIONS, region);
-  const selectedProvince = findLocationNode(selectedRegion?.children, province);
-  const selectedCity = findLocationNode(selectedProvince?.children, city);
-  const provinceOptions = selectedRegion?.children || [];
-  const cityOptions = selectedProvince?.children || [];
-  const barangayOptions = selectedCity?.children || [];
-
-  const handleRegionChange = (event) => {
-    setRegion(event.target.value);
-    setProvince("");
-    setCity("");
-    setBarangay("");
-  };
-
-  const handleProvinceChange = (event) => {
-    setProvince(event.target.value);
-    setCity("");
-    setBarangay("");
-  };
-
-  const handleCityChange = (event) => {
-    setCity(event.target.value);
-    setBarangay("");
-  };
+  const {
+    regionOptions,
+    provinceOptions,
+    cityOptions,
+    barangayOptions,
+    canSelectProvince,
+    canSelectCity,
+    canSelectBarangay,
+    handleRegionChange,
+    handleProvinceChange,
+    handleCityChange,
+  } = usePsgcAddress({
+    region,
+    province,
+    city,
+    barangay,
+    setRegion,
+    setProvince,
+    setCity,
+    setBarangay,
+  });
 
   const handlePhotoChange = (event) => {
     const file = event.target.files?.[0];
@@ -524,68 +383,56 @@ export default function EmployeeProfileModal({ employee, profile, mode = "edit",
               <label className="epm-label" htmlFor="epm-region">
                 Region {!isView && <span className="epm-required">*</span>}
               </label>
-              <select
+              <SearchableSelect
                 id="epm-region"
-                className="epm-input epm-select"
                 value={region}
-                onChange={handleRegionChange}
+                onChange={(value) => handleRegionChange({ target: { value } })}
+                options={regionOptions}
+                placeholder="Search region"
                 disabled={isView}
-              >
-                <option value="">Select region</option>
-                {LOCATION_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
+                inputClassName="epm-input"
+              />
             </div>
 
             <div className="epm-field">
               <label className="epm-label" htmlFor="epm-province">Province</label>
-              <select
+              <SearchableSelect
                 id="epm-province"
-                className="epm-input epm-select"
                 value={province}
-                onChange={handleProvinceChange}
-                disabled={isView || !selectedRegion}
-              >
-                <option value="">Select province</option>
-                {provinceOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
+                onChange={(value) => handleProvinceChange({ target: { value } })}
+                options={provinceOptions}
+                placeholder="Search province"
+                disabled={isView || !canSelectProvince}
+                inputClassName="epm-input"
+              />
             </div>
 
             <div className="epm-field">
               <label className="epm-label" htmlFor="epm-city">City/Municipality</label>
-              <select
+              <SearchableSelect
                 id="epm-city"
-                className="epm-input epm-select"
                 value={city}
-                onChange={handleCityChange}
-                disabled={isView || !selectedProvince}
-              >
-                <option value="">Select city/municipality</option>
-                {cityOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
+                onChange={(value) => handleCityChange({ target: { value } })}
+                options={cityOptions}
+                placeholder="Search city/municipality"
+                disabled={isView || !canSelectCity}
+                inputClassName="epm-input"
+              />
             </div>
 
             <div className="epm-field">
               <label className="epm-label" htmlFor="epm-barangay">
                 Barangay {!isView && <span className="epm-required">*</span>}
               </label>
-              <select
+              <SearchableSelect
                 id="epm-barangay"
-                className="epm-input epm-select"
                 value={barangay}
-                onChange={(event) => setBarangay(event.target.value)}
-                disabled={isView || !selectedCity}
-              >
-                <option value="">Select barangay</option>
-                {barangayOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
+                onChange={setBarangay}
+                options={barangayOptions}
+                placeholder="Search barangay"
+                disabled={isView || !canSelectBarangay}
+                inputClassName="epm-input"
+              />
             </div>
 
             <div className="epm-field">

@@ -1,0 +1,73 @@
+/* ================================
+   SEARCHABLE SELECT (combobox)
+   Used for the PSGC address fields in the profile modals.
+   Input visuals come from the caller's class (epm-input / cp-input);
+   this file only adds the caret and the popup menu.
+   ================================ */
+
+.ss-root {
+  position: relative;
+}
+
+.ss-wrap {
+  position: relative;
+}
+
+/* Specificity (0,2,0) so it overrides the caller's input padding. */
+.ss-wrap .ss-input {
+  padding-right: 2.25rem;
+}
+
+.ss-caret {
+  position: absolute;
+  right: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.ss-menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+}
+
+.ss-option {
+  padding: 0.5rem 0.7rem;
+  border-radius: 6px;
+  font-size: var(--text-sm);
+  color: var(--color-text-dark);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ss-option:hover,
+.ss-option-active {
+  background: var(--color-primary-light);
+}
+
+.ss-option[aria-selected="true"] {
+  font-weight: 600;
+}
+
+.ss-empty {
+  padding: 0.5rem 0.7rem;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
