@@ -1,24 +1,17 @@
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
+import { getEmployee, updateEmployee } from "../../../api/users";
+import { getRoleLookup } from "../../../api/roles";
+import { formatDate, formatLastActive } from "../../../utils/format";
+import { mapApiErrors } from "../../../utils/apiErrors";
 import "./EmployeeProfile.css";
-import mockData from "../../../data/mock.json";
-
-const { employeeProfiles: MOCK_EMPLOYEES } = mockData;
 
 function UserIcon() {
   return (
     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
-    </svg>
-  );
-}
-
-function CameraIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-      <circle cx="12" cy="13" r="4" />
     </svg>
   );
 }
@@ -54,9 +47,86 @@ function SettingsIcon() {
 export default function EmployeeProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const employee = MOCK_EMPLOYEES[id];
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [notFound, setNotFound] = useState(false);
+  const [employee, setEmployee] = useState(null);
+  const [roleOptions, setRoleOptions] = useState([]);
+  const [roleId, setRoleId] = useState("");
+  const [isActive, setIsActive] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [saveSuccess, setSaveSuccess] = useState("");
 
-  if (!employee) {
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setLoadError("");
+      setNotFound(false);
+      try {
+        const [detail, lookup] = await Promise.all([getEmployee(id), getRoleLookup()]);
+        if (cancelled) return;
+        if (!detail || !detail.user_number) {
+          setNotFound(true);
+          return;
+        }
+        setEmployee(detail);
+        setRoleId(detail.role_id ? String(detail.role_id) : "");
+        setIsActive(detail.is_active !== false);
+        setRoleOptions(lookup.map((role) => ({ value: String(role.role_id), label: role.role_name })));
+      } catch (err) {
+        if (cancelled) return;
+        setLoadError(err?.detail || "Failed to load employee. Please try again.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const handleSave = async () => {
+    setSaveError("");
+    setSaveSuccess("");
+    setSaving(true);
+    try {
+      await updateEmployee(id, {
+        role_id: Number(roleId),
+        is_active: isActive,
+      });
+      setEmployee((current) => ({
+        ...current,
+        role_id: Number(roleId),
+        role: roleOptions.find((option) => option.value === String(roleId))?.label || current.role,
+        is_active: isActive,
+      }));
+      setSaveSuccess("Account actions saved successfully.");
+    } catch (err) {
+      const mapped = mapApiErrors(err, {
+        codes: {
+          SELF_UPDATE_DENIED: "form",
+          ROLE_NOT_FOUND: "form",
+          USER_NOT_FOUND: "form",
+        },
+      });
+      setSaveError(mapped.form || "Failed to save changes. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout title="User Profile">
+        <p className="profile-status-message">Loading employee...</p>
+      </DashboardLayout>
+    );
+  }
+
+  if (notFound) {
     return (
       <DashboardLayout title="User Profile">
         <div className="profile-not-found">
@@ -69,12 +139,25 @@ export default function EmployeeProfile() {
     );
   }
 
-  const fullName = [employee.firstName, employee.middleName ? `${employee.middleName.charAt(0)}.` : "", employee.lastName]
+  if (loadError || !employee) {
+    return (
+      <DashboardLayout title="User Profile">
+        <div className="profile-not-found">
+          <p>{loadError || "Failed to load employee. Please try again."}</p>
+          <button className="btn-back-to-list" onClick={() => navigate("/dashboard/users/employees")}>
+            Back to User List
+          </button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const fullName = [employee.first_name, employee.middle_name ? `${employee.middle_name.charAt(0)}.` : "", employee.last_name]
     .filter(Boolean)
     .join(" ");
 
-  const roleClass = employee.role.toLowerCase().replace(" ", "-");
-  const statusClass = employee.status.toLowerCase();
+  const roleClass = (employee.role || "").toLowerCase().replace(/\s+/g, "-");
+  const statusClass = employee.is_active ? "active" : "deactivated";
 
   return (
     <DashboardLayout title="User Profile">
@@ -87,15 +170,14 @@ export default function EmployeeProfile() {
           <div className="profile-avatar">
             <UserIcon />
           </div>
-          <button className="avatar-edit-btn">
-            <CameraIcon />
-          </button>
         </div>
         <div className="profile-header-info">
           <h1 className="profile-name">{fullName}</h1>
           <div className="profile-badges">
-            <span className={`role-badge role-${roleClass}`}>{employee.role}</span>
-            <span className={`status-badge status-${statusClass}`}>{employee.status}</span>
+            <span className={`role-badge role-${roleClass}`}>{employee.role || "—"}</span>
+            <span className={`status-badge status-${statusClass}`}>
+              {employee.is_active ? "Active" : "Deactivated"}
+            </span>
           </div>
         </div>
       </div>
@@ -110,19 +192,23 @@ export default function EmployeeProfile() {
             <div className="info-grid">
               <div className="info-item">
                 <span className="info-label">FIRST NAME</span>
-                <span className="info-value">{employee.firstName}</span>
+                <span className="info-value">{employee.first_name}</span>
               </div>
               <div className="info-item">
                 <span className="info-label">LAST NAME</span>
-                <span className="info-value">{employee.lastName}</span>
+                <span className="info-value">{employee.last_name}</span>
               </div>
               <div className="info-item">
                 <span className="info-label">MIDDLE NAME</span>
-                <span className="info-value">{employee.middleName || "N/A"}</span>
+                <span className="info-value">{employee.middle_name || "N/A"}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">EMPLOYEE NUMBER</span>
+                <span className="info-value">{employee.user_number}</span>
               </div>
               <div className="info-item">
                 <span className="info-label">JOINED DATE</span>
-                <span className="info-value">{employee.joinedDate}</span>
+                <span className="info-value">{formatDate(employee.created_at)}</span>
               </div>
               <div className="info-item info-item-full">
                 <span className="info-label">EMAIL ADDRESS</span>
@@ -139,14 +225,14 @@ export default function EmployeeProfile() {
             <div className="activity-stats">
               <div className="activity-stat">
                 <span className="activity-stat-label">REPORTS HANDLED</span>
-                <span className="activity-stat-value">{employee.reportsHandled}</span>
+                <span className="activity-stat-value">—</span>
               </div>
               <div className="activity-stat">
                 <span className="activity-stat-label">REPORTS RESOLVED</span>
-                <span className="activity-stat-value">{employee.reportsResolved}</span>
+                <span className="activity-stat-value">—</span>
               </div>
             </div>
-            <p className="last-active-text">Last Active Timestamp: {employee.lastActive}</p>
+            <p className="last-active-text">Last Active Timestamp: {formatLastActive(employee.last_active)}</p>
           </div>
         </div>
 
@@ -157,31 +243,58 @@ export default function EmployeeProfile() {
               <h2 className="card-title">Account Actions</h2>
             </div>
 
+            {saveError && <div className="page-banner page-banner-error">{saveError}</div>}
+            {saveSuccess && <div className="page-banner page-banner-success">{saveSuccess}</div>}
+
             <div className="action-section">
-              <label className="action-label">USER ROLE</label>
-              <select className="form-input form-select" defaultValue={employee.role}>
-                <option value="ADMIN">Admin</option>
-                <option value="REPORT OFFICER">Report Officer</option>
-                <option value="SUPERVISOR">Supervisor</option>
+              <label className="action-label" htmlFor="profile-role-select">USER ROLE</label>
+              <select
+                id="profile-role-select"
+                className="form-input form-select"
+                value={roleId}
+                onChange={(event) => setRoleId(event.target.value)}
+              >
+                {roleOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
-              <p className="action-hint">Moderators can manage reports and resolve citizen issues.</p>
+              <p className="action-hint">Roles control what this employee can view and manage in the portal.</p>
             </div>
 
             <div className="action-section">
               <label className="action-label">ACCOUNT STATUS</label>
               <div className="radio-group">
-                <label className={`radio-option ${employee.status === "ACTIVE" ? "selected" : ""}`}>
-                  <input type="radio" name="status" value="ACTIVE" defaultChecked={employee.status === "ACTIVE"} />
+                <label className={`radio-option ${isActive ? "selected" : ""}`}>
+                  <input
+                    type="radio"
+                    name="status"
+                    checked={isActive}
+                    onChange={() => setIsActive(true)}
+                  />
                   <span className="radio-circle" />
                   <span>Activate</span>
                 </label>
-                <label className={`radio-option ${employee.status === "DEACTIVATED" ? "selected" : ""}`}>
-                  <input type="radio" name="status" value="DEACTIVATED" defaultChecked={employee.status === "DEACTIVATED"} />
+                <label className={`radio-option ${!isActive ? "selected" : ""}`}>
+                  <input
+                    type="radio"
+                    name="status"
+                    checked={!isActive}
+                    onChange={() => setIsActive(false)}
+                  />
                   <span className="radio-circle" />
                   <span>Deactivated</span>
                 </label>
               </div>
             </div>
+
+            <button
+              type="button"
+              className="btn-back-to-list btn-save-actions"
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
           </div>
         </div>
       </div>

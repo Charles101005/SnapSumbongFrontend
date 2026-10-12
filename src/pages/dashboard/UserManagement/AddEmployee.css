@@ -57,6 +57,10 @@
   margin-bottom: 0;
 }
 
+.form-row-full {
+  margin-bottom: 1.25rem;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
@@ -145,4 +149,23 @@
 
 .btn-create-account:hover {
   background-color: var(--color-primary-hover);
+}
+
+.btn-create-account:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ===== BANNERS ===== */
+.page-banner {
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 7px;
+  font-size: var(--text-sm);
+}
+
+.page-banner-error {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
 }

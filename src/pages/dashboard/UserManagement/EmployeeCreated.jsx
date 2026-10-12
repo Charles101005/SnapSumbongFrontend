@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import "./EmployeeCreated.css";
 
@@ -23,7 +23,7 @@ function LockIcon() {
 export default function EmployeeCreated() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { firstName = "", middleName = "", lastName = "", role = "", email = "" } = location.state || {};
+  const { firstName = "", middleName = "", lastName = "", roleName = "", email = "" } = location.state || {};
 
   const fullName = [firstName, middleName ? `${middleName.charAt(0)}.` : "", lastName].filter(Boolean).join(" ");
 
@@ -49,7 +49,7 @@ export default function EmployeeCreated() {
               </div>
               <div className="detail-item">
                 <span className="detail-label">ASSIGNED ROLE</span>
-                <span className="detail-value">{role || "N/A"}</span>
+                <span className="detail-value">{roleName || "N/A"}</span>
               </div>
               <div className="detail-item">
                 <span className="detail-label">EMAIL ADDRESS</span>
@@ -64,7 +64,7 @@ export default function EmployeeCreated() {
               <span className="security-notice-title">Security Notice</span>
             </div>
             <p className="security-notice-text">
-              A temporary default password has been generated and sent to the employee's email. They will be required to change it upon their first login.
+              A temporary password has been generated for this account. Share it with the employee through a secure channel — automatic email delivery is not yet available. They will be required to change it upon their first login.
             </p>
           </div>
 

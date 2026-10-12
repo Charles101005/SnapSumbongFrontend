@@ -390,3 +390,39 @@
 .btn-back-to-list:hover {
   background-color: var(--color-primary-hover);
 }
+
+/* ===== SAVE ACTIONS ===== */
+.btn-save-actions {
+  width: 100%;
+  margin-top: 1.25rem;
+}
+
+.btn-save-actions:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.profile-status-message {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* ===== BANNERS ===== */
+.page-banner {
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 7px;
+  font-size: var(--text-sm);
+}
+
+.page-banner-error {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+}
+
+.page-banner-success {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}

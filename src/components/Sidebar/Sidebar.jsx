@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { getCurrentUser } from "../../api/accounts";
+import { Link, NavLink, useLocation } from "react-router-dom";
+import { getCurrentUser, getProfile } from "../../api/accounts";
 import { useAuth } from "../../context/authContext";
 import { MOCK_ALL_ACCESS } from "../../shared/config/env";
 import { STATUS_VIEWS, useStatusCounts } from "../../hooks/useStatusCounts";
@@ -43,6 +43,16 @@ function MonitorIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
       <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function RoleManagementIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <circle cx="12" cy="10" r="2" />
+      <path d="M12 12v3" />
     </svg>
   );
 }
@@ -97,15 +107,36 @@ function LogoutIcon() {
   );
 }
 
+function SettingsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
 export default function Sidebar() {
   const location = useLocation();
   const { logout } = useAuth();
   const [user, setUser] = useState(null);
+  const [profilePicture, setProfilePicture] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
 
   useEffect(() => {
-    getCurrentUser().then(setUser).catch(() => setUser(null));
+    let cancelled = false;
+
+    // Profile picture is optional — fetch it alongside the user so the
+    // avatar matches the citizen sidebar without blocking the name/role.
+    getCurrentUser()
+      .then((data) => { if (!cancelled) setUser(data); })
+      .catch(() => { if (!cancelled) setUser(null); });
+    getProfile()
+      .then((data) => { if (!cancelled) setProfilePicture(data.profile_picture || ""); })
+      .catch(() => { /* keep the generic icon */ });
+
+    return () => { cancelled = true; };
   }, []);
   const { counts: statusCounts, loaded: statusCountsLoaded } = useStatusCounts();
   const path = location.pathname;
@@ -131,7 +162,7 @@ export default function Sidebar() {
   // role-based visibility driven by user.permissions.
   const can = (permission) => MOCK_ALL_ACCESS || permissions.includes(permission);
   const canAnalytics = can("analytic:read_dashboard") || can("analytic:read_all_metrics") || can("analytic:read_assigned_metrics") || can("analytic:read_own_metrics");
-  const canUsers = can("user:read_all") || can("employee:read_all") || can("role:read_all");
+  const canUsers = can("user:read_all") || can("employee:read_all");
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -182,12 +213,6 @@ export default function Sidebar() {
               </span>
             </button>
             {openSections.users && <div className="sidebar-subnav" id="sidebar-subnav-users">
-              <Link
-                to="/dashboard/users/roles"
-                className={`sidebar-subnav-item ${isActive("/dashboard/users/roles") ? "active" : ""}`}
-              >
-                View Roles
-              </Link>
               <Link
                 to="/dashboard/users/employees"
                 className={`sidebar-subnav-item ${isActive("/dashboard/users/employees") ? "active" : ""}`}
@@ -246,6 +271,14 @@ export default function Sidebar() {
             </div>}
           </div>}
 
+          {can("role:read_all") && <Link
+            to="/dashboard/role-management"
+            className={`sidebar-nav-item ${path.startsWith("/dashboard/role-management") ? "active" : ""}`}
+          >
+            <RoleManagementIcon />
+            <span>Role Management</span>
+          </Link>}
+
           {can("audit:read_report_logs") || can("audit:read_system_logs") ? <Link
             to="/dashboard/audit-trail"
             className={`sidebar-nav-item ${isActive("/dashboard/audit-trail") ? "active" : ""}`}
@@ -259,13 +292,28 @@ export default function Sidebar() {
       <div className="sidebar-bottom">
         <div className="sidebar-user">
           <div className="sidebar-user-avatar">
-            <UserIcon />
+            {profilePicture ? (
+              <img
+                src={profilePicture}
+                alt=""
+                onError={() => setProfilePicture("")}
+              />
+            ) : (
+              <UserIcon />
+            )}
           </div>
           <div className="sidebar-user-info">
             <span className="sidebar-user-name">{user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.email : "Loading..."}</span>
             <span className="sidebar-user-role">{user?.role || "Field Officer"}</span>
           </div>
         </div>
+        <NavLink
+          to="/dashboard/account-settings"
+          className={({ isActive }) => `sidebar-account-settings ${isActive ? "active" : ""}`}
+        >
+          <SettingsIcon />
+          <span>Account Settings</span>
+        </NavLink>
         <button className="sidebar-logout" type="button" onClick={handleLogout} disabled={loggingOut}>
           <LogoutIcon />
           <span>{loggingOut ? "Logging out..." : "Logout"}</span>

@@ -84,7 +84,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
 
   // Reset display state when the dialog switches to a different report —
   // React's "adjusting state when a prop changes" pattern (same as
-  // MonitoringDashboard), which keeps the reset out of an effect.
+  // OperationsDashboard), which keeps the reset out of an effect.
   const [loadedNumber, setLoadedNumber] = useState(null);
   if (loadedNumber !== reportNumber) {
     setLoadedNumber(reportNumber);

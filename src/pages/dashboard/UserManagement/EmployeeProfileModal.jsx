@@ -1,79 +1,96 @@
 import { useEffect, useRef, useState } from "react";
 import { usePsgcAddress } from "../../../hooks/usePsgcAddress";
 import SearchableSelect from "../../../components/shared/SearchableSelect";
+import { getEmployee, updateEmployee } from "../../../api/users";
+import { getRoleLookup } from "../../../api/roles";
+import { uploadProfileImage } from "../../../api/accounts";
+import { GENDERS } from "../../../shared/constants";
+import { formatDate } from "../../../utils/format";
+import { mapApiErrors } from "../../../utils/apiErrors";
 import "./EmployeeProfileModal.css";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const ROLE_OPTIONS = [
-  { value: "ADMIN", label: "Admin" },
-  { value: "REPORT OFFICER", label: "Report Officer" },
-  { value: "SUPERVISOR", label: "Supervisor" },
-];
-
-const GENDER_OPTIONS = [
-  { value: "MALE", label: "Male" },
-  { value: "FEMALE", label: "Female" },
-  { value: "OTHER", label: "Other" },
-];
-
-export default function EmployeeProfileModal({ employee, profile, mode = "edit", onClose, onSaved }) {
+export default function EmployeeProfileModal({ userNumber, mode = "edit", onClose, onSaved }) {
   const isView = mode === "view";
-  const [firstName, setFirstName] = useState(profile?.firstName || "");
-  const [lastName, setLastName] = useState(profile?.lastName || "");
-  const [middleName, setMiddleName] = useState(profile?.middleName || "");
-  const [employeeNumber, setEmployeeNumber] = useState(profile?.employeeNumber || "");
-  const [birthdate, setBirthdate] = useState(profile?.birthdate || "");
-  const [gender, setGender] = useState(profile?.gender || "");
-  const [email, setEmail] = useState(employee?.email || profile?.email || "");
-  const [phoneNumber, setPhoneNumber] = useState(profile?.phoneNumber || "");
-  const [photo, setPhoto] = useState(profile?.photo || "");
-  const [region, setRegion] = useState(profile?.region || "");
-  const [province, setProvince] = useState(profile?.province || "");
-  const [city, setCity] = useState(profile?.city || "");
-  const [barangay, setBarangay] = useState(profile?.barangay || "");
-  const [streetAddress, setStreetAddress] = useState(profile?.streetAddress || "");
-  const [role, setRole] = useState(employee?.role || profile?.role || "ADMIN");
-  const [status, setStatus] = useState(employee?.status || profile?.status || "ACTIVE");
+  const [loading, setLoading] = useState(true);
+  const [detailError, setDetailError] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [birthdate, setBirthdate] = useState("");
+  const [gender, setGender] = useState("");
+  const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [photoFile, setPhotoFile] = useState(null);
+  const [region, setRegion] = useState("");
+  const [province, setProvince] = useState("");
+  const [city, setCity] = useState("");
+  const [barangay, setBarangay] = useState("");
+  const [streetAddress, setStreetAddress] = useState("");
+  const [roleId, setRoleId] = useState("");
+  const [isActive, setIsActive] = useState(true);
+  const [createdAt, setCreatedAt] = useState("");
+  const [roleOptions, setRoleOptions] = useState([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [saving, setSaving] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const photoInputRef = useRef(null);
 
-  // Release any object URL created for a picked photo once it is replaced,
-  // cleared (discard / employee switch), or the dialog unmounts.
   useEffect(() => {
-    if (!photo || !photo.startsWith("blob:")) return undefined;
-    return () => URL.revokeObjectURL(photo);
-  }, [photo]);
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setDetailError("");
+      try {
+        const [detail, lookup] = await Promise.all([
+          getEmployee(userNumber),
+          getRoleLookup(),
+        ]);
+        if (cancelled) return;
+        if (!detail || !detail.user_number) {
+          setDetailError("Employee not found.");
+          return;
+        }
+        setFirstName(detail.first_name || "");
+        setLastName(detail.last_name || "");
+        setMiddleName(detail.middle_name || "");
+        setBirthdate(detail.birth_date || "");
+        setGender(detail.gender || "");
+        setEmail(detail.email || "");
+        setPhoneNumber(detail.contact_number || "");
+        setPhotoUrl(detail.profile_picture || "");
+        setPhotoFile(null);
+        setRegion(detail.region_code || "");
+        setProvince(detail.province_code || "");
+        setCity(detail.city_code || "");
+        setBarangay(detail.barangay_code || "");
+        setStreetAddress(detail.street_address || "");
+        setRoleId(detail.role_id ? String(detail.role_id) : "");
+        setIsActive(detail.is_active !== false);
+        setCreatedAt(detail.created_at || "");
+        setRoleOptions(lookup.map((role) => ({ value: String(role.role_id), label: role.role_name })));
+      } catch (err) {
+        if (cancelled) return;
+        setDetailError(err?.detail || "Failed to load employee. Please try again.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [userNumber]);
 
-  // Reset the form when the dialog switches to a different employee or mode —
-  // React's "adjusting state when a prop changes" pattern (same shape as
-  // CitizenProfileModal), which keeps the reset out of an effect.
-  const employeeId = employee?.id ?? null;
-  const [loadedKey, setLoadedKey] = useState(`${employeeId}:${mode}`);
-  if (loadedKey !== `${employeeId}:${mode}`) {
-    setLoadedKey(`${employeeId}:${mode}`);
-    setFirstName(profile?.firstName || "");
-    setLastName(profile?.lastName || "");
-    setMiddleName(profile?.middleName || "");
-    setEmployeeNumber(profile?.employeeNumber || "");
-    setBirthdate(profile?.birthdate || "");
-    setGender(profile?.gender || "");
-    setEmail(employee?.email || profile?.email || "");
-    setPhoneNumber(profile?.phoneNumber || "");
-    setPhoto(profile?.photo || "");
-    setRegion(profile?.region || "");
-    setProvince(profile?.province || "");
-    setCity(profile?.city || "");
-    setBarangay(profile?.barangay || "");
-    setStreetAddress(profile?.streetAddress || "");
-    setRole(employee?.role || profile?.role || "ADMIN");
-    setStatus(employee?.status || profile?.status || "ACTIVE");
-    setError("");
-    setSuccess("");
-    setLightboxSrc(null);
-  }
+  // Release any object URL created for a picked photo once it is replaced,
+  // cleared (detail reload), or the dialog unmounts.
+  useEffect(() => {
+    if (!photoUrl || !photoUrl.startsWith("blob:")) return undefined;
+    return () => URL.revokeObjectURL(photoUrl);
+  }, [photoUrl]);
 
   // Escape closes the lightbox first, then the dialog.
   useEffect(() => {
@@ -122,10 +139,11 @@ export default function EmployeeProfileModal({ employee, profile, mode = "edit",
     const file = event.target.files?.[0];
     event.target.value = ""; // allow re-selecting the same file later
     if (!file) return;
-    setPhoto(URL.createObjectURL(file));
+    setPhotoFile(file);
+    setPhotoUrl(URL.createObjectURL(file));
   };
 
-  const handleSave = (event) => {
+  const handleSave = async (event) => {
     event.preventDefault();
 
     if (isView) return;
@@ -133,16 +151,10 @@ export default function EmployeeProfileModal({ employee, profile, mode = "edit",
     const trimmedFirst = firstName.trim();
     const trimmedLast = lastName.trim();
     const trimmedMiddle = middleName.trim();
-    const trimmedEmployeeNumber = employeeNumber.trim();
     const trimmedEmail = email.trim();
     const trimmedPhone = phoneNumber.trim();
     const trimmedStreet = streetAddress.trim();
 
-    if (!trimmedEmployeeNumber) {
-      setError("Employee number is required.");
-      setSuccess("");
-      return;
-    }
     if (!trimmedFirst) {
       setError("First name is required.");
       setSuccess("");
@@ -188,30 +200,58 @@ export default function EmployeeProfileModal({ employee, profile, mode = "edit",
       setSuccess("");
       return;
     }
+    if (!roleId) {
+      setError("Role is required.");
+      setSuccess("");
+      return;
+    }
 
     setError("");
-    setSuccess("Employee details saved successfully.");
-    onSaved?.({
-      firstName: trimmedFirst,
-      lastName: trimmedLast,
-      middleName: trimmedMiddle,
-      employeeNumber: trimmedEmployeeNumber,
-      birthdate,
-      gender,
-      email: trimmedEmail,
-      phoneNumber: trimmedPhone,
-      photo,
-      region,
-      province,
-      city,
-      barangay,
-      streetAddress: trimmedStreet,
-      role,
-      status,
-    });
+    setSuccess("");
+    setSaving(true);
+    try {
+      let nextPhotoUrl = photoUrl;
+      if (photoFile) {
+        nextPhotoUrl = await uploadProfileImage(photoFile);
+      }
+      await updateEmployee(userNumber, {
+        first_name: trimmedFirst,
+        last_name: trimmedLast,
+        middle_name: trimmedMiddle,
+        birth_date: birthdate,
+        gender,
+        email: trimmedEmail,
+        contact_number: trimmedPhone,
+        street_address: trimmedStreet,
+        region_code: region,
+        province_code: province,
+        city_code: city,
+        barangay_code: barangay,
+        role_id: Number(roleId),
+        is_active: isActive,
+        ...(nextPhotoUrl ? { profile_picture: nextPhotoUrl } : {}),
+      });
+      setPhotoFile(null);
+      setPhotoUrl(nextPhotoUrl);
+      setSuccess("Employee details saved successfully.");
+      onSaved?.();
+    } catch (err) {
+      // Domain errors ({ detail, error_code }) surface their detail message;
+      // SELF_UPDATE_DENIED / ROLE_NOT_FOUND / USER_NOT_FOUND land on the form banner.
+      const mapped = mapApiErrors(err, {
+        codes: {
+          SELF_UPDATE_DENIED: "form",
+          ROLE_NOT_FOUND: "form",
+          USER_NOT_FOUND: "form",
+        },
+      });
+      setError(mapped.form || "Failed to save employee. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  return (
+  const modalShell = (content) => (
     <div className="epm-modal-overlay" onClick={onClose}>
       <section
         className="epm-modal"
@@ -236,284 +276,306 @@ export default function EmployeeProfileModal({ employee, profile, mode = "edit",
             &times;
           </button>
         </header>
+        {content}
+      </section>
+    </div>
+  );
 
-        {error && <div className="epm-banner epm-banner-error">{error}</div>}
-        {success && <div className="epm-banner epm-banner-success">{success}</div>}
+  if (loading) {
+    return modalShell(<p className="epm-loading">Loading employee...</p>);
+  }
 
-        <form className="epm-form" onSubmit={handleSave} noValidate>
-          <div className="epm-form-grid">
-            <div className="epm-field">
-              <label className="epm-label" htmlFor="epm-employee-number">
-                Employee Number {!isView && <span className="epm-required">*</span>}
-              </label>
-              <input
-                id="epm-employee-number"
-                className="epm-input"
-                type="text"
-                placeholder="EMP-2026-001"
-                value={employeeNumber}
-                onChange={(event) => setEmployeeNumber(event.target.value)}
-                readOnly={isView}
-                disabled={isView}
-              />
-            </div>
+  if (detailError) {
+    return modalShell(
+      <div className="epm-body">
+        <div className="epm-banner epm-banner-error">{detailError}</div>
+        <div className="epm-actions">
+          <button type="button" className="epm-btn-discard" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    );
+  }
 
-            <div className="epm-field">
-              <label className="epm-label" htmlFor="epm-first-name">
-                First Name {!isView && <span className="epm-required">*</span>}
-              </label>
-              <input
-                id="epm-first-name"
-                className="epm-input"
-                type="text"
-                value={firstName}
-                onChange={(event) => setFirstName(event.target.value)}
-                readOnly={isView}
-                disabled={isView}
-              />
-            </div>
+  return (
+    <>
+      {modalShell(
+        <>
+          {error && <div className="epm-banner epm-banner-error">{error}</div>}
+          {success && <div className="epm-banner epm-banner-success">{success}</div>}
 
-            <div className="epm-field">
-              <label className="epm-label" htmlFor="epm-last-name">
-                Last Name {!isView && <span className="epm-required">*</span>}
-              </label>
-              <input
-                id="epm-last-name"
-                className="epm-input"
-                type="text"
-                value={lastName}
-                onChange={(event) => setLastName(event.target.value)}
-                readOnly={isView}
-                disabled={isView}
-              />
-            </div>
-
-            <div className="epm-field">
-              <label className="epm-label" htmlFor="epm-middle-name">Middle Name</label>
-              <input
-                id="epm-middle-name"
-                className="epm-input"
-                type="text"
-                value={middleName}
-                onChange={(event) => setMiddleName(event.target.value)}
-                readOnly={isView}
-                disabled={isView}
-              />
-            </div>
-
-            <div className="epm-field">
-              <label className="epm-label" htmlFor="epm-birthdate">
-                Birthdate {!isView && <span className="epm-required">*</span>}
-              </label>
-              <input
-                id="epm-birthdate"
-                className="epm-input"
-                type="date"
-                value={birthdate}
-                onChange={(event) => setBirthdate(event.target.value)}
-                readOnly={isView}
-                disabled={isView}
-              />
-            </div>
-
-            <div className="epm-field">
-              <label className="epm-label" htmlFor="epm-gender">
-                Gender {!isView && <span className="epm-required">*</span>}
-              </label>
-              <select
-                id="epm-gender"
-                className="epm-input epm-select"
-                value={gender}
-                onChange={(event) => setGender(event.target.value)}
-                disabled={isView}
-              >
-                <option value="">Select gender</option>
-                {GENDER_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="epm-field">
-              <label className="epm-label" htmlFor="epm-email">
-                Email {!isView && <span className="epm-required">*</span>}
-              </label>
-              <input
-                id="epm-email"
-                className="epm-input"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                readOnly={isView}
-                disabled={isView}
-              />
-            </div>
-
-            <div className="epm-field">
-              <label className="epm-label" htmlFor="epm-phone">Phone Number</label>
-              <input
-                id="epm-phone"
-                className="epm-input"
-                type="tel"
-                placeholder="09XXXXXXXXX"
-                maxLength={11}
-                value={phoneNumber}
-                onChange={(event) => setPhoneNumber(event.target.value)}
-                readOnly={isView}
-                disabled={isView}
-              />
-            </div>
-
-            <div className="epm-field">
-              <label className="epm-label" htmlFor="epm-photo-input">Profile Photo</label>
-              <div className="epm-photo-box">
+          <form className="epm-form" onSubmit={handleSave} noValidate>
+            <div className="epm-form-grid">
+              <div className="epm-field">
+                <label className="epm-label" htmlFor="epm-employee-number">Employee Number</label>
                 <input
-                  ref={photoInputRef}
-                  id="epm-photo-input"
-                  className="epm-photo-input"
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoChange}
+                  id="epm-employee-number"
+                  className="epm-input"
+                  type="text"
+                  value={userNumber}
+                  readOnly
+                  disabled
+                />
+              </div>
+
+              <div className="epm-field">
+                <label className="epm-label" htmlFor="epm-first-name">
+                  First Name {!isView && <span className="epm-required">*</span>}
+                </label>
+                <input
+                  id="epm-first-name"
+                  className="epm-input"
+                  type="text"
+                  value={firstName}
+                  onChange={(event) => setFirstName(event.target.value)}
+                  readOnly={isView}
                   disabled={isView}
                 />
               </div>
-            </div>
 
-            <div className="epm-field">
-              <label className="epm-label" htmlFor="epm-region">
-                Region {!isView && <span className="epm-required">*</span>}
-              </label>
-              <SearchableSelect
-                id="epm-region"
-                value={region}
-                onChange={(value) => handleRegionChange({ target: { value } })}
-                options={regionOptions}
-                placeholder="Search region"
-                disabled={isView}
-                inputClassName="epm-input"
-              />
-            </div>
-
-            <div className="epm-field">
-              <label className="epm-label" htmlFor="epm-province">Province</label>
-              <SearchableSelect
-                id="epm-province"
-                value={province}
-                onChange={(value) => handleProvinceChange({ target: { value } })}
-                options={provinceOptions}
-                placeholder="Search province"
-                disabled={isView || !canSelectProvince}
-                inputClassName="epm-input"
-              />
-            </div>
-
-            <div className="epm-field">
-              <label className="epm-label" htmlFor="epm-city">City/Municipality</label>
-              <SearchableSelect
-                id="epm-city"
-                value={city}
-                onChange={(value) => handleCityChange({ target: { value } })}
-                options={cityOptions}
-                placeholder="Search city/municipality"
-                disabled={isView || !canSelectCity}
-                inputClassName="epm-input"
-              />
-            </div>
-
-            <div className="epm-field">
-              <label className="epm-label" htmlFor="epm-barangay">
-                Barangay {!isView && <span className="epm-required">*</span>}
-              </label>
-              <SearchableSelect
-                id="epm-barangay"
-                value={barangay}
-                onChange={setBarangay}
-                options={barangayOptions}
-                placeholder="Search barangay"
-                disabled={isView || !canSelectBarangay}
-                inputClassName="epm-input"
-              />
-            </div>
-
-            <div className="epm-field">
-              <label className="epm-label" htmlFor="epm-street">Street Address</label>
-              <input
-                id="epm-street"
-                className="epm-input"
-                type="text"
-                placeholder="House no., street"
-                value={streetAddress}
-                onChange={(event) => setStreetAddress(event.target.value)}
-                readOnly={isView}
-                disabled={isView}
-              />
-            </div>
-
-            <div className="epm-field">
-              <label className="epm-label" htmlFor="epm-joined-date">Joined Date</label>
-              <input id="epm-joined-date" className="epm-input" type="text" value={profile?.joinedDate || "—"} readOnly disabled />
-            </div>
-
-            <div className="epm-field">
-              <label className="epm-label" htmlFor="epm-role">
-                Role {!isView && <span className="epm-required">*</span>}
-              </label>
-              <select
-                id="epm-role"
-                className="epm-input epm-select"
-                value={role}
-                onChange={(event) => setRole(event.target.value)}
-                disabled={isView}
-              >
-                {ROLE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="epm-field">
-              <label className="epm-label" htmlFor="epm-status">
-                Account Status {!isView && <span className="epm-required">*</span>}
-              </label>
-              <select
-                id="epm-status"
-                className="epm-input epm-select"
-                value={status}
-                onChange={(event) => setStatus(event.target.value)}
-                disabled={isView}
-              >
-                <option value="ACTIVE">Active</option>
-                <option value="DEACTIVATED">Deactivated</option>
-              </select>
-            </div>
-
-            {photo && (
               <div className="epm-field">
-                <span className="epm-label">Photo Preview</span>
-                <button
-                  type="button"
-                  className="epm-photo-preview"
-                  onClick={() => setLightboxSrc(photo)}
-                  aria-label="View photo"
-                >
-                  <img src={photo} alt="Profile preview" />
-                </button>
+                <label className="epm-label" htmlFor="epm-last-name">
+                  Last Name {!isView && <span className="epm-required">*</span>}
+                </label>
+                <input
+                  id="epm-last-name"
+                  className="epm-input"
+                  type="text"
+                  value={lastName}
+                  onChange={(event) => setLastName(event.target.value)}
+                  readOnly={isView}
+                  disabled={isView}
+                />
               </div>
-            )}
-          </div>
 
-          <div className="epm-actions">
-            {isView ? (
-              <button type="button" className="epm-btn-discard" onClick={onClose}>Close</button>
-            ) : (
-              <>
-                <button type="button" className="epm-btn-discard" onClick={onClose}>Cancel</button>
-                <button type="submit" className="epm-btn-save">Save Changes</button>
-              </>
-            )}
-          </div>
-        </form>
-      </section>
+              <div className="epm-field">
+                <label className="epm-label" htmlFor="epm-middle-name">Middle Name</label>
+                <input
+                  id="epm-middle-name"
+                  className="epm-input"
+                  type="text"
+                  value={middleName}
+                  onChange={(event) => setMiddleName(event.target.value)}
+                  readOnly={isView}
+                  disabled={isView}
+                />
+              </div>
+
+              <div className="epm-field">
+                <label className="epm-label" htmlFor="epm-birthdate">
+                  Birthdate {!isView && <span className="epm-required">*</span>}
+                </label>
+                <input
+                  id="epm-birthdate"
+                  className="epm-input"
+                  type="date"
+                  value={birthdate}
+                  onChange={(event) => setBirthdate(event.target.value)}
+                  readOnly={isView}
+                  disabled={isView}
+                />
+              </div>
+
+              <div className="epm-field">
+                <label className="epm-label" htmlFor="epm-gender">
+                  Gender {!isView && <span className="epm-required">*</span>}
+                </label>
+                <select
+                  id="epm-gender"
+                  className="epm-input epm-select"
+                  value={gender}
+                  onChange={(event) => setGender(event.target.value)}
+                  disabled={isView}
+                >
+                  <option value="">Select gender</option>
+                  {GENDERS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="epm-field">
+                <label className="epm-label" htmlFor="epm-email">
+                  Email {!isView && <span className="epm-required">*</span>}
+                </label>
+                <input
+                  id="epm-email"
+                  className="epm-input"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  readOnly={isView}
+                  disabled={isView}
+                />
+              </div>
+
+              <div className="epm-field">
+                <label className="epm-label" htmlFor="epm-phone">Phone Number</label>
+                <input
+                  id="epm-phone"
+                  className="epm-input"
+                  type="tel"
+                  placeholder="09XXXXXXXXX"
+                  maxLength={11}
+                  value={phoneNumber}
+                  onChange={(event) => setPhoneNumber(event.target.value)}
+                  readOnly={isView}
+                  disabled={isView}
+                />
+              </div>
+
+              <div className="epm-field">
+                <label className="epm-label" htmlFor="epm-photo-input">Profile Photo</label>
+                <div className="epm-photo-box">
+                  <input
+                    ref={photoInputRef}
+                    id="epm-photo-input"
+                    className="epm-photo-input"
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                    disabled={isView}
+                  />
+                </div>
+              </div>
+
+              <div className="epm-field">
+                <label className="epm-label" htmlFor="epm-region">
+                  Region {!isView && <span className="epm-required">*</span>}
+                </label>
+                <SearchableSelect
+                  id="epm-region"
+                  value={region}
+                  onChange={(value) => handleRegionChange({ target: { value } })}
+                  options={regionOptions}
+                  placeholder="Search region"
+                  disabled={isView}
+                  inputClassName="epm-input"
+                />
+              </div>
+
+              <div className="epm-field">
+                <label className="epm-label" htmlFor="epm-province">Province</label>
+                <SearchableSelect
+                  id="epm-province"
+                  value={province}
+                  onChange={(value) => handleProvinceChange({ target: { value } })}
+                  options={provinceOptions}
+                  placeholder="Search province"
+                  disabled={isView || !canSelectProvince}
+                  inputClassName="epm-input"
+                />
+              </div>
+
+              <div className="epm-field">
+                <label className="epm-label" htmlFor="epm-city">City/Municipality</label>
+                <SearchableSelect
+                  id="epm-city"
+                  value={city}
+                  onChange={(value) => handleCityChange({ target: { value } })}
+                  options={cityOptions}
+                  placeholder="Search city/municipality"
+                  disabled={isView || !canSelectCity}
+                  inputClassName="epm-input"
+                />
+              </div>
+
+              <div className="epm-field">
+                <label className="epm-label" htmlFor="epm-barangay">
+                  Barangay {!isView && <span className="epm-required">*</span>}
+                </label>
+                <SearchableSelect
+                  id="epm-barangay"
+                  value={barangay}
+                  onChange={setBarangay}
+                  options={barangayOptions}
+                  placeholder="Search barangay"
+                  disabled={isView || !canSelectBarangay}
+                  inputClassName="epm-input"
+                />
+              </div>
+
+              <div className="epm-field">
+                <label className="epm-label" htmlFor="epm-street">Street Address</label>
+                <input
+                  id="epm-street"
+                  className="epm-input"
+                  type="text"
+                  placeholder="House no., street"
+                  value={streetAddress}
+                  onChange={(event) => setStreetAddress(event.target.value)}
+                  readOnly={isView}
+                  disabled={isView}
+                />
+              </div>
+
+              <div className="epm-field">
+                <label className="epm-label" htmlFor="epm-joined-date">Joined Date</label>
+                <input id="epm-joined-date" className="epm-input" type="text" value={formatDate(createdAt)} readOnly disabled />
+              </div>
+
+              <div className="epm-field">
+                <label className="epm-label" htmlFor="epm-role">
+                  Role {!isView && <span className="epm-required">*</span>}
+                </label>
+                <select
+                  id="epm-role"
+                  className="epm-input epm-select"
+                  value={roleId}
+                  onChange={(event) => setRoleId(event.target.value)}
+                  disabled={isView}
+                >
+                  {roleOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="epm-field">
+                <label className="epm-label" htmlFor="epm-status">
+                  Account Status {!isView && <span className="epm-required">*</span>}
+                </label>
+                <select
+                  id="epm-status"
+                  className="epm-input epm-select"
+                  value={isActive ? "ACTIVE" : "DEACTIVATED"}
+                  onChange={(event) => setIsActive(event.target.value === "ACTIVE")}
+                  disabled={isView}
+                >
+                  <option value="ACTIVE">Active</option>
+                  <option value="DEACTIVATED">Deactivated</option>
+                </select>
+              </div>
+
+              {photoUrl && (
+                <div className="epm-field">
+                  <span className="epm-label">Photo Preview</span>
+                  <button
+                    type="button"
+                    className="epm-photo-preview"
+                    onClick={() => setLightboxSrc(photoUrl)}
+                    aria-label="View photo"
+                  >
+                    <img src={photoUrl} alt="Profile preview" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="epm-actions">
+              {isView ? (
+                <button type="button" className="epm-btn-discard" onClick={onClose}>Close</button>
+              ) : (
+                <>
+                  <button type="button" className="epm-btn-discard" onClick={onClose}>Cancel</button>
+                  <button type="submit" className="epm-btn-save" disabled={saving}>
+                    {saving ? "Saving..." : "Save Changes"}
+                  </button>
+                </>
+              )}
+            </div>
+          </form>
+        </>
+      )}
 
       {lightboxSrc && (
         <div
@@ -542,6 +604,6 @@ export default function EmployeeProfileModal({ employee, profile, mode = "edit",
           />
         </div>
       )}
-    </div>
+    </>
   );
 }

@@ -15,7 +15,7 @@ export default function Analytics() {
   const entries = Object.entries(counts);
 
   return (
-    <DashboardLayout title="Monitoring Dashboard">
+    <DashboardLayout title="Operations Dashboard">
       <div className="section-header"><h2 className="section-title">Analytics</h2><p className="section-subtitle">View live hazard-report metrics scoped by your API permissions.</p></div>
       {error && <div className="form-error">{typeof error === "string" ? error : JSON.stringify(error)}</div>}
       <div className="analytics-placeholder" style={{ display: "grid", gap: "16px", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>

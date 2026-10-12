@@ -1,21 +1,18 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import EmployeeProfileModal from "./EmployeeProfileModal";
 import "./ManageEmployees.css";
-import mockData from "../../../data/mock.json";
+import { getEmployees } from "../../../api/users";
+import { getRoleLookup } from "../../../api/roles";
+import { formatLastActive } from "../../../utils/format";
 
-const { employees: MOCK_EMPLOYEES, employeeProfiles: MOCK_EMPLOYEE_PROFILES } = mockData;
 const ROWS_PER_PAGE = 8;
 
-const buildFullName = ({ firstName, middleName, lastName }) =>
-  [firstName, middleName ? `${middleName.charAt(0)}.` : "", lastName].filter(Boolean).join(" ");
-
-const ROLE_FILTER_OPTIONS = [
-  { value: "", label: "All Roles" },
-  { value: "ADMIN", label: "Admin" },
-  { value: "REPORT OFFICER", label: "Report Officer" },
-  { value: "SUPERVISOR", label: "Supervisor" },
+const STATUS_FILTER_OPTIONS = [
+  { value: "", label: "All Statuses" },
+  { value: "true", label: "Active" },
+  { value: "false", label: "Deactivated" },
 ];
 
 function SearchIcon() {
@@ -66,39 +63,84 @@ function PencilIcon() {
 
 export default function ManageEmployees() {
   const navigate = useNavigate();
-  const [employees, setEmployees] = useState(MOCK_EMPLOYEES);
-  const [employeeProfiles, setEmployeeProfiles] = useState(MOCK_EMPLOYEE_PROFILES);
-  const [managing, setManaging] = useState(null);
+  const [rows, setRows] = useState([]);
+  const [count, setCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  // Bumped after a successful modal save to re-run the fetch effect.
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [managing, setManaging] = useState(null); // { userNumber, mode }
+  const [roleOptions, setRoleOptions] = useState([{ value: "", label: "All Roles" }]);
   const [draftSearch, setDraftSearch] = useState("");
   const [draftStatus, setDraftStatus] = useState("");
   const [draftRole, setDraftRole] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState(""); // "true" | "false" | ""
+  const [roleFilter, setRoleFilter] = useState(""); // role_id as string | ""
 
-  const filteredEmployees = useMemo(() => {
-    return employees.filter((emp) => {
-      if (roleFilter && emp.role !== roleFilter) return false;
-      if (statusFilter && emp.status !== statusFilter) return false;
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        if (!emp.name.toLowerCase().includes(q) && !emp.email.toLowerCase().includes(q)) return false;
+  useEffect(() => {
+    let cancelled = false;
+    const loadRoles = async () => {
+      try {
+        const lookup = await getRoleLookup();
+        if (cancelled) return;
+        setRoleOptions([
+          { value: "", label: "All Roles" },
+          ...lookup.map((role) => ({ value: String(role.role_id), label: role.role_name })),
+        ]);
+      } catch {
+        // Filter falls back to "All Roles" only.
       }
-      return true;
-    });
-  }, [employees, roleFilter, statusFilter, searchQuery]);
+    };
+    loadRoles();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const totalEmployees = filteredEmployees.length;
-  const totalPages = Math.ceil(totalEmployees / ROWS_PER_PAGE);
-  const safePage = Math.max(1, Math.min(currentPage, totalPages || 1));
-  const startRow = (safePage - 1) * ROWS_PER_PAGE + 1;
-  const endRow = Math.min(safePage * ROWS_PER_PAGE, totalEmployees);
-
-  const paginatedEmployees = filteredEmployees.slice(startRow - 1, endRow);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const data = await getEmployees({
+          q: searchQuery || undefined,
+          is_active: statusFilter || undefined,
+          role_id: roleFilter || undefined,
+          page: currentPage,
+          page_size: ROWS_PER_PAGE,
+        });
+        if (cancelled) return;
+        const pages = data.total_pages || 1;
+        if (currentPage > pages) {
+          // Page is past the end (e.g. after deactivations) — clamp and refetch.
+          setCurrentPage(pages);
+          return;
+        }
+        setRows(data.results || []);
+        setCount(data.count || 0);
+        setTotalPages(pages);
+      } catch (err) {
+        if (cancelled) return;
+        setRows([]);
+        setCount(0);
+        setTotalPages(1);
+        setError(err?.detail || "Failed to load employees. Please try again.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchQuery, statusFilter, roleFilter, currentPage, refreshKey]);
 
   const handleApplyFilters = () => {
-    setSearchQuery(draftSearch);
+    setSearchQuery(draftSearch.trim());
     setStatusFilter(draftStatus);
     setRoleFilter(draftRole);
     setCurrentPage(1);
@@ -114,30 +156,15 @@ export default function ManageEmployees() {
     setCurrentPage(1);
   };
 
-  // Merge the modal's edits into the table row + profile store so the list
-  // reflects the change without a reload (mock data, session state only).
-  const handleSaved = (updates) => {
-    const managingId = managing?.id;
-    setEmployeeProfiles((current) => ({
-      ...current,
-      [managingId]: { ...current[managingId], ...updates },
-    }));
-    setEmployees((current) =>
-      current.map((emp) =>
-        emp.id === managingId
-          ? { ...emp, name: buildFullName(updates), email: updates.email, role: updates.role, status: updates.status }
-          : emp
-      )
-    );
-  };
-
-  const managingEmployee = employees.find((emp) => emp.id === managing?.id) || null;
+  const safePage = Math.max(1, Math.min(currentPage, totalPages || 1));
+  const startRow = count === 0 ? 0 : (safePage - 1) * ROWS_PER_PAGE + 1;
+  const endRow = Math.min(safePage * ROWS_PER_PAGE, count);
 
   return (
     <DashboardLayout title="LGU Employees">
       <div className="manage-employees-page">
         <div className="breadcrumb">
-          <Link to="/dashboard/users/roles" className="breadcrumb-link">User Management</Link>
+          <Link to="/dashboard/users/employees" className="breadcrumb-link">User Management</Link>
           <span className="breadcrumb-separator">/</span>
           <span className="breadcrumb-current">LGU Employees</span>
         </div>
@@ -174,7 +201,7 @@ export default function ManageEmployees() {
             <div className="filter-field">
               <label className="filter-label">Role</label>
               <select className="filter-select" value={draftRole} onChange={(e) => setDraftRole(e.target.value)}>
-                {ROLE_FILTER_OPTIONS.map((option) => (
+                {roleOptions.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
@@ -182,9 +209,9 @@ export default function ManageEmployees() {
             <div className="filter-field">
               <label className="filter-label">Account Status</label>
               <select className="filter-select" value={draftStatus} onChange={(e) => setDraftStatus(e.target.value)}>
-                <option value="">All Statuses</option>
-                <option value="ACTIVE">Active</option>
-                <option value="DEACTIVATED">Deactivated</option>
+                {STATUS_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             </div>
             <div className="filter-buttons">
@@ -210,48 +237,69 @@ export default function ManageEmployees() {
               </tr>
             </thead>
             <tbody>
-              {paginatedEmployees.length > 0 ? (
-                paginatedEmployees.map((emp) => (
-                  <tr key={emp.id}>
-                    <td>
-                      <span className="employee-name">{emp.name}</span>
-                    </td>
-                    <td>{emp.email}</td>
-                    <td>
-                      <span className={`role-badge role-${emp.role.toLowerCase().replace(" ", "-")}`}>
-                        {emp.role}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`status-badge status-${emp.status.toLowerCase()}`}>
-                        {emp.status === "ACTIVE" ? "Active" : "Deactivated"}
-                      </span>
-                    </td>
-                    <td className="last-activity-cell">{emp.lastActivity}</td>
-                    <td>
-                      <div className="action-icon-group">
-                        <button
-                          type="button"
-                          className="action-icon-btn"
-                          title={`View ${emp.name}`}
-                          aria-label={`View ${emp.name}`}
-                          onClick={() => setManaging({ id: emp.id, mode: "view" })}
-                        >
-                          <EyeIcon />
-                        </button>
-                        <button
-                          type="button"
-                          className="action-icon-btn"
-                          title={`Edit ${emp.name}`}
-                          aria-label={`Edit ${emp.name}`}
-                          onClick={() => setManaging({ id: emp.id, mode: "edit" })}
-                        >
-                          <PencilIcon />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+              {loading ? (
+                <tr>
+                  <td colSpan="6" className="empty-table-message">Loading employees...</td>
+                </tr>
+              ) : error && rows.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="empty-table-message">
+                    {error}{" "}
+                    <button
+                      type="button"
+                      className="retry-link"
+                      onClick={() => setRefreshKey((key) => key + 1)}
+                    >
+                      Try again
+                    </button>
+                  </td>
+                </tr>
+              ) : rows.length > 0 ? (
+                rows.map((emp) => {
+                  const status = emp.is_active ? "ACTIVE" : "DEACTIVATED";
+                  const roleClass = (emp.role || "").toLowerCase().replace(/\s+/g, "-");
+                  return (
+                    <tr key={emp.user_number}>
+                      <td>
+                        <span className="employee-name">{emp.full_name}</span>
+                      </td>
+                      <td>{emp.email}</td>
+                      <td>
+                        <span className={`role-badge role-${roleClass}`}>
+                          {emp.role || "—"}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`status-badge status-${status.toLowerCase()}`}>
+                          {status === "ACTIVE" ? "Active" : "Deactivated"}
+                        </span>
+                      </td>
+                      <td className="last-activity-cell">{formatLastActive(emp.last_active)}</td>
+                      <td>
+                        <div className="action-icon-group">
+                          <button
+                            type="button"
+                            className="action-icon-btn"
+                            title={`View ${emp.full_name}`}
+                            aria-label={`View ${emp.full_name}`}
+                            onClick={() => setManaging({ userNumber: emp.user_number, mode: "view" })}
+                          >
+                            <EyeIcon />
+                          </button>
+                          <button
+                            type="button"
+                            className="action-icon-btn"
+                            title={`Edit ${emp.full_name}`}
+                            aria-label={`Edit ${emp.full_name}`}
+                            onClick={() => setManaging({ userNumber: emp.user_number, mode: "edit" })}
+                          >
+                            <PencilIcon />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan="6" className="empty-table-message">No employees found matching your filters.</td>
@@ -263,12 +311,12 @@ export default function ManageEmployees() {
 
         <div className="pagination">
           <span className="pagination-info">
-            Showing {startRow} to {endRow} of {totalEmployees.toLocaleString()} Employees
+            Showing {startRow} to {endRow} of {count.toLocaleString()} Employees
           </span>
           <div className="pagination-buttons">
             <button
               className="pagination-btn"
-              disabled={safePage <= 1}
+              disabled={loading || safePage <= 1}
               onClick={() => setCurrentPage((p) => p - 1)}
             >
               Previous
@@ -277,6 +325,7 @@ export default function ManageEmployees() {
               <button
                 key={page}
                 className={`pagination-btn ${page === safePage ? "active" : ""}`}
+                disabled={loading}
                 onClick={() => setCurrentPage(page)}
               >
                 {page}
@@ -284,7 +333,7 @@ export default function ManageEmployees() {
             ))}
             <button
               className="pagination-btn"
-              disabled={safePage >= totalPages}
+              disabled={loading || safePage >= totalPages}
               onClick={() => setCurrentPage((p) => p + 1)}
             >
               Next
@@ -293,13 +342,12 @@ export default function ManageEmployees() {
         </div>
       </div>
 
-      {managing?.id != null && managingEmployee && (
+      {managing?.userNumber && (
         <EmployeeProfileModal
-          employee={managingEmployee}
-          profile={employeeProfiles[managing.id]}
+          userNumber={managing.userNumber}
           mode={managing.mode}
           onClose={() => setManaging(null)}
-          onSaved={handleSaved}
+          onSaved={() => setRefreshKey((key) => key + 1)}
         />
       )}
     </DashboardLayout>

@@ -1,15 +1,18 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import CitizenProfileModal from "./CitizenProfileModal";
 import "./ManageCitizens.css";
-import mockData from "../../../data/mock.json";
+import { getCitizens } from "../../../api/users";
+import { formatLastActive } from "../../../utils/format";
 
-const { citizens: MOCK_CITIZENS, citizenProfiles: MOCK_CITIZEN_PROFILES } = mockData;
 const ROWS_PER_PAGE = 8;
 
-const buildFullName = ({ firstName, middleName, lastName }) =>
-  [firstName, middleName ? `${middleName.charAt(0)}.` : "", lastName].filter(Boolean).join(" ");
+const STATUS_FILTER_OPTIONS = [
+  { value: "", label: "All Statuses" },
+  { value: "true", label: "Active" },
+  { value: "false", label: "Deactivated" },
+];
 
 function SearchIcon() {
   return (
@@ -47,36 +50,60 @@ function PencilIcon() {
 }
 
 export default function ManageCitizens() {
-  const [citizens, setCitizens] = useState(MOCK_CITIZENS);
-  const [citizenProfiles, setCitizenProfiles] = useState(MOCK_CITIZEN_PROFILES);
-  const [managing, setManaging] = useState(null);
+  const [rows, setRows] = useState([]);
+  const [count, setCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  // Bumped after a successful modal save to re-run the fetch effect.
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [managing, setManaging] = useState(null); // { userNumber, mode }
   const [draftSearch, setDraftSearch] = useState("");
   const [draftStatus, setDraftStatus] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState(""); // "true" | "false" | ""
 
-  const filteredCitizens = useMemo(() => {
-    return citizens.filter((citizen) => {
-      if (statusFilter && citizen.status !== statusFilter) return false;
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        if (!citizen.name.toLowerCase().includes(q) && !citizen.email.toLowerCase().includes(q)) return false;
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const data = await getCitizens({
+          q: searchQuery || undefined,
+          is_active: statusFilter || undefined,
+          page: currentPage,
+          page_size: ROWS_PER_PAGE,
+        });
+        if (cancelled) return;
+        const pages = data.total_pages || 1;
+        if (currentPage > pages) {
+          // Page is past the end (e.g. after deactivations) — clamp and refetch.
+          setCurrentPage(pages);
+          return;
+        }
+        setRows(data.results || []);
+        setCount(data.count || 0);
+        setTotalPages(pages);
+      } catch (err) {
+        if (cancelled) return;
+        setRows([]);
+        setCount(0);
+        setTotalPages(1);
+        setError(err?.detail || "Failed to load citizens. Please try again.");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      return true;
-    });
-  }, [citizens, statusFilter, searchQuery]);
-
-  const totalCitizens = filteredCitizens.length;
-  const totalPages = Math.ceil(totalCitizens / ROWS_PER_PAGE);
-  const safePage = Math.max(1, Math.min(currentPage, totalPages || 1));
-  const startRow = (safePage - 1) * ROWS_PER_PAGE + 1;
-  const endRow = Math.min(safePage * ROWS_PER_PAGE, totalCitizens);
-
-  const paginatedCitizens = filteredCitizens.slice(startRow - 1, endRow);
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchQuery, statusFilter, currentPage, refreshKey]);
 
   const handleApplyFilters = () => {
-    setSearchQuery(draftSearch);
+    setSearchQuery(draftSearch.trim());
     setStatusFilter(draftStatus);
     setCurrentPage(1);
   };
@@ -89,30 +116,15 @@ export default function ManageCitizens() {
     setCurrentPage(1);
   };
 
-  // Merge the modal's edits into the table row + profile store so the list
-  // reflects the change without a reload (mock data, session state only).
-  const handleSaved = (updates) => {
-    const managingId = managing?.id;
-    setCitizenProfiles((current) => ({
-      ...current,
-      [managingId]: { ...current[managingId], ...updates },
-    }));
-    setCitizens((current) =>
-      current.map((citizen) =>
-        citizen.id === managingId
-          ? { ...citizen, name: buildFullName(updates), email: updates.email, status: updates.status }
-          : citizen
-      )
-    );
-  };
-
-  const managingCitizen = citizens.find((citizen) => citizen.id === managing?.id) || null;
+  const safePage = Math.max(1, Math.min(currentPage, totalPages || 1));
+  const startRow = count === 0 ? 0 : (safePage - 1) * ROWS_PER_PAGE + 1;
+  const endRow = Math.min(safePage * ROWS_PER_PAGE, count);
 
   return (
     <DashboardLayout title="Citizen Users">
       <div className="manage-citizens-page">
         <div className="breadcrumb">
-          <Link to="/dashboard/users/roles" className="breadcrumb-link">User Management</Link>
+          <Link to="/dashboard/users/employees" className="breadcrumb-link">User Management</Link>
           <span className="breadcrumb-separator">/</span>
           <span className="breadcrumb-current">Citizens</span>
         </div>
@@ -143,9 +155,9 @@ export default function ManageCitizens() {
             <div className="filter-field">
               <label className="filter-label">Account Status</label>
               <select className="filter-select" value={draftStatus} onChange={(e) => setDraftStatus(e.target.value)}>
-                <option value="">All Statuses</option>
-                <option value="ACTIVE">Active</option>
-                <option value="DEACTIVATED">Deactivated</option>
+                {STATUS_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             </div>
             <div className="filter-buttons">
@@ -170,43 +182,63 @@ export default function ManageCitizens() {
               </tr>
             </thead>
             <tbody>
-              {paginatedCitizens.length > 0 ? (
-                paginatedCitizens.map((citizen) => (
-                  <tr key={citizen.id}>
-                    <td>
-                      <span className="citizen-name">{citizen.name}</span>
-                    </td>
-                    <td>{citizen.email}</td>
-                    <td>
-                      <span className={`status-badge status-${citizen.status.toLowerCase()}`}>
-                        {citizen.status === "ACTIVE" ? "Active" : "Deactivated"}
-                      </span>
-                    </td>
-                    <td className="last-activity-cell">{citizen.lastActivity}</td>
-                    <td>
-                      <div className="action-icon-group">
-                        <button
-                          type="button"
-                          className="action-icon-btn"
-                          title={`View ${citizen.name}`}
-                          aria-label={`View ${citizen.name}`}
-                          onClick={() => setManaging({ id: citizen.id, mode: "view" })}
-                        >
-                          <EyeIcon />
-                        </button>
-                        <button
-                          type="button"
-                          className="action-icon-btn"
-                          title={`Edit ${citizen.name}`}
-                          aria-label={`Edit ${citizen.name}`}
-                          onClick={() => setManaging({ id: citizen.id, mode: "edit" })}
-                        >
-                          <PencilIcon />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+              {loading ? (
+                <tr>
+                  <td colSpan="5" className="empty-table-message">Loading citizens...</td>
+                </tr>
+              ) : error && rows.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="empty-table-message">
+                    {error}{" "}
+                    <button
+                      type="button"
+                      className="retry-link"
+                      onClick={() => setRefreshKey((key) => key + 1)}
+                    >
+                      Try again
+                    </button>
+                  </td>
+                </tr>
+              ) : rows.length > 0 ? (
+                rows.map((citizen) => {
+                  const status = citizen.is_active ? "ACTIVE" : "DEACTIVATED";
+                  return (
+                    <tr key={citizen.user_number}>
+                      <td>
+                        <span className="citizen-name">{citizen.full_name}</span>
+                      </td>
+                      <td>{citizen.email}</td>
+                      <td>
+                        <span className={`status-badge status-${status.toLowerCase()}`}>
+                          {status === "ACTIVE" ? "Active" : "Deactivated"}
+                        </span>
+                      </td>
+                      <td className="last-activity-cell">{formatLastActive(citizen.last_active)}</td>
+                      <td>
+                        <div className="action-icon-group">
+                          <button
+                            type="button"
+                            className="action-icon-btn"
+                            title={`View ${citizen.full_name}`}
+                            aria-label={`View ${citizen.full_name}`}
+                            onClick={() => setManaging({ userNumber: citizen.user_number, mode: "view" })}
+                          >
+                            <EyeIcon />
+                          </button>
+                          <button
+                            type="button"
+                            className="action-icon-btn"
+                            title={`Edit ${citizen.full_name}`}
+                            aria-label={`Edit ${citizen.full_name}`}
+                            onClick={() => setManaging({ userNumber: citizen.user_number, mode: "edit" })}
+                          >
+                            <PencilIcon />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan="5" className="empty-table-message">No citizens found matching your filters.</td>
@@ -218,12 +250,12 @@ export default function ManageCitizens() {
 
         <div className="pagination">
           <span className="pagination-info">
-            Showing {startRow} to {endRow} of {totalCitizens.toLocaleString()} Citizens
+            Showing {startRow} to {endRow} of {count.toLocaleString()} Citizens
           </span>
           <div className="pagination-buttons">
             <button
               className="pagination-btn"
-              disabled={safePage <= 1}
+              disabled={loading || safePage <= 1}
               onClick={() => setCurrentPage((p) => p - 1)}
             >
               Previous
@@ -232,6 +264,7 @@ export default function ManageCitizens() {
               <button
                 key={page}
                 className={`pagination-btn ${page === safePage ? "active" : ""}`}
+                disabled={loading}
                 onClick={() => setCurrentPage(page)}
               >
                 {page}
@@ -239,7 +272,7 @@ export default function ManageCitizens() {
             ))}
             <button
               className="pagination-btn"
-              disabled={safePage >= totalPages}
+              disabled={loading || safePage >= totalPages}
               onClick={() => setCurrentPage((p) => p + 1)}
             >
               Next
@@ -248,13 +281,12 @@ export default function ManageCitizens() {
         </div>
       </div>
 
-      {managing?.id != null && managingCitizen && (
+      {managing?.userNumber && (
         <CitizenProfileModal
-          citizen={managingCitizen}
-          profile={citizenProfiles[managing.id]}
+          userNumber={managing.userNumber}
           mode={managing.mode}
           onClose={() => setManaging(null)}
-          onSaved={handleSaved}
+          onSaved={() => setRefreshKey((key) => key + 1)}
         />
       )}
     </DashboardLayout>

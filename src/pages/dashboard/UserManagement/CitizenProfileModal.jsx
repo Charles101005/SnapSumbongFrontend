@@ -1,71 +1,77 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { usePsgcAddress } from "../../../hooks/usePsgcAddress";
 import SearchableSelect from "../../../components/shared/SearchableSelect";
+import { getCitizen, updateCitizen } from "../../../api/users";
+import { GENDERS } from "../../../shared/constants";
+import { formatDate } from "../../../utils/format";
+import { mapApiErrors } from "../../../utils/apiErrors";
 import "./CitizenProfileModal.css";
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const GENDER_OPTIONS = [
-  { value: "MALE", label: "Male" },
-  { value: "FEMALE", label: "Female" },
-  { value: "OTHER", label: "Other" },
-];
-
-export default function CitizenProfileModal({ citizen, profile, mode = "edit", onClose, onSaved }) {
+export default function CitizenProfileModal({ userNumber, mode = "view", onClose, onSaved }) {
   const isView = mode === "view";
-  const [firstName, setFirstName] = useState(profile?.firstName || "");
-  const [lastName, setLastName] = useState(profile?.lastName || "");
-  const [middleName, setMiddleName] = useState(profile?.middleName || "");
-  const [userNumber, setUserNumber] = useState(profile?.userNumber || "");
-  const [birthdate, setBirthdate] = useState(profile?.birthdate || "");
-  const [gender, setGender] = useState(profile?.gender || "");
-  const [email, setEmail] = useState(profile?.email || citizen?.email || "");
-  const [phoneNumber, setPhoneNumber] = useState(profile?.phoneNumber || "");
-  const [photo, setPhoto] = useState(profile?.photo || "");
-  const [region, setRegion] = useState(profile?.region || "");
-  const [province, setProvince] = useState(profile?.province || "");
-  const [city, setCity] = useState(profile?.city || "");
-  const [barangay, setBarangay] = useState(profile?.barangay || "");
-  const [streetAddress, setStreetAddress] = useState(profile?.streetAddress || "");
-  const [status, setStatus] = useState(profile?.status || citizen?.status || "ACTIVE");
+  const [loading, setLoading] = useState(true);
+  const [detailError, setDetailError] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [birthdate, setBirthdate] = useState("");
+  const [gender, setGender] = useState("");
+  const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [photo, setPhoto] = useState("");
+  const [region, setRegion] = useState("");
+  const [province, setProvince] = useState("");
+  const [city, setCity] = useState("");
+  const [barangay, setBarangay] = useState("");
+  const [streetAddress, setStreetAddress] = useState("");
+  const [role, setRole] = useState("Citizen");
+  const [isActive, setIsActive] = useState(true);
+  const [createdAt, setCreatedAt] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [saving, setSaving] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
-  const photoInputRef = useRef(null);
 
-  // Release any object URL created for a picked photo once it is replaced,
-  // cleared (discard / citizen switch), or the dialog unmounts.
   useEffect(() => {
-    if (!photo || !photo.startsWith("blob:")) return undefined;
-    return () => URL.revokeObjectURL(photo);
-  }, [photo]);
-
-  // Reset the form when the dialog switches to a different citizen or mode —
-  // React's "adjusting state when a prop changes" pattern (same shape as
-  // ReportManagementModal), which keeps the reset out of an effect.
-  const citizenId = citizen?.id ?? null;
-  const [loadedKey, setLoadedKey] = useState(`${citizenId}:${mode}`);
-  if (loadedKey !== `${citizenId}:${mode}`) {
-    setLoadedKey(`${citizenId}:${mode}`);
-    setFirstName(profile?.firstName || "");
-    setLastName(profile?.lastName || "");
-    setMiddleName(profile?.middleName || "");
-    setUserNumber(profile?.userNumber || "");
-    setBirthdate(profile?.birthdate || "");
-    setGender(profile?.gender || "");
-    setEmail(profile?.email || citizen?.email || "");
-    setPhoneNumber(profile?.phoneNumber || "");
-    setPhoto(profile?.photo || "");
-    setRegion(profile?.region || "");
-    setProvince(profile?.province || "");
-    setCity(profile?.city || "");
-    setBarangay(profile?.barangay || "");
-    setStreetAddress(profile?.streetAddress || "");
-    setStatus(profile?.status || citizen?.status || "ACTIVE");
-    setError("");
-    setSuccess("");
-    setLightboxSrc(null);
-  }
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setDetailError("");
+      try {
+        const detail = await getCitizen(userNumber);
+        if (cancelled) return;
+        if (!detail || !detail.user_number) {
+          setDetailError("Citizen not found.");
+          return;
+        }
+        setFirstName(detail.first_name || "");
+        setLastName(detail.last_name || "");
+        setMiddleName(detail.middle_name || "");
+        setBirthdate(detail.birth_date || "");
+        setGender(detail.gender || "");
+        setEmail(detail.email || "");
+        setPhoneNumber(detail.contact_number || "");
+        setPhoto(detail.profile_picture || "");
+        setRegion(detail.region_code || "");
+        setProvince(detail.province_code || "");
+        setCity(detail.city_code || "");
+        setBarangay(detail.barangay_code || "");
+        setStreetAddress(detail.street_address || "");
+        setRole(detail.role || "Citizen");
+        setIsActive(detail.is_active !== false);
+        setCreatedAt(detail.created_at || "");
+      } catch (err) {
+        if (cancelled) return;
+        setDetailError(err?.detail || "Failed to load citizen. Please try again.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [userNumber]);
 
   // Escape closes the lightbox first, then the dialog.
   useEffect(() => {
@@ -88,121 +94,46 @@ export default function CitizenProfileModal({ citizen, profile, mode = "edit", o
     return () => { document.body.style.overflow = previousOverflow; };
   }, []);
 
+  // Address selects are display-only — the API does not accept profile edits
+  // for citizens (only is_active), so the cascade just renders the labels.
   const {
     regionOptions,
     provinceOptions,
     cityOptions,
     barangayOptions,
-    canSelectProvince,
-    canSelectCity,
-    canSelectBarangay,
-    handleRegionChange,
-    handleProvinceChange,
-    handleCityChange,
   } = usePsgcAddress({
     region,
     province,
     city,
     barangay,
-    setRegion,
-    setProvince,
-    setCity,
-    setBarangay,
+    setRegion: () => {},
+    setProvince: () => {},
+    setCity: () => {},
+    setBarangay: () => {},
   });
 
-  const handlePhotoChange = (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = ""; // allow re-selecting the same file later
-    if (!file) return;
-    setPhoto(URL.createObjectURL(file));
-  };
-
-  const handleSave = (event) => {
+  const handleSave = async (event) => {
     event.preventDefault();
-
     if (isView) return;
 
-    const trimmedFirst = firstName.trim();
-    const trimmedLast = lastName.trim();
-    const trimmedMiddle = middleName.trim();
-    const trimmedUserNumber = userNumber.trim();
-    const trimmedEmail = email.trim();
-    const trimmedPhone = phoneNumber.trim();
-    const trimmedStreet = streetAddress.trim();
-
-    if (!trimmedUserNumber) {
-      setError("User number is required.");
-      setSuccess("");
-      return;
-    }
-    if (!trimmedFirst) {
-      setError("First name is required.");
-      setSuccess("");
-      return;
-    }
-    if (!trimmedLast) {
-      setError("Last name is required.");
-      setSuccess("");
-      return;
-    }
-    if (!birthdate) {
-      setError("Birthdate is required.");
-      setSuccess("");
-      return;
-    }
-    if (!gender) {
-      setError("Gender is required.");
-      setSuccess("");
-      return;
-    }
-    if (!trimmedEmail) {
-      setError("Email address is required.");
-      setSuccess("");
-      return;
-    }
-    if (!EMAIL_PATTERN.test(trimmedEmail)) {
-      setError("Enter a valid email address.");
-      setSuccess("");
-      return;
-    }
-    if (trimmedPhone && !/^\d{11}$/.test(trimmedPhone)) {
-      setError("Phone number must be 11 digits.");
-      setSuccess("");
-      return;
-    }
-    if (!region) {
-      setError("Region is required.");
-      setSuccess("");
-      return;
-    }
-    if (!barangay) {
-      setError("Barangay is required.");
-      setSuccess("");
-      return;
-    }
-
     setError("");
-    setSuccess("Citizen details saved successfully.");
-    onSaved?.({
-      firstName: trimmedFirst,
-      lastName: trimmedLast,
-      middleName: trimmedMiddle,
-      userNumber: trimmedUserNumber,
-      birthdate,
-      gender,
-      email: trimmedEmail,
-      phoneNumber: trimmedPhone,
-      photo,
-      region,
-      province,
-      city,
-      barangay,
-      streetAddress: trimmedStreet,
-      status,
-    });
+    setSuccess("");
+    setSaving(true);
+    try {
+      await updateCitizen(userNumber, { is_active: isActive });
+      setSuccess("Account status updated successfully.");
+      onSaved?.();
+    } catch (err) {
+      const mapped = mapApiErrors(err, {
+        codes: { USER_NOT_FOUND: "form" },
+      });
+      setError(mapped.form || "Failed to update account status. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  return (
+  const modalShell = (content) => (
     <div className="cp-modal-overlay" onClick={onClose}>
       <section
         className="cp-modal"
@@ -215,7 +146,9 @@ export default function CitizenProfileModal({ citizen, profile, mode = "edit", o
           <div>
             <h2 id="cp-modal-title" className="cp-modal-title">{isView ? "View Citizen" : "Manage Citizen"}</h2>
             <p className="cp-modal-subtitle">
-              {isView ? "Citizen information (read-only)." : "Update the citizen information below."}
+              {isView
+                ? "Citizen information (read-only)."
+                : "Only the account status can be changed — citizen profile details are self-managed."}
             </p>
           </div>
           <button
@@ -227,272 +160,252 @@ export default function CitizenProfileModal({ citizen, profile, mode = "edit", o
             &times;
           </button>
         </header>
+        {content}
+      </section>
+    </div>
+  );
 
-        {error && <div className="cp-banner cp-banner-error">{error}</div>}
-        {success && <div className="cp-banner cp-banner-success">{success}</div>}
+  if (loading) {
+    return modalShell(<p className="cp-loading">Loading citizen...</p>);
+  }
 
-        <form className="cp-form" onSubmit={handleSave} noValidate>
-          <div className="cp-form-grid">
-            <div className="cp-field">
-              <label className="cp-label" htmlFor="cp-user-number">
-                User Number {!isView && <span className="cp-required">*</span>}
-              </label>
-              <input
-                id="cp-user-number"
-                className="cp-input"
-                type="text"
-                placeholder="USR-2026-001"
-                value={userNumber}
-                onChange={(event) => setUserNumber(event.target.value)}
-                readOnly={isView}
-                disabled={isView}
-              />
-            </div>
+  if (detailError) {
+    return modalShell(
+      <div className="cp-body">
+        <div className="cp-banner cp-banner-error">{detailError}</div>
+        <div className="cp-actions">
+          <button type="button" className="cp-btn-discard" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    );
+  }
 
-            <div className="cp-field">
-              <label className="cp-label" htmlFor="cp-first-name">
-                First Name {!isView && <span className="cp-required">*</span>}
-              </label>
-              <input
-                id="cp-first-name"
-                className="cp-input"
-                type="text"
-                value={firstName}
-                onChange={(event) => setFirstName(event.target.value)}
-                readOnly={isView}
-                disabled={isView}
-              />
-            </div>
+  return (
+    <>
+      {modalShell(
+        <>
+          {error && <div className="cp-banner cp-banner-error">{error}</div>}
+          {success && <div className="cp-banner cp-banner-success">{success}</div>}
 
-            <div className="cp-field">
-              <label className="cp-label" htmlFor="cp-last-name">
-                Last Name {!isView && <span className="cp-required">*</span>}
-              </label>
-              <input
-                id="cp-last-name"
-                className="cp-input"
-                type="text"
-                value={lastName}
-                onChange={(event) => setLastName(event.target.value)}
-                readOnly={isView}
-                disabled={isView}
-              />
-            </div>
-
-            <div className="cp-field">
-              <label className="cp-label" htmlFor="cp-middle-name">Middle Name</label>
-              <input
-                id="cp-middle-name"
-                className="cp-input"
-                type="text"
-                value={middleName}
-                onChange={(event) => setMiddleName(event.target.value)}
-                readOnly={isView}
-                disabled={isView}
-              />
-            </div>
-
-            <div className="cp-field">
-              <label className="cp-label" htmlFor="cp-birthdate">
-                Birthdate {!isView && <span className="cp-required">*</span>}
-              </label>
-              <input
-                id="cp-birthdate"
-                className="cp-input"
-                type="date"
-                value={birthdate}
-                onChange={(event) => setBirthdate(event.target.value)}
-                readOnly={isView}
-                disabled={isView}
-              />
-            </div>
-
-            <div className="cp-field">
-              <label className="cp-label" htmlFor="cp-gender">
-                Gender {!isView && <span className="cp-required">*</span>}
-              </label>
-              <select
-                id="cp-gender"
-                className="cp-input cp-select"
-                value={gender}
-                onChange={(event) => setGender(event.target.value)}
-                disabled={isView}
-              >
-                <option value="">Select gender</option>
-                {GENDER_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="cp-field">
-              <label className="cp-label" htmlFor="cp-email">
-                Email {!isView && <span className="cp-required">*</span>}
-              </label>
-              <input
-                id="cp-email"
-                className="cp-input"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                readOnly={isView}
-                disabled={isView}
-              />
-            </div>
-
-            <div className="cp-field">
-              <label className="cp-label" htmlFor="cp-phone">Phone Number</label>
-              <input
-                id="cp-phone"
-                className="cp-input"
-                type="tel"
-                placeholder="09XXXXXXXXX"
-                maxLength={11}
-                value={phoneNumber}
-                onChange={(event) => setPhoneNumber(event.target.value)}
-                readOnly={isView}
-                disabled={isView}
-              />
-            </div>
-
-            <div className="cp-field">
-              <label className="cp-label" htmlFor="cp-photo-input">Profile Photo</label>
-              <div className="cp-photo-box">
+          <form className="cp-form" onSubmit={handleSave} noValidate>
+            <div className="cp-form-grid">
+              <div className="cp-field">
+                <label className="cp-label" htmlFor="cp-user-number">User Number</label>
                 <input
-                  ref={photoInputRef}
-                  id="cp-photo-input"
-                  className="cp-photo-input"
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoChange}
-                  disabled={isView}
+                  id="cp-user-number"
+                  className="cp-input"
+                  type="text"
+                  value={userNumber}
+                  readOnly
+                  disabled
                 />
               </div>
-            </div>
 
-            <div className="cp-field">
-              <label className="cp-label" htmlFor="cp-region">
-                Region {!isView && <span className="cp-required">*</span>}
-              </label>
-              <SearchableSelect
-                id="cp-region"
-                value={region}
-                onChange={(value) => handleRegionChange({ target: { value } })}
-                options={regionOptions}
-                placeholder="Search region"
-                disabled={isView}
-                inputClassName="cp-input"
-              />
-            </div>
-
-            <div className="cp-field">
-              <label className="cp-label" htmlFor="cp-province">Province</label>
-              <SearchableSelect
-                id="cp-province"
-                value={province}
-                onChange={(value) => handleProvinceChange({ target: { value } })}
-                options={provinceOptions}
-                placeholder="Search province"
-                disabled={isView || !canSelectProvince}
-                inputClassName="cp-input"
-              />
-            </div>
-
-            <div className="cp-field">
-              <label className="cp-label" htmlFor="cp-city">City/Municipality</label>
-              <SearchableSelect
-                id="cp-city"
-                value={city}
-                onChange={(value) => handleCityChange({ target: { value } })}
-                options={cityOptions}
-                placeholder="Search city/municipality"
-                disabled={isView || !canSelectCity}
-                inputClassName="cp-input"
-              />
-            </div>
-
-            <div className="cp-field">
-              <label className="cp-label" htmlFor="cp-barangay">
-                Barangay {!isView && <span className="cp-required">*</span>}
-              </label>
-              <SearchableSelect
-                id="cp-barangay"
-                value={barangay}
-                onChange={setBarangay}
-                options={barangayOptions}
-                placeholder="Search barangay"
-                disabled={isView || !canSelectBarangay}
-                inputClassName="cp-input"
-              />
-            </div>
-
-            <div className="cp-field">
-              <label className="cp-label" htmlFor="cp-street">Street Address</label>
-              <input
-                id="cp-street"
-                className="cp-input"
-                type="text"
-                placeholder="House no., street"
-                value={streetAddress}
-                onChange={(event) => setStreetAddress(event.target.value)}
-                readOnly={isView}
-                disabled={isView}
-              />
-            </div>
-
-            <div className="cp-field">
-              <label className="cp-label" htmlFor="cp-joined-date">Joined Date</label>
-              <input id="cp-joined-date" className="cp-input" type="text" value={profile?.joinedDate || "—"} readOnly disabled />
-            </div>
-
-            <div className="cp-field">
-              <label className="cp-label" htmlFor="cp-user-role">User Role</label>
-              <input id="cp-user-role" className="cp-input" type="text" value="Citizen" readOnly disabled />
-            </div>
-
-            <div className="cp-field">
-              <label className="cp-label" htmlFor="cp-status">
-                Account Status {!isView && <span className="cp-required">*</span>}
-              </label>
-              <select
-                id="cp-status"
-                className="cp-input cp-select"
-                value={status}
-                onChange={(event) => setStatus(event.target.value)}
-                disabled={isView}
-              >
-                <option value="ACTIVE">Active</option>
-                <option value="DEACTIVATED">Deactivated</option>
-              </select>
-            </div>
-
-            {photo && (
               <div className="cp-field">
-                <span className="cp-label">Photo Preview</span>
-                <button
-                  type="button"
-                  className="cp-photo-preview"
-                  onClick={() => setLightboxSrc(photo)}
-                  aria-label="View photo"
-                >
-                  <img src={photo} alt="Profile preview" />
-                </button>
+                <label className="cp-label" htmlFor="cp-first-name">First Name</label>
+                <input
+                  id="cp-first-name"
+                  className="cp-input"
+                  type="text"
+                  value={firstName}
+                  readOnly
+                  disabled
+                />
               </div>
-            )}
-          </div>
 
-          <div className="cp-actions">
-            {isView ? (
-              <button type="button" className="cp-btn-discard" onClick={onClose}>Close</button>
-            ) : (
-              <>
-                <button type="button" className="cp-btn-discard" onClick={onClose}>Cancel</button>
-                <button type="submit" className="cp-btn-save">Save Changes</button>
-              </>
-            )}
-          </div>
-        </form>
-      </section>
+              <div className="cp-field">
+                <label className="cp-label" htmlFor="cp-last-name">Last Name</label>
+                <input
+                  id="cp-last-name"
+                  className="cp-input"
+                  type="text"
+                  value={lastName}
+                  readOnly
+                  disabled
+                />
+              </div>
+
+              <div className="cp-field">
+                <label className="cp-label" htmlFor="cp-middle-name">Middle Name</label>
+                <input
+                  id="cp-middle-name"
+                  className="cp-input"
+                  type="text"
+                  value={middleName}
+                  readOnly
+                  disabled
+                />
+              </div>
+
+              <div className="cp-field">
+                <label className="cp-label" htmlFor="cp-birthdate">Birthdate</label>
+                <input
+                  id="cp-birthdate"
+                  className="cp-input"
+                  type="date"
+                  value={birthdate}
+                  readOnly
+                  disabled
+                />
+              </div>
+
+              <div className="cp-field">
+                <label className="cp-label" htmlFor="cp-gender">Gender</label>
+                <select
+                  id="cp-gender"
+                  className="cp-input cp-select"
+                  value={gender}
+                  disabled
+                >
+                  <option value="">—</option>
+                  {GENDERS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="cp-field">
+                <label className="cp-label" htmlFor="cp-email">Email</label>
+                <input
+                  id="cp-email"
+                  className="cp-input"
+                  type="email"
+                  value={email}
+                  readOnly
+                  disabled
+                />
+              </div>
+
+              <div className="cp-field">
+                <label className="cp-label" htmlFor="cp-phone">Phone Number</label>
+                <input
+                  id="cp-phone"
+                  className="cp-input"
+                  type="tel"
+                  value={phoneNumber}
+                  readOnly
+                  disabled
+                />
+              </div>
+
+              <div className="cp-field">
+                <label className="cp-label" htmlFor="cp-region">Region</label>
+                <SearchableSelect
+                  id="cp-region"
+                  value={region}
+                  onChange={() => {}}
+                  options={regionOptions}
+                  placeholder="—"
+                  disabled
+                  inputClassName="cp-input"
+                />
+              </div>
+
+              <div className="cp-field">
+                <label className="cp-label" htmlFor="cp-province">Province</label>
+                <SearchableSelect
+                  id="cp-province"
+                  value={province}
+                  onChange={() => {}}
+                  options={provinceOptions}
+                  placeholder="—"
+                  disabled
+                  inputClassName="cp-input"
+                />
+              </div>
+
+              <div className="cp-field">
+                <label className="cp-label" htmlFor="cp-city">City/Municipality</label>
+                <SearchableSelect
+                  id="cp-city"
+                  value={city}
+                  onChange={() => {}}
+                  options={cityOptions}
+                  placeholder="—"
+                  disabled
+                  inputClassName="cp-input"
+                />
+              </div>
+
+              <div className="cp-field">
+                <label className="cp-label" htmlFor="cp-barangay">Barangay</label>
+                <SearchableSelect
+                  id="cp-barangay"
+                  value={barangay}
+                  onChange={() => {}}
+                  options={barangayOptions}
+                  placeholder="—"
+                  disabled
+                  inputClassName="cp-input"
+                />
+              </div>
+
+              <div className="cp-field">
+                <label className="cp-label" htmlFor="cp-street">Street Address</label>
+                <input
+                  id="cp-street"
+                  className="cp-input"
+                  type="text"
+                  value={streetAddress}
+                  readOnly
+                  disabled
+                />
+              </div>
+
+              <div className="cp-field">
+                <label className="cp-label" htmlFor="cp-joined-date">Joined Date</label>
+                <input id="cp-joined-date" className="cp-input" type="text" value={formatDate(createdAt)} readOnly disabled />
+              </div>
+
+              <div className="cp-field">
+                <label className="cp-label" htmlFor="cp-user-role">User Role</label>
+                <input id="cp-user-role" className="cp-input" type="text" value={role} readOnly disabled />
+              </div>
+
+              <div className="cp-field">
+                <label className="cp-label" htmlFor="cp-status">Account Status</label>
+                <select
+                  id="cp-status"
+                  className="cp-input cp-select"
+                  value={isActive ? "ACTIVE" : "DEACTIVATED"}
+                  onChange={(event) => setIsActive(event.target.value === "ACTIVE")}
+                  disabled={isView}
+                >
+                  <option value="ACTIVE">Active</option>
+                  <option value="DEACTIVATED">Deactivated</option>
+                </select>
+              </div>
+
+              {photo && (
+                <div className="cp-field">
+                  <span className="cp-label">Photo</span>
+                  <button
+                    type="button"
+                    className="cp-photo-preview"
+                    onClick={() => setLightboxSrc(photo)}
+                    aria-label="View photo"
+                  >
+                    <img src={photo} alt="Profile preview" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="cp-actions">
+              {isView ? (
+                <button type="button" className="cp-btn-discard" onClick={onClose}>Close</button>
+              ) : (
+                <>
+                  <button type="button" className="cp-btn-discard" onClick={onClose}>Cancel</button>
+                  <button type="submit" className="cp-btn-save" disabled={saving}>
+                    {saving ? "Saving..." : "Save Status"}
+                  </button>
+                </>
+              )}
+            </div>
+          </form>
+        </>
+      )}
 
       {lightboxSrc && (
         <div
@@ -521,6 +434,6 @@ export default function CitizenProfileModal({ citizen, profile, mode = "edit", o
           />
         </div>
       )}
-    </div>
+    </>
   );
 }

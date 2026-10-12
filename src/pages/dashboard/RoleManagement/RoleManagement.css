@@ -244,3 +244,87 @@
   color: #ffffff;
   border-color: var(--color-primary);
 }
+
+/* ===== BANNERS ===== */
+.page-banner {
+  margin-bottom: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 7px;
+  font-size: var(--text-sm);
+}
+
+.page-banner-error {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+}
+
+.page-banner-success {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+/* ===== PROTECTED BADGE ===== */
+.protected-badge {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  background-color: var(--color-info-bg);
+  color: var(--color-info-text);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+/* ===== ROLE ACTIONS ===== */
+.role-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.role-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.role-action-btn:hover {
+  background-color: var(--color-info-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.role-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.role-action-btn:disabled:hover {
+  background-color: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.role-description-cell {
+  max-width: 320px;
+  color: var(--color-text-muted);
+}
+
+.retry-link {
+  font-style: normal;
+}

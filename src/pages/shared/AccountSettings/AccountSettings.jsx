@@ -10,7 +10,12 @@ import "./AccountSettings.css";
 // This component fetches the *full* profile itself (contact number,
 // notification preference, profile picture) and, whenever an edit changes
 // something the sidebar also displays, calls onUpdateUser to keep it in sync.
-export default function AccountSettings({ onUpdateUser }) {
+//
+// `variant` selects the portal: "citizen" (default) keeps the self-service
+// Danger Zone, while "staff" hides it (employee status is managed by admins
+// via User Management) and shows a read-only role badge — pass `role` for it.
+export default function AccountSettings({ onUpdateUser, variant = "citizen", role }) {
+  const isStaff = variant === "staff";
   const [currentView, setCurrentView] = useState("settings"); // 'settings' | 'personal-details' | 'change-password' | 'deactivate'
 
   const [profile, setProfile] = useState(null);
@@ -150,7 +155,10 @@ export default function AccountSettings({ onUpdateUser }) {
             <div className="info-grid">
               <div className="info-field">
                 <span className="field-label">FULL NAME</span>
-                <span className="field-value">{fullName}</span>
+                <span className="field-value">
+                  {fullName}
+                  {isStaff && role && <span className="role-badge">{role}</span>}
+                </span>
               </div>
 
               <div className="info-field">
@@ -258,42 +266,45 @@ export default function AccountSettings({ onUpdateUser }) {
           </div>
         </section>
 
-        {/* 4. Danger Zone */}
-        <section className="settings-card danger-card">
-          <div className="card-header border-danger">
-            <svg
-              className="card-icon danger-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            <h2 className="danger-text">Danger Zone</h2>
-          </div>
-
-          <div className="card-body row-between">
-            <div>
-              <div className="setting-title">Deactivate Account</div>
-              <div className="setting-desc">
-                Hides your profile and reports. This can't be undone from
-                here — you'll need to contact support to reactivate.
-              </div>
+        {/* 4. Danger Zone — staff accounts are deactivated by admins via
+            User Management, so this self-service block is citizen-only. */}
+        {!isStaff && (
+          <section className="settings-card danger-card">
+            <div className="card-header border-danger">
+              <svg
+                className="card-icon danger-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <h2 className="danger-text">Danger Zone</h2>
             </div>
-            <button
-              type="button"
-              className="btn-danger-outline"
-              onClick={() => setCurrentView("deactivate")}
-            >
-              Deactivate
-            </button>
-          </div>
-        </section>
+
+            <div className="card-body row-between">
+              <div>
+                <div className="setting-title">Deactivate Account</div>
+                <div className="setting-desc">
+                  Hides your profile and reports. This can't be undone from
+                  here — you'll need to contact support to reactivate.
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn-danger-outline"
+                onClick={() => setCurrentView("deactivate")}
+              >
+                Deactivate
+              </button>
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );

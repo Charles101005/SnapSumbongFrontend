@@ -728,7 +728,7 @@
   color: var(--color-text-dark);
 }
 
-/* Success banner - mirrored from .form-error (MonitoringDashboard.css),
+/* Success banner - mirrored from .form-error (OperationsDashboard.css),
    referenced by the save flow but previously defined nowhere. */
 .form-success {
   background: #f0fdf4;

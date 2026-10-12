@@ -1,0 +1,13 @@
+/* DashboardLayout's header already renders the page title, so suppress the
+   shared AccountSettings header (h1 + subtitle) to avoid the duplicate
+   "Account Settings" heading. Sub-views (Personal Details, Change Password)
+   keep their own headers — they replace the whole container. */
+.staff-account-settings .settings-header {
+  display: none;
+}
+
+/* Match the shared component's top spacing to other dashboard content now
+   that its own header block is hidden. */
+.staff-account-settings .account-settings-container {
+  padding-top: 0;
+}
