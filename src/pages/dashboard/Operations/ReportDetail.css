@@ -150,6 +150,24 @@
   white-space: pre-wrap;
 }
 
+/* DO 47 photolog phase groups (Before / During / After) */
+.photolog-group {
+  margin-bottom: 0.75rem;
+}
+
+.photolog-group:last-child {
+  margin-bottom: 0;
+}
+
+.photolog-group-label {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .attached-media-grid {
   display: flex;
   gap: 0.5rem;

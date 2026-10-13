@@ -387,6 +387,24 @@
   cursor: zoom-in;
 }
 
+/* DO 47 photolog: side-by-side DURING / AFTER dropzones */
+.mgmt-photolog-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.mgmt-photolog-phase .mgmt-label {
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+@media (max-width: 640px) {
+  .mgmt-photolog-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ================================
    LIGHTBOX
    ================================ */

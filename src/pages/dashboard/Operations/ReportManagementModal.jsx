@@ -8,7 +8,7 @@ import "./ReportManagementModal.css";
 
 const FALLBACK_STATUSES = ["New", "Assigned", "Under Review", "On-Hold", "Dispatched", "Resolved", "Closed"];
 const FALLBACK_SEVERITIES = ["P1", "P2", "P3", "P4", "P5"];
-const MAX_RESOLUTION_PHOTOS = 5; // Matches the backend's STORAGE_CONFIG['MAX_SIGNATURE_COUNT'].
+const MAX_RESOLUTION_PHOTOS = 5; // Matches the backend's STORAGE_CONFIG['MAX_SIGNATURE_COUNT'] (combined DURING + AFTER).
 
 const STATUS_COLORS = {
   new: { bg: "#e0f2fe", text: "#0369a1" },
@@ -73,8 +73,12 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   const [severity, setSeverity] = useState("");
   const [status, setStatus] = useState("");
   const [remarks, setRemarks] = useState("");
-  const [resolutionFiles, setResolutionFiles] = useState([]);
-  const [resolutionPreviews, setResolutionPreviews] = useState([]);
+  // DO 47 photolog: separate DURING (works in progress) and AFTER (completed)
+  // photo sets — both are required before a report can be marked Resolved.
+  const [duringFiles, setDuringFiles] = useState([]);
+  const [afterFiles, setAfterFiles] = useState([]);
+  const [duringPreviews, setDuringPreviews] = useState([]);
+  const [afterPreviews, setAfterPreviews] = useState([]);
   const [loadingDetail, setLoadingDetail] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -97,10 +101,15 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   const statuses = lookups?.statuses?.length ? lookups.statuses : FALLBACK_STATUSES;
   const severities = lookups?.severities?.length ? lookups.severities : FALLBACK_SEVERITIES;
 
-  const previewsRef = useRef([]);
-  useEffect(() => { previewsRef.current = resolutionPreviews; }, [resolutionPreviews]);
+  const duringPreviewsRef = useRef([]);
+  const afterPreviewsRef = useRef([]);
+  useEffect(() => { duringPreviewsRef.current = duringPreviews; }, [duringPreviews]);
+  useEffect(() => { afterPreviewsRef.current = afterPreviews; }, [afterPreviews]);
   // Revoke generated preview URLs when the modal unmounts (closing the dialog).
-  useEffect(() => () => { previewsRef.current.forEach((src) => URL.revokeObjectURL(src)); }, []);
+  useEffect(() => () => {
+    duringPreviewsRef.current.forEach((src) => URL.revokeObjectURL(src));
+    afterPreviewsRef.current.forEach((src) => URL.revokeObjectURL(src));
+  }, []);
 
   // Single Escape handler with priority: lightbox -> expanded map -> close modal.
   useEffect(() => {
@@ -139,8 +148,10 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         );
         setStatus(matchingStatus?.value || statusToValue(data.status));
         setRemarks(data.remarks || "");
-        setResolutionFiles([]);
-        setResolutionPreviews([]);
+        setDuringFiles([]);
+        setAfterFiles([]);
+        setDuringPreviews([]);
+        setAfterPreviews([]);
         setError("");
         setLoadingDetail(false);
       })
@@ -159,21 +170,28 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportNumber]);
 
-  const handlePhotoChange = (event) => {
+  const handlePhotoChange = (phase) => (event) => {
     const selected = Array.from(event.target.files || []);
-    const files = selected.slice(0, MAX_RESOLUTION_PHOTOS);
+    const otherCount = phase === "DURING" ? afterFiles.length : duringFiles.length;
+    const remaining = Math.max(0, MAX_RESOLUTION_PHOTOS - otherCount);
+    const files = selected.slice(0, remaining);
 
-    if (selected.length > MAX_RESOLUTION_PHOTOS) {
-      setError(`You can upload up to ${MAX_RESOLUTION_PHOTOS} resolution photos. Only the first ${MAX_RESOLUTION_PHOTOS} were kept.`);
+    if (selected.length > remaining) {
+      setError(`DURING and AFTER photos are limited to ${MAX_RESOLUTION_PHOTOS} combined. Only the first ${files.length} were kept.`);
     } else {
       setError("");
     }
 
     // Revoke any previously-generated preview URLs before replacing them.
-    resolutionPreviews.forEach((src) => URL.revokeObjectURL(src));
+    const setFiles = phase === "DURING" ? setDuringFiles : setAfterFiles;
+    const setPreviews = phase === "DURING" ? setDuringPreviews : setAfterPreviews;
+    const previousPreviews = phase === "DURING" ? duringPreviews : afterPreviews;
+    previousPreviews.forEach((src) => URL.revokeObjectURL(src));
 
-    setResolutionFiles(files);
-    setResolutionPreviews(files.map((file) => URL.createObjectURL(file)));
+    setFiles(files);
+    setPreviews(files.map((file) => URL.createObjectURL(file)));
+    // Allow re-selecting the same file after a discard.
+    event.target.value = "";
   };
 
   const handleSave = async () => {
@@ -188,6 +206,15 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
       // without an actual status change — so only send what actually changed.
       const currentStatusValue = statusToValue(report.status);
       const statusChanged = status && status !== currentStatusValue;
+      const resolving = statusChanged && status === "RESOLVED";
+
+      // DO 47 photolog: resolving requires at least one DURING and one AFTER
+      // photo — mirror the backend rule here for immediate feedback.
+      if (resolving && (!duringFiles.length || !afterFiles.length)) {
+        setError("Resolving requires at least one 'During' photo and one 'After' photo of the rectification works.");
+        setSaving(false);
+        return;
+      }
 
       const payload = {};
       if (statusChanged) {
@@ -195,12 +222,19 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         if (remarks) payload.remarks = remarks;
       }
 
-      let resolutionImageUrls;
-      if (resolutionFiles.length) {
-        resolutionImageUrls = await uploadResolutionImages(resolutionFiles);
+      let resolutionImages;
+      if (duringFiles.length || afterFiles.length) {
+        const [duringUrls, afterUrls] = await Promise.all([
+          duringFiles.length ? uploadResolutionImages(duringFiles) : [],
+          afterFiles.length ? uploadResolutionImages(afterFiles) : [],
+        ]);
+        resolutionImages = [
+          ...duringUrls.map((image_url) => ({ image_url, photo_type: "DURING" })),
+          ...afterUrls.map((image_url) => ({ image_url, photo_type: "AFTER" })),
+        ];
       }
-      if (statusChanged && resolutionImageUrls) {
-        payload.resolution_image_urls = resolutionImageUrls;
+      if (statusChanged && resolutionImages) {
+        payload.resolution_images = resolutionImages;
       }
       if (severity && severity !== (report.severity || "")) {
         payload.severity = severity;
@@ -229,8 +263,12 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
     setSeverity(report.severity || "");
     setStatus(statusToValue(report.status) || "");
     setRemarks(report.remarks || "");
-    setResolutionFiles([]);
-    setResolutionPreviews([]);
+    duringPreviews.forEach((src) => URL.revokeObjectURL(src));
+    afterPreviews.forEach((src) => URL.revokeObjectURL(src));
+    setDuringFiles([]);
+    setAfterFiles([]);
+    setDuringPreviews([]);
+    setAfterPreviews([]);
     setError("");
     setSuccess("");
   };
@@ -409,33 +447,64 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
               )}
             </section>
 
-            <div className="mgmt-section">
-              <span className="mgmt-label">
-                Resolution Photo ({resolutionFiles.length}/{MAX_RESOLUTION_PHOTOS})
-              </span>
-              <label className="mgmt-dropzone">
-                {resolutionPreviews.length ? (
-                  <div className="mgmt-preview-row">
-                    {resolutionPreviews.map((src) => (
-                      <img
-                        key={src}
-                        src={src}
-                        alt="Resolution preview"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setLightboxSrc(src);
-                        }}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <>
-                    <UploadIcon />
-                    <span>Click to upload</span>
-                  </>
-                )}
-                <input type="file" accept="image/*" multiple onChange={handlePhotoChange} />
-              </label>
+            <div className="mgmt-photolog-row">
+              <div className="mgmt-section mgmt-photolog-phase">
+                <span className="mgmt-label">
+                  During Photo — works in progress ({duringFiles.length})
+                </span>
+                <label className="mgmt-dropzone">
+                  {duringPreviews.length ? (
+                    <div className="mgmt-preview-row">
+                      {duringPreviews.map((src) => (
+                        <img
+                          key={src}
+                          src={src}
+                          alt="During works preview"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setLightboxSrc(src);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <UploadIcon />
+                      <span>Click to upload</span>
+                    </>
+                  )}
+                  <input type="file" accept="image/*" multiple onChange={handlePhotoChange("DURING")} />
+                </label>
+              </div>
+
+              <div className="mgmt-section mgmt-photolog-phase">
+                <span className="mgmt-label">
+                  After Photo — completed work ({afterFiles.length})
+                </span>
+                <label className="mgmt-dropzone">
+                  {afterPreviews.length ? (
+                    <div className="mgmt-preview-row">
+                      {afterPreviews.map((src) => (
+                        <img
+                          key={src}
+                          src={src}
+                          alt="After works preview"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setLightboxSrc(src);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <UploadIcon />
+                      <span>Click to upload</span>
+                    </>
+                  )}
+                  <input type="file" accept="image/*" multiple onChange={handlePhotoChange("AFTER")} />
+                </label>
+              </div>
             </div>
 
             <div className="mgmt-section">

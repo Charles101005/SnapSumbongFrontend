@@ -139,22 +139,37 @@ export default function ReportDetail() {
             )}
 
             <section className="report-detail-section">
-              <h3 className="detail-field-label">Attached Media</h3>
-              {report.image_urls?.length ? (
-                <div className="attached-media-grid">
-                  {report.image_urls.map((src, idx) => (
-                    <button
-                      key={`${src}-${idx}`}
-                      className="media-thumbnail"
-                      type="button"
-                      onClick={() => setLightboxSrc(src)}
-                      aria-label={`View attached photo ${idx + 1}`}
-                    >
-                      <img src={src} alt={`Report attachment ${idx + 1}`} />
-                    </button>
-                  ))}
-                </div>
-              ) : <p className="report-detail-empty">No attached media.</p>}
+              <h3 className="detail-field-label">Attached Media (DO 47 Photolog)</h3>
+              {(() => {
+                // Backend detail responses group photos by DO 47 photolog
+                // phase; fall back to the flat before-only list for older rows.
+                const photos = report.photos || { before: report.image_urls || [], during: [], after: [] };
+                const groups = [
+                  { key: "before", label: "Before — as reported", urls: photos.before || [] },
+                  { key: "during", label: "During — works in progress", urls: photos.during || [] },
+                  { key: "after", label: "After — completed rectification", urls: photos.after || [] },
+                ];
+                const hasAny = groups.some((group) => group.urls.length);
+                if (!hasAny) return <p className="report-detail-empty">No attached media.</p>;
+                return groups.filter((group) => group.urls.length).map((group) => (
+                  <div className="photolog-group" key={group.key}>
+                    <h4 className="photolog-group-label">{group.label}</h4>
+                    <div className="attached-media-grid">
+                      {group.urls.map((src, idx) => (
+                        <button
+                          key={`${group.key}-${src}-${idx}`}
+                          className="media-thumbnail"
+                          type="button"
+                          onClick={() => setLightboxSrc(src)}
+                          aria-label={`View ${group.key} photo ${idx + 1}`}
+                        >
+                          <img src={src} alt={`${group.key} photolog ${idx + 1}`} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ));
+              })()}
             </section>
 
             <section className="report-detail-timeline-section">
