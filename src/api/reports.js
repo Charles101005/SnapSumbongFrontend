@@ -94,8 +94,9 @@ export const createHazardReport = async (payload) => {
 };
 
 // GET /reports/
-// Staff filters: q, category_id, status, exclude_closed, severity, from_date, to_date,
-// page and page_size.
+// Staff filters: q, category_id, status, exclude_closed, overdue, severity,
+// from_date, to_date, page and page_size. `overdue=true` (staff-only) returns
+// open reports past their DO 47 response-time due date.
 export const getReports = async (params = {}) => {
     try {
         const response = await api.get("reports/", { params });

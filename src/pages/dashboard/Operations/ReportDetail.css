@@ -120,6 +120,19 @@
 .status-closed { background: #e2e8f0; color: #334155; }
 .status-unknown { background: #f1f5f9; color: #475569; }
 
+/* DO 47 SLA badge (detail view) */
+.report-sla-badge {
+  display: inline-block;
+  padding: .2rem .55rem;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 600;
+}
+.report-sla-badge.sla-ok { background: #f1f5f9; color: #475569; }
+.report-sla-badge.sla-soon { background: #fef3c7; color: #b45309; }
+.report-sla-badge.sla-overdue { background: #fee2e2; color: #b91c1c; }
+.report-sla-badge.sla-none { background: #f8fafc; color: #94a3b8; font-weight: 400; }
+
 .report-detail-section {
   margin-top: 1rem;
 }

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import { getReportLookups, getReports } from "../../../api/reports";
 import { REPORT_STATUSES } from "../../../hooks/useStatusCounts";
+import { formatDueDate, slaBadge } from "../../../utils/sla";
 import ReportManagementModal from "./ReportManagementModal";
 import "./OperationsDashboard.css";
 
@@ -23,6 +24,7 @@ function ClipboardIcon() { return <svg width="18" height="18" viewBox="0 0 24 24
 function CheckIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>; }
 function UnderReviewIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>; }
 function DispatchedIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12h15M13 6l6 6-6 6"/></svg>; }
+function OverdueIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>; }
 function SearchIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>; }
 function FilterIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>; }
 function EyeIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>; }
@@ -36,11 +38,12 @@ export default function OperationsDashboard() {
   const urlStatus = REPORT_STATUSES.includes(rawStatus) ? rawStatus.toUpperCase() : "";
   const [lookups, setLookups] = useState({ categories: [], statuses: [], severities: [] });
   const [statusStats, setStatusStats] = useState({});
+  const [overdueCount, setOverdueCount] = useState(0);
   const [reports, setReports] = useState([]);
   const [count, setCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({ category: "", severity: "", status: urlStatus, search: "", fromDate: "", toDate: "" });
+  const [filters, setFilters] = useState({ category: "", severity: "", status: urlStatus, search: "", fromDate: "", toDate: "", overdue: false });
   const [draft, setDraft] = useState(filters);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -68,6 +71,8 @@ export default function OperationsDashboard() {
         severity: filters.severity || undefined,
         from_date: filters.fromDate || undefined,
         to_date: filters.toDate || undefined,
+        // DO 47 SLA: show only open reports past their due date.
+        overdue: filters.overdue || undefined,
         // exclude_closed hides phase-four reports (resolved + closed). Only
         // apply it on the unfiltered overview — status views like Resolved
         // must still return their own rows.
@@ -87,6 +92,7 @@ export default function OperationsDashboard() {
 
   // The overview cards use the API's current status buckets. Fetch a count
   // per real status because the reports endpoint returns exact counts.
+  // The overdue count (DO 47 SLA) comes from the same endpoint's filter.
   const loadStatusStats = async (statusList) => {
     if (!statusList.length) return;
     try {
@@ -104,6 +110,12 @@ export default function OperationsDashboard() {
       setStatusStats(Object.fromEntries(entries));
     } catch {
       // Overview cards just fall back to 0 — the table below still works.
+    }
+    try {
+      const overdueData = await getReports({ overdue: true, exclude_closed: false, page: 1, page_size: 1 });
+      setOverdueCount(Number(overdueData.count || 0));
+    } catch {
+      setOverdueCount(0);
     }
   };
 
@@ -135,7 +147,7 @@ export default function OperationsDashboard() {
   }, { replace: true });
   const applyFilters = () => { setPage(1); setFilters(draft); syncStatusParam(draft.status); };
   const reset = () => {
-    const empty = { category: "", severity: "", status: "", search: "", fromDate: "", toDate: "" };
+    const empty = { category: "", severity: "", status: "", search: "", fromDate: "", toDate: "", overdue: false };
     setPage(1); setDraft(empty); setFilters(empty);
     syncStatusParam("");
   };
@@ -152,6 +164,7 @@ export default function OperationsDashboard() {
         <div className="stat-card"><div className="stat-icon stat-icon-resolved"><CheckIcon /></div><div><span className="stat-label">RESOLVED</span><strong>{resolved}</strong></div></div>
         <div className="stat-card"><div className="stat-icon stat-icon-under-review"><UnderReviewIcon /></div><div><span className="stat-label">UNDER REVIEW</span><strong>{underReview}</strong></div></div>
         <div className="stat-card"><div className="stat-icon stat-icon-dispatched"><DispatchedIcon /></div><div><span className="stat-label">DISPATCHED</span><strong>{dispatched}</strong></div></div>
+        <div className="stat-card stat-card-overdue"><div className="stat-icon stat-icon-overdue"><OverdueIcon /></div><div><span className="stat-label">OVERDUE (SLA)</span><strong>{overdueCount}</strong></div></div>
       </div>
 
       <div className="filters-section">
@@ -163,7 +176,13 @@ export default function OperationsDashboard() {
         </div>
         <div className="filters-row filter-bottom">
           <div className="filter-group"><label>Date Range</label><div className="date-range"><span>From</span><input type="date" value={draft.fromDate} onChange={(e) => updateDraft("fromDate", e.target.value)} /><span>to</span><input type="date" value={draft.toDate} onChange={(e) => updateDraft("toDate", e.target.value)} /></div></div>
-          <div className="filter-actions"><button className="btn-apply" onClick={applyFilters}><FilterIcon/>Apply Filters</button><button className="btn-reset" onClick={reset}>Reset</button></div>
+          <div className="filter-actions">
+            <label className="overdue-toggle" title="Show only open reports past their DO 47 response time">
+              <input type="checkbox" checked={draft.overdue} onChange={(e) => updateDraft("overdue", e.target.checked)} />
+              Overdue only
+            </label>
+            <button className="btn-apply" onClick={applyFilters}><FilterIcon/>Apply Filters</button><button className="btn-reset" onClick={reset}>Reset</button>
+          </div>
         </div>
       </div>
 
@@ -171,11 +190,14 @@ export default function OperationsDashboard() {
 
       <div className="table-container">
         <table className="reports-table">
-          <thead><tr><th>REPORT ID</th><th>CATEGORY</th><th>LOCATION</th><th>DATE REPORTED</th><th>STATUS</th><th>SEVERITY</th><th>ACTION</th></tr></thead>
+          <thead><tr><th>REPORT ID</th><th>CATEGORY</th><th>LOCATION</th><th>DATE REPORTED</th><th>DUE</th><th>STATUS</th><th>SEVERITY</th><th>ACTION</th></tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan="7" className="empty-table-message">Loading reports...</td></tr> : reports.length ? reports.map((report) => (
+            {loading ? <tr><td colSpan="8" className="empty-table-message">Loading reports...</td></tr> : reports.length ? reports.map((report) => {
+              const sla = slaBadge(report);
+              return (
               <tr key={report.report_number}>
                 <td className="report-number">{report.report_number}</td><td>{report.category}</td><td>{report.address || "—"}</td><td>{new Date(report.created_at).toLocaleDateString()}</td>
+                <td><span className={`sla-badge sla-${sla.tone}`} title={report.due_at ? `Due ${formatDueDate(report.due_at)}` : "No SLA set"}>{sla.text}</span></td>
                 <td><span className={`status-badge status-${statusClass(report.status)}`}>{displayStatus(report.status, statuses)}</span></td><td><span className={`severity-badge severity-${String(report.severity || "").toLowerCase()}`}>{report.severity || "—"}</span></td>
                 <td>
                   <div className="table-actions">
@@ -199,7 +221,8 @@ export default function OperationsDashboard() {
                   </div>
                 </td>
               </tr>
-            )) : <tr><td colSpan="7" className="empty-table-message">No reports found.</td></tr>}
+              );
+            }) : <tr><td colSpan="8" className="empty-table-message">No reports found.</td></tr>}
           </tbody>
         </table>
       </div>

@@ -6,6 +6,7 @@ import './MyReport.css';
 import { getReports, getReportDetail, getHazardCategories } from '../../../api/reports';
 import { getReportMetrics } from '../../../api/analytics';
 import { hazardMarkerIcon } from '../../../utils/leafletHelpers';
+import { formatDueDate, slaBadge } from '../../../utils/sla';
 
 const ROWS_PER_PAGE = 5; // Matches the backend's SmallListPagination page size.
 
@@ -298,9 +299,22 @@ export default function MyReport() {
                     <h2>{getStatusLabel(selectedReportDetail.status)}</h2>
                   </div>
                 </div>
-                <span className={getStatusBadgeClass(selectedReportDetail.status)}>
-                  {getStatusLabel(selectedReportDetail.status)}
-                </span>
+                <div className="status-header-right">
+                  <span className={getStatusBadgeClass(selectedReportDetail.status)}>
+                    {getStatusLabel(selectedReportDetail.status)}
+                  </span>
+                  {(() => {
+                    const sla = slaBadge(selectedReportDetail);
+                    if (sla.tone === 'none') return null;
+                    return (
+                      <span className={`citizen-sla citizen-sla-${sla.tone}`} title={selectedReportDetail.due_at ? `Expected resolution by ${formatDueDate(selectedReportDetail.due_at)}` : ''}>
+                        {sla.tone === 'overdue'
+                          ? `Resolution overdue — was due ${formatDueDate(selectedReportDetail.due_at)}`
+                          : `Expected resolution by ${formatDueDate(selectedReportDetail.due_at)}`}
+                      </span>
+                    );
+                  })()}
+                </div>
               </div>
 
               {/* Resolution Timeline */}

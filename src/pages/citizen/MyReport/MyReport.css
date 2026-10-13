@@ -377,6 +377,25 @@
   font-weight: 800;
 }
 
+.status-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+/* DO 47 SLA note (citizen detail view) */
+.citizen-sla {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.citizen-sla-ok { background: #f1f5f9; color: #475569; }
+.citizen-sla-soon { background: #fef3c7; color: #b45309; }
+.citizen-sla-overdue { background: #fee2e2; color: #b91c1c; }
+
 /* Timeline */
 .timeline-card h3,
 .submission-card h3,

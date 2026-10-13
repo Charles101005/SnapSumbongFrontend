@@ -14,7 +14,7 @@
 }
 .stats-grid {
   display:grid;
-  grid-template-columns:repeat(4,1fr);
+  grid-template-columns:repeat(5,1fr);
   gap:.9rem
 }
 .stat-card {
@@ -50,6 +50,52 @@
 .stat-icon-dispatched {
   background:#cffafe;
   color:#0e7490
+}
+.stat-icon-overdue {
+  background:#fee2e2;
+  color:#dc2626
+}
+.stat-card-overdue strong {
+  color:#dc2626
+}
+.overdue-toggle {
+  display:flex;
+  align-items:center;
+  gap:.4rem;
+  font-size:.72rem;
+  color:#475569;
+  cursor:pointer;
+  user-select:none;
+  white-space:nowrap
+}
+.overdue-toggle input {
+  accent-color:#dc2626;
+  cursor:pointer
+}
+.sla-badge {
+  display:inline-block;
+  padding:.2rem .5rem;
+  border-radius:999px;
+  font-size:.68rem;
+  font-weight:600;
+  white-space:nowrap
+}
+.sla-ok {
+  background:#f1f5f9;
+  color:#475569
+}
+.sla-soon {
+  background:#fef3c7;
+  color:#b45309
+}
+.sla-overdue {
+  background:#fee2e2;
+  color:#b91c1c
+}
+.sla-none {
+  background:#f8fafc;
+  color:#94a3b8;
+  font-weight:400
 }
 .stat-card>div:last-child {
   display:flex;

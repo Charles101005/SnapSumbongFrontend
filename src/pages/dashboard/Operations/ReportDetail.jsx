@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import { getReportDetail, getReportHistoryDetail } from "../../../api/reports";
+import { formatDueDate, slaBadge } from "../../../utils/sla";
 import "./ReportDetail.css";
 
 const STATUS_COLORS = {
@@ -80,6 +81,7 @@ export default function ReportDetail() {
   }, [lightboxSrc, selectedTimelineEvent]);
 
   const statusClass = STATUS_COLORS[normalizeStatus(report?.status)] || "unknown";
+  const sla = report ? slaBadge(report) : null;
 
   return (
     <DashboardLayout title="Management Overview">
@@ -112,6 +114,14 @@ export default function ReportDetail() {
                 <label className="detail-field-label">Status</label>
                 <div className="detail-field-value">
                   <span className={`report-status-badge status-${statusClass}`}>{report.status || "Unknown"}</span>
+                </div>
+              </div>
+              <DetailField label="Date Reported" value={formatDateTime(report.created_at)} />
+              <DetailField label="SLA Due Date (DO 47)" value={formatDueDate(report.due_at)} />
+              <div className="detail-field">
+                <label className="detail-field-label">SLA State</label>
+                <div className="detail-field-value">
+                  <span className={`report-sla-badge sla-${sla.tone}`}>{sla.text}</span>
                 </div>
               </div>
             </div>
