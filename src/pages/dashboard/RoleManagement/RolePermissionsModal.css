@@ -57,6 +57,19 @@
   white-space: nowrap;
 }
 
+.rpm-inactive-badge {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
 .rpm-modal-subtitle {
   margin: 0.3rem 0 0;
   font-size: var(--text-sm);

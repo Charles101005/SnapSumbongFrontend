@@ -81,6 +81,7 @@ export default function RolePermissionsModal({ role, onClose }) {
             <h2 id="rpm-modal-title" className="rpm-modal-title">
               {role.role_name}
               {role.is_protected && <span className="rpm-protected-badge">Protected</span>}
+              {role.is_active === false && <span className="rpm-inactive-badge">Deactivated</span>}
             </h2>
             <p className="rpm-modal-subtitle">{role.description || "No description provided."}</p>
           </div>

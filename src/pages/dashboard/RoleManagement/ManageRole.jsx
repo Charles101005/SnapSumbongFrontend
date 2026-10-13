@@ -128,6 +128,7 @@ export default function ManageRole() {
           ROLE_ALREADY_EXISTS: "form",
           PERMISSION_NOT_FOUND: "form",
           SYSTEM_PROTECTED_ROLE_MODIFICATION_DENIED: "form",
+          DEACTIVATED_ROLE_MODIFICATION_DENIED: "form",
         },
       });
       setFormError(mapped.form || "Failed to save role. Please try again.");
@@ -184,6 +185,9 @@ export default function ManageRole() {
   }
 
   const isProtected = role.is_protected;
+  const isInactive = role.is_active === false;
+  // Inactive roles reject every edit server-side; render read-only like protected.
+  const readOnly = isProtected || isInactive;
 
   return (
     <DashboardLayout title="Manage Role">
@@ -197,6 +201,7 @@ export default function ManageRole() {
         <h2 className="page-title">
           Manage Role: {role.role_name}
           {isProtected && <span className="protected-badge">Protected</span>}
+          {isInactive && <span className="status-badge status-deactivated">Deactivated</span>}
         </h2>
         <p className="page-subtitle">Modify role properties and define detailed functional permissions for this group.</p>
       </div>
@@ -220,6 +225,12 @@ export default function ManageRole() {
             This is a system protected role. Its name and permissions cannot be modified.
           </div>
         )}
+        {isInactive && (
+          <div className="page-banner page-banner-info">
+            This role is deactivated. It is hidden from employee role assignment and
+            cannot be modified.
+          </div>
+        )}
         {formError && <div className="page-banner page-banner-error">{formError}</div>}
 
         <form onSubmit={handleSubmit}>
@@ -230,7 +241,7 @@ export default function ManageRole() {
               className="form-input"
               value={roleName}
               onChange={(e) => setRoleName(e.target.value)}
-              disabled={isProtected || saving}
+              disabled={readOnly || saving}
             />
             <span className="form-hint">This name will be displayed across the portal for all assigned users.</span>
           </div>
@@ -242,7 +253,7 @@ export default function ManageRole() {
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              disabled={isProtected || saving}
+              disabled={readOnly || saving}
             />
             <span className="form-hint">Explain the role's purpose so it is clear across the portal.</span>
           </div>
@@ -279,7 +290,7 @@ export default function ManageRole() {
                           type="checkbox"
                           className="permission-checkbox"
                           checked={!!selectedPermissions[perm.id]}
-                          disabled={isProtected || saving}
+                          disabled={readOnly || saving}
                           onChange={() => togglePermission(perm.id)}
                         />
                       </label>
@@ -290,7 +301,7 @@ export default function ManageRole() {
             ))}
           </div>
 
-          {!isProtected && (
+          {!readOnly && (
             <div className="form-actions">
               <button
                 type="button"

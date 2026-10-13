@@ -3,10 +3,20 @@ import { Link } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import "./RoleManagement.css";
 import RolePermissionsModal from "./RolePermissionsModal";
+import DeactivateRoleModal from "./DeactivateRoleModal";
 import { getRoles, duplicateRole } from "../../../api/roles";
+import { useAuth } from "../../../context/authContext";
+import { PERMISSIONS } from "../../../shared/constants";
+import { MOCK_ALL_ACCESS } from "../../../shared/config/env";
 
 const ROWS_PER_PAGE = 8;
 const ROLE_COLORS = ["#7c3aed", "#2563eb", "#16a34a", "#d97706", "#dc2626", "#0891b2"];
+
+const STATUS_FILTER_OPTIONS = [
+  { value: "", label: "All Statuses" },
+  { value: "true", label: "Active" },
+  { value: "false", label: "Deactivated" },
+];
 
 const colorForRole = (roleId) => ROLE_COLORS[roleId % ROLE_COLORS.length];
 
@@ -15,6 +25,23 @@ function PlusIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="12" y1="5" x2="12" y2="19" />
       <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
+function FilterIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
     </svg>
   );
 }
@@ -53,7 +80,22 @@ function CopyIcon() {
   );
 }
 
+function PowerIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+      <line x1="12" y1="2" x2="12" y2="12" />
+    </svg>
+  );
+}
+
 export default function RoleManagement() {
+  const { user } = useAuth();
+  const permissions = user?.permissions || [];
+  // MOCK_ALL_ACCESS short-circuits the permission check (same as Sidebar).
+  const can = (permission) => MOCK_ALL_ACCESS || permissions.includes(permission);
+  const canDeactivate = can(PERMISSIONS.ROLE_DEACTIVATE_ANY);
+
   const [roles, setRoles] = useState([]);
   const [count, setCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -64,7 +106,14 @@ export default function RoleManagement() {
   const [duplicatingId, setDuplicatingId] = useState(null);
   // Role whose permissions are being viewed in the modal (null = closed).
   const [viewRole, setViewRole] = useState(null);
-  // Bumped by event handlers (retry, duplicate) to re-run the fetch effect.
+  // Role being deactivated in the confirmation modal (null = closed).
+  const [deactivatingRole, setDeactivatingRole] = useState(null);
+  // Filter drafts apply on "Apply Filters" so typing doesn't refetch per keystroke.
+  const [draftSearch, setDraftSearch] = useState("");
+  const [draftStatus, setDraftStatus] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState(""); // "true" | "false" | ""
+  // Bumped by event handlers (retry, duplicate, deactivate) to re-run the fetch effect.
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -73,7 +122,12 @@ export default function RoleManagement() {
       setLoading(true);
       setError("");
       try {
-        const data = await getRoles({ page: currentPage, page_size: ROWS_PER_PAGE });
+        const data = await getRoles({
+          q: searchQuery || undefined,
+          is_active: statusFilter || undefined,
+          page: currentPage,
+          page_size: ROWS_PER_PAGE,
+        });
         if (cancelled) return;
         const pages = data.total_pages || 1;
         if (currentPage > pages) {
@@ -98,7 +152,28 @@ export default function RoleManagement() {
     return () => {
       cancelled = true;
     };
-  }, [currentPage, refreshKey]);
+  }, [searchQuery, statusFilter, currentPage, refreshKey]);
+
+  const handleApplyFilters = () => {
+    setSearchQuery(draftSearch.trim());
+    setStatusFilter(draftStatus);
+    setCurrentPage(1);
+  };
+
+  const handleReset = () => {
+    setDraftSearch("");
+    setDraftStatus("");
+    setSearchQuery("");
+    setStatusFilter("");
+    setCurrentPage(1);
+  };
+
+  const handleDeactivated = () => {
+    const roleName = deactivatingRole?.role_name;
+    setDeactivatingRole(null);
+    setNotice(`Role "${roleName}" has been deactivated.`);
+    setRefreshKey((key) => key + 1);
+  };
 
   const handleDuplicate = async (roleId) => {
     setDuplicatingId(roleId);
@@ -136,6 +211,46 @@ export default function RoleManagement() {
         <div className="page-banner page-banner-error">{error}</div>
       )}
 
+      <div className="filter-card">
+        <div className="filter-row">
+          <div className="filter-field filter-field-search">
+            <label className="filter-label" htmlFor="role-search">Search Roles</label>
+            <div className="filter-search-wrap">
+              <SearchIcon />
+              <input
+                id="role-search"
+                type="text"
+                className="filter-input"
+                placeholder="Search by role name..."
+                value={draftSearch}
+                onChange={(e) => setDraftSearch(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleApplyFilters()}
+              />
+            </div>
+          </div>
+          <div className="filter-field">
+            <label className="filter-label" htmlFor="role-status">Role Status</label>
+            <select
+              id="role-status"
+              className="filter-select"
+              value={draftStatus}
+              onChange={(e) => setDraftStatus(e.target.value)}
+            >
+              {STATUS_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="filter-buttons">
+            <button className="btn-filter-apply" onClick={handleApplyFilters}>
+              <FilterIcon />
+              Apply Filters
+            </button>
+            <button className="btn-filter-reset" onClick={handleReset}>Reset</button>
+          </div>
+        </div>
+      </div>
+
       <div className="roles-header-row">
         <div className="roles-count-info">
           <ShieldIcon />
@@ -153,17 +268,18 @@ export default function RoleManagement() {
             <tr>
               <th>ROLE NAME</th>
               <th>DESCRIPTION</th>
+              <th>STATUS</th>
               <th>ACTIONS</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="3" className="empty-table-message">Loading roles...</td>
+                <td colSpan="4" className="empty-table-message">Loading roles...</td>
               </tr>
             ) : error && roles.length === 0 ? (
               <tr>
-                <td colSpan="3" className="empty-table-message">
+                <td colSpan="4" className="empty-table-message">
                   {error}{" "}
                   <button
                     type="button"
@@ -176,7 +292,7 @@ export default function RoleManagement() {
               </tr>
             ) : roles.length > 0 ? (
               roles.map((role) => (
-                <tr key={role.role_id}>
+                <tr key={role.role_id} className={role.is_active === false ? "role-row-inactive" : ""}>
                   <td>
                     <div className="role-name-cell">
                       <div
@@ -193,6 +309,11 @@ export default function RoleManagement() {
                     </div>
                   </td>
                   <td className="role-description-cell">{role.description || "—"}</td>
+                  <td>
+                    <span className={`status-badge status-${role.is_active === false ? "deactivated" : "active"}`}>
+                      {role.is_active === false ? "Deactivated" : "Active"}
+                    </span>
+                  </td>
                   <td>
                     <div className="role-actions">
                       <button
@@ -222,13 +343,24 @@ export default function RoleManagement() {
                       >
                         <CopyIcon />
                       </button>
+                      {canDeactivate && role.is_active !== false && !role.is_protected && (
+                        <button
+                          type="button"
+                          className="role-action-btn role-action-btn-danger"
+                          title="Deactivate role"
+                          aria-label={`Deactivate ${role.role_name}`}
+                          onClick={() => setDeactivatingRole(role)}
+                        >
+                          <PowerIcon />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="3" className="empty-table-message">No roles found.</td>
+                <td colSpan="4" className="empty-table-message">No roles found.</td>
               </tr>
             )}
           </tbody>
@@ -269,6 +401,14 @@ export default function RoleManagement() {
 
       {viewRole && (
         <RolePermissionsModal role={viewRole} onClose={() => setViewRole(null)} />
+      )}
+
+      {deactivatingRole && (
+        <DeactivateRoleModal
+          role={deactivatingRole}
+          onClose={() => setDeactivatingRole(null)}
+          onDeactivated={handleDeactivated}
+        />
       )}
     </DashboardLayout>
   );

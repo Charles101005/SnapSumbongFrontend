@@ -6,12 +6,15 @@ import api from "./axios";
 const networkError = () => ({ detail: "Can't reach the server. Check your connection and try again." });
 
 // GET /accounts/roles/
-// query: page, page_size
-// -> { count, total_pages, current_page, next, previous, results: [{ role_id, role_name, description, is_protected }] }
+// query: page, page_size, q, is_active ("true" | "false" | undefined for all)
+// -> { count, total_pages, current_page, next, previous,
+//      results: [{ role_id, role_name, description, is_protected, is_active }] }
 // requires permission: role:read_all
-export const getRoles = async ({ page, page_size } = {}) => {
+export const getRoles = async ({ q, is_active, page, page_size } = {}) => {
     try {
-        const response = await api.get("accounts/roles/", { params: { page, page_size } });
+        const response = await api.get("accounts/roles/", {
+            params: { q, is_active, page, page_size },
+        });
         return response.data;
     } catch (error) {
         if (error.response?.data) throw error.response.data;
@@ -69,6 +72,21 @@ export const updateRole = async (roleId, payload) => {
 export const duplicateRole = async (roleId) => {
     try {
         const response = await api.post(`accounts/roles/duplicate/${roleId}/`);
+        return response.data;
+    } catch (error) {
+        if (error.response?.data) throw error.response.data;
+        throw networkError();
+    }
+};
+
+// POST /accounts/roles/deactivate/<role_id>/ — one-way: there is no reactivate endpoint.
+// -> 200 { detail: "Operation completed successfully." } (idempotent if already inactive)
+// errors: ROLE_NOT_FOUND (400), SYSTEM_PROTECTED_ROLE_MODIFICATION_DENIED (400),
+//         ROLE_IN_USE (400 — users are still assigned to the role)
+// requires permission: role:deactivate_any
+export const deactivateRole = async (roleId) => {
+    try {
+        const response = await api.post(`accounts/roles/deactivate/${roleId}/`);
         return response.data;
     } catch (error) {
         if (error.response?.data) throw error.response.data;

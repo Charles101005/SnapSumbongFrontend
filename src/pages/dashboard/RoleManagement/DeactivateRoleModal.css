@@ -1,0 +1,152 @@
+/* ================================
+   DEACTIVATE ROLE MODAL (row action from Role Management)
+   Confirmation dialog for the one-way role deactivation.
+   ================================ */
+
+.drm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(15, 23, 42, 0.68);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  overflow-y: auto;
+}
+
+.drm-modal {
+  width: min(100%, 480px);
+  max-height: calc(100vh - 5rem);
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
+}
+
+/* ===== HEADER ===== */
+.drm-modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  padding: 1.5rem 1.75rem 1rem;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.drm-warning-icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background-color: #fff1f2;
+  color: #be123c;
+}
+
+.drm-modal-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text-dark);
+}
+
+.drm-modal-subtitle {
+  margin: 0.3rem 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* ===== BODY ===== */
+.drm-body {
+  padding: 1.25rem 1.75rem 0.5rem;
+}
+
+.drm-banner {
+  padding: 0.6rem 0.75rem;
+  border-radius: 7px;
+  font-size: var(--text-sm);
+  margin-bottom: 1rem;
+}
+
+.drm-banner-error {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+}
+
+.drm-desc {
+  margin: 0 0 0.875rem;
+  font-size: var(--text-base);
+  color: var(--color-text-body);
+}
+
+.drm-consequences {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* ===== FOOTER ===== */
+.drm-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.625rem;
+  padding: 1rem 1.75rem 1.5rem;
+}
+
+.drm-btn-cancel {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-card);
+  color: var(--color-text-body);
+  font-size: var(--text-base);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.drm-btn-cancel:hover:not(:disabled) {
+  background-color: var(--color-border-light);
+}
+
+.drm-btn-confirm {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background-color: #dc2626;
+  color: #ffffff;
+  font-size: var(--text-base);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.drm-btn-confirm:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+.drm-btn-cancel:disabled,
+.drm-btn-confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .drm-modal-overlay {
+    padding: 1rem 0.75rem;
+  }
+
+  .drm-modal-header,
+  .drm-body,
+  .drm-modal-footer {
+    padding-left: 1.125rem;
+    padding-right: 1.125rem;
+  }
+}

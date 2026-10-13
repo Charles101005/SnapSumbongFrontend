@@ -279,6 +279,38 @@
   white-space: nowrap;
 }
 
+/* ===== STATUS BADGES ===== */
+.status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.625rem;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.status-active {
+  background-color: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.status-deactivated {
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+/* ===== INACTIVE ROW ===== */
+.role-row-inactive .role-avatar,
+.role-row-inactive .role-name {
+  opacity: 0.6;
+}
+
+.role-row-inactive .role-description-cell {
+  color: var(--color-text-placeholder);
+}
+
 /* ===== ROLE ACTIONS ===== */
 .role-actions {
   display: flex;
@@ -318,6 +350,12 @@
   background-color: transparent;
   border-color: var(--color-border);
   color: var(--color-text-muted);
+}
+
+.role-action-btn-danger:hover:not(:disabled) {
+  background-color: var(--color-error-bg);
+  border-color: var(--color-error);
+  color: var(--color-error);
 }
 
 .role-description-cell {

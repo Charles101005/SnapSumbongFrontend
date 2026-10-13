@@ -19,6 +19,7 @@ export const PERMISSIONS = {
     ROLE_CREATE: "role:create",
     ROLE_READ_ALL: "role:read_all",
     ROLE_UPDATE_ANY: "role:update_any",
+    ROLE_DEACTIVATE_ANY: "role:deactivate_any",
     // Reports
     REPORT_CREATE: "report:create",
     REPORT_READ_OWN: "report:read_own",
