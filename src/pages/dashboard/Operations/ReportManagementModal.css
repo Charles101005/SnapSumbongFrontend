@@ -757,6 +757,19 @@
   font-size: 0.68rem;
 }
 
+/* DO 47 independent validation: inline notice shown when the assigned
+   handler picks Resolved for their own report (which the backend blocks). */
+.mgmt-validation-hint {
+  margin-top: 0.4rem;
+  padding: 0.4rem 0.55rem;
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  font-size: 0.64rem;
+  line-height: 1.4;
+}
+
 @media (max-width: 720px) {
   .mgmt-modal-overlay {
     padding: 1rem 0.75rem;

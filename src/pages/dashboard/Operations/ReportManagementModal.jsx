@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 import MapAutoResize from "../../../components/shared/MapAutoResize";
 import { hazardMarkerIcon } from "../../../utils/leafletHelpers";
 import { getReportDetail, updateReport, uploadResolutionImages } from "../../../api/reports";
+import { useAuth } from "../../../context/authContext";
 import "./ReportManagementModal.css";
 
 const FALLBACK_STATUSES = ["New", "Assigned", "Under Review", "On-Hold", "Dispatched", "Resolved", "Closed"];
@@ -69,6 +70,7 @@ const formatDate = (value) => {
 };
 
 export default function ReportManagementModal({ reportNumber, lookups, onClose, onSaved }) {
+  const { user } = useAuth();
   const [report, setReport] = useState(null);
   const [severity, setSeverity] = useState("");
   const [status, setStatus] = useState("");
@@ -212,6 +214,18 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
       // photo — mirror the backend rule here for immediate feedback.
       if (resolving && (!duringFiles.length || !afterFiles.length)) {
         setError("Resolving requires at least one 'During' photo and one 'After' photo of the rectification works.");
+        setSaving(false);
+        return;
+      }
+
+      // DO 47 §2 independent validation: the assigned handler cannot be the
+      // validator of their own resolution (unless ALLOW_SELF_VALIDATION is on).
+      const isAssignee = Boolean(
+        report.assigned_to?.email && user?.email &&
+        report.assigned_to.email === user.email
+      );
+      if (resolving && isAssignee && !report.self_validation_allowed) {
+        setError("Independent validation required: you are the assigned handler of this report, so a different staff member must mark it Resolved. Ask a colleague to validate the completed works.");
         setSaving(false);
         return;
       }
@@ -369,6 +383,15 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                         <option key={statusValue(item)} value={statusValue(item)}>{statusLabel(item)}</option>
                       ))}
                     </select>
+                    {status === "RESOLVED" && statusToValue(report.status) !== "RESOLVED" &&
+                      report.assigned_to?.email && user?.email &&
+                      report.assigned_to.email === user.email &&
+                      !report.self_validation_allowed && (
+                        <p className="mgmt-validation-hint">
+                          Independent validation: you are the assigned handler, so a
+                          different staff member must mark this report Resolved.
+                        </p>
+                      )}
                   </div>
                 </div>
               </div>
