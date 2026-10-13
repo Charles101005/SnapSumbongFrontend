@@ -10,3 +10,71 @@
   color: var(--color-text-muted);
   font-size: var(--text-md);
 }
+
+/* DO 47 handler compliance table */
+.compliance-section {
+  margin-top: 24px;
+}
+
+.compliance-empty {
+  padding: 24px;
+  text-align: center;
+  background: var(--color-bg-card);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-muted);
+  font-size: var(--text-md);
+}
+
+.compliance-table-wrap {
+  overflow-x: auto;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.compliance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm, 0.85rem);
+}
+
+.compliance-table th,
+.compliance-table td {
+  padding: 0.7rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.compliance-table thead th {
+  background: var(--color-bg-page, #f8fafc);
+  color: var(--color-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+.compliance-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.compliance-score {
+  font-weight: 700;
+}
+
+.rating-badge {
+  display: inline-block;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.rating-outstanding { background: #dcfce7; color: #15803d; }
+.rating-very-satisfactory { background: #d1fae5; color: #047857; }
+.rating-satisfactory { background: #e0f2fe; color: #0369a1; }
+.rating-unsatisfactory { background: #fef3c7; color: #b45309; }
+.rating-poor { background: #fee2e2; color: #b91c1c; }
+.rating-no-data { background: #f1f5f9; color: #64748b; }

@@ -12,3 +12,17 @@ export const getReportMetrics = async () => {
         throw error.response.data;
     }
 };
+
+// GET /analytics/compliance/
+// DO 47-aligned per-handler compliance score (Supervisor+ only — gated on
+// analytic:read_handler_performance).
+// -> { weights: {...}, handlers: [{ handler_name, sla_on_time_pct, ... }] }
+export const getHandlerCompliance = async () => {
+    try {
+        const response = await api.get("analytics/compliance/");
+        return response.data;
+    } catch (error) {
+        const data = error.response?.data || {};
+        throw { ...data, status: error.response?.status };
+    }
+};
