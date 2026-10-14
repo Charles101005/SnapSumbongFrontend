@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import MapAutoResize from '../../../components/shared/MapAutoResize';
 import './MyReport.css';
-import { getReports, getReportDetail, getHazardCategories } from '../../../api/reports';
+import { getReports, getReportDetail, getHazardCategories, confirmReportResolution } from '../../../api/reports';
 import { getReportMetrics } from '../../../api/analytics';
 import { hazardMarkerIcon } from '../../../utils/leafletHelpers';
 import { formatDueDate, slaBadge } from '../../../utils/sla';
@@ -93,6 +93,12 @@ export default function MyReport() {
   const [selectedReportDetail, setSelectedReportDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
+
+  // --- Citizen confirmation (close a resolved report) ---
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [confirmSubmitting, setConfirmSubmitting] = useState(false);
+  const [confirmError, setConfirmError] = useState('');
+  const [confirmSuccess, setConfirmSuccess] = useState('');
 
   // Temporary control states (bound to form controls)
   const [tempCategoryId, setTempCategoryId] = useState('');
@@ -223,6 +229,26 @@ export default function MyReport() {
     setSelectedReportRow(null);
     setSelectedReportDetail(null);
     setDetailError('');
+    setConfirmModalOpen(false);
+    setConfirmError('');
+    setConfirmSuccess('');
+  };
+
+  // DO 47 citizen step: confirm the completed works to close the report.
+  const handleConfirmResolution = async () => {
+    if (!selectedReportRow || confirmSubmitting) return;
+    setConfirmSubmitting(true);
+    setConfirmError('');
+    try {
+      await confirmReportResolution(selectedReportRow.report_number);
+      setConfirmModalOpen(false);
+      setConfirmSuccess('Thank you! Your report has been closed.');
+      await handleViewDetails(selectedReportRow); // reload — status is now Closed
+    } catch (err) {
+      setConfirmError(err?.detail || err?.message || 'Unable to confirm the resolution. Please try again.');
+    } finally {
+      setConfirmSubmitting(false);
+    }
   };
 
   // --- Lightbox (photo viewer) + map modal state ---
@@ -264,10 +290,16 @@ export default function MyReport() {
           .find((item) => normalizeStatus(item.status) === normalizeStatus(targetStatus)) ||
         latestPhaseEntry;
 
+      // Honesty fix: a step behind the current position with no history was
+      // jumped over (e.g. Under Review -> On-Hold -> Closed skips Dispatched).
+      // Render it muted as "Not needed" instead of a phantom checkmark.
+      const skipped = idx < currentStep && phaseEntries.length === 0;
+
       return {
         ...step,
         label: getTimelineStatusLabel(targetStatus || step.expected),
         date: entry?.created_at || '',
+        skipped,
       };
     });
 
@@ -279,6 +311,7 @@ export default function MyReport() {
 
         {detailLoading && <p className="category-loading-state">Loading report details...</p>}
         {detailError && <div className="form-error-banner">{detailError}</div>}
+        {confirmSuccess && <div className="form-success-banner">{confirmSuccess}</div>}
 
         {selectedReportDetail && (
           <div className="detail-layout">
@@ -326,10 +359,14 @@ export default function MyReport() {
                     return (
                       <div
                         key={step.expected}
-                        className={`timeline-step ${reached ? 'completed' : 'upcoming'}`}
+                        className={`timeline-step ${step.skipped ? 'skipped' : reached ? 'completed' : 'upcoming'}`}
                       >
                         <div className="step-node">
-                          {reached ? (
+                          {step.skipped ? (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                              <line x1="6" y1="12" x2="18" y2="12" />
+                            </svg>
+                          ) : reached ? (
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                               <polyline points="20 6 9 17 4 12" />
                             </svg>
@@ -341,7 +378,7 @@ export default function MyReport() {
                         </div>
                         <div className="step-label">{step.label}</div>
                         <div className="step-date">
-                          {reached ? formatDate(step.date) || '—' : 'Pending'}
+                          {step.skipped ? 'Not needed' : reached ? formatDate(step.date) || '—' : 'Pending'}
                         </div>
                       </div>
                       );
@@ -472,6 +509,40 @@ export default function MyReport() {
                   </div>
                 )}
               </div>
+
+              {/* Citizen confirmation: close a resolved report */}
+              {normalizeStatus(selectedReportDetail.status) === 'RESOLVED' && (
+                <div className="card confirm-resolution-card">
+                  <h3>Was the issue fixed?</h3>
+                  <p>
+                    Check the repair photos above. If the hazard has been fixed,
+                    confirm below to close this report.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn-confirm-resolution"
+                    onClick={() => { setConfirmError(''); setConfirmModalOpen(true); }}
+                  >
+                    Yes, it&rsquo;s fixed — Confirm Resolution
+                  </button>
+                </div>
+              )}
+
+              {/* Closure status: citizen-confirmed vs closed by the LGU */}
+              {normalizeStatus(selectedReportDetail.status) === 'CLOSED' && (
+                <div className="card closure-status-card">
+                  <h3>
+                    {selectedReportDetail.confirmed_at
+                      ? 'Report Confirmed & Closed'
+                      : 'Report Closed by LGU'}
+                  </h3>
+                  <p>
+                    {selectedReportDetail.confirmed_at
+                      ? `You confirmed the resolution on ${formatDate(selectedReportDetail.confirmed_at)}. Thank you for helping keep your community safe!`
+                      : 'The LGU closed this report — for example, it may not be under DO 47 jurisdiction or was referred to another office.'}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -490,6 +561,15 @@ export default function MyReport() {
             latitude={selectedReportDetail.latitude}
             longitude={selectedReportDetail.longitude}
             onClose={() => setMapModalOpen(false)}
+          />
+        )}
+
+        {confirmModalOpen && (
+          <ConfirmResolutionModal
+            submitting={confirmSubmitting}
+            error={confirmError}
+            onConfirm={handleConfirmResolution}
+            onClose={() => { if (!confirmSubmitting) setConfirmModalOpen(false); }}
           />
         )}
       </div>
@@ -793,6 +873,56 @@ function MapModal({ latitude, longitude, onClose }) {
         >
           Open in Google Maps ↗
         </a>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmResolutionModal({ submitting, error, onConfirm, onClose }) {
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && !submitting) onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [submitting, onClose]);
+
+  return (
+    <div
+      className="confirm-modal-overlay"
+      onClick={() => { if (!submitting) onClose(); }}
+    >
+      <div
+        className="confirm-modal-card"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="confirm-resolution-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 id="confirm-resolution-title">Confirm Resolution</h3>
+        <p>
+          By confirming, this report will be marked as <strong>Closed</strong>.
+          Only confirm if the hazard has really been fixed — this cannot be undone.
+        </p>
+        {error && <div className="form-error-banner">{error}</div>}
+        <div className="confirm-modal-actions">
+          <button
+            type="button"
+            className="btn-modal-cancel"
+            onClick={onClose}
+            disabled={submitting}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn-confirm-resolution"
+            onClick={onConfirm}
+            disabled={submitting}
+          >
+            {submitting ? 'Confirming...' : 'Yes, close this report'}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -543,6 +543,30 @@
   box-shadow: var(--shadow-focus);
 }
 
+/* Single-line text input (e.g. the DO 47 validator name on resolve). */
+.mgmt-input {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: #fff;
+  color: var(--color-text-dark);
+  font: inherit;
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
+.mgmt-input::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+.mgmt-input:focus {
+  outline: none;
+  border-color: transparent;
+  box-shadow: var(--shadow-focus);
+}
+
 /* ================================
    ACTION BUTTONS
    ================================ */
@@ -757,8 +781,8 @@
   font-size: 0.68rem;
 }
 
-/* DO 47 independent validation: inline notice shown when the assigned
-   handler picks Resolved for their own report (which the backend blocks). */
+/* DO 47 inline notices: status-transition requirements (validator name on
+   resolve, mandatory remark on staff force-close). */
 .mgmt-validation-hint {
   margin-top: 0.4rem;
   padding: 0.4rem 0.55rem;

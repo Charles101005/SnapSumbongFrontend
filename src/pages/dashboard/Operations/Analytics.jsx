@@ -43,8 +43,9 @@ export default function Analytics() {
           <h2 className="section-title">DO 47 Handler Compliance</h2>
           <p className="section-subtitle">
             Per-handler score = SLA on-time ({weights.sla_on_time ?? 60}%) + photolog
-            completeness ({weights.photolog_completeness ?? 25}%) + independent validation
+            completeness ({weights.photolog_completeness ?? 25}%) + declared validator
             ({weights.validation_independence ?? 15}%), ranked highest first.
+            Transfers/referrals and pre-enforcement reports count as activity but are not scored.
           </p>
         </div>
 

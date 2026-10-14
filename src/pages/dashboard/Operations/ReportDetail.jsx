@@ -118,7 +118,7 @@ export default function ReportDetail() {
               </div>
               <DetailField label="Date Reported" value={formatDateTime(report.created_at)} />
               <DetailField label="Assigned To" value={report.assigned_to?.name || "—"} />
-              <DetailField label="Validated By (DO 47)" value={report.validated_by?.name || "—"} />
+              <DetailField label="Validated By (DO 47)" value={report.validated_by_name || "—"} />
               <DetailField label="SLA Due Date (DO 47)" value={formatDueDate(report.due_at)} />
               <div className="detail-field">
                 <label className="detail-field-label">SLA State</label>

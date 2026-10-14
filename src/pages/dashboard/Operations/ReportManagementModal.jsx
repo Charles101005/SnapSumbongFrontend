@@ -4,7 +4,6 @@ import "leaflet/dist/leaflet.css";
 import MapAutoResize from "../../../components/shared/MapAutoResize";
 import { hazardMarkerIcon } from "../../../utils/leafletHelpers";
 import { getReportDetail, updateReport, uploadResolutionImages } from "../../../api/reports";
-import { useAuth } from "../../../context/authContext";
 import "./ReportManagementModal.css";
 
 const FALLBACK_STATUSES = ["New", "Assigned", "Under Review", "On-Hold", "Dispatched", "Resolved", "Closed"];
@@ -70,11 +69,13 @@ const formatDate = (value) => {
 };
 
 export default function ReportManagementModal({ reportNumber, lookups, onClose, onSaved }) {
-  const { user } = useAuth();
   const [report, setReport] = useState(null);
   const [severity, setSeverity] = useState("");
   const [status, setStatus] = useState("");
   const [remarks, setRemarks] = useState("");
+  // DO 47 §2: required name of the technical personnel who validated the
+  // completed works — sent as validated_by_name when resolving.
+  const [validatorName, setValidatorName] = useState("");
   // DO 47 photolog: separate DURING (works in progress) and AFTER (completed)
   // photo sets — both are required before a report can be marked Resolved.
   const [duringFiles, setDuringFiles] = useState([]);
@@ -150,6 +151,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         );
         setStatus(matchingStatus?.value || statusToValue(data.status));
         setRemarks(data.remarks || "");
+        setValidatorName("");
         setDuringFiles([]);
         setAfterFiles([]);
         setDuringPreviews([]);
@@ -218,14 +220,20 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         return;
       }
 
-      // DO 47 §2 independent validation: the assigned handler cannot be the
-      // validator of their own resolution (unless ALLOW_SELF_VALIDATION is on).
-      const isAssignee = Boolean(
-        report.assigned_to?.email && user?.email &&
-        report.assigned_to.email === user.email
-      );
-      if (resolving && isAssignee && !report.self_validation_allowed) {
-        setError("Independent validation required: you are the assigned handler of this report, so a different staff member must mark it Resolved. Ask a colleague to validate the completed works.");
+      // DO 47 §2: resolving requires the declared name of the technical
+      // personnel who validated the completed works.
+      if (resolving && !validatorName.trim()) {
+        setError("Enter the name of the DO 47 validator of the completed works before marking this report Resolved.");
+        setSaving(false);
+        return;
+      }
+
+      // Staff force-close (e.g. not under DO 47 jurisdiction) requires a
+      // remark explaining why — the backend rejects CLOSED without one.
+      // A report resolved the normal way is closed by the citizen instead.
+      const closing = statusChanged && status === "CLOSED";
+      if (closing && !remarks.trim()) {
+        setError("Closing requires a remark explaining the reason (e.g., not under DO 47 jurisdiction or referred to another office).");
         setSaving(false);
         return;
       }
@@ -234,10 +242,13 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
       if (statusChanged) {
         payload.status = status;
         if (remarks) payload.remarks = remarks;
+        if (resolving) payload.validated_by_name = validatorName.trim();
       }
 
       let resolutionImages;
-      if (duringFiles.length || afterFiles.length) {
+      // Photos are only sent on the -> Resolved transition; stale selections
+      // left over from an earlier status choice must never ride along.
+      if (resolving && (duringFiles.length || afterFiles.length)) {
         const [duringUrls, afterUrls] = await Promise.all([
           duringFiles.length ? uploadResolutionImages(duringFiles) : [],
           afterFiles.length ? uploadResolutionImages(afterFiles) : [],
@@ -277,6 +288,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
     setSeverity(report.severity || "");
     setStatus(statusToValue(report.status) || "");
     setRemarks(report.remarks || "");
+    setValidatorName("");
     duringPreviews.forEach((src) => URL.revokeObjectURL(src));
     afterPreviews.forEach((src) => URL.revokeObjectURL(src));
     setDuringFiles([]);
@@ -292,9 +304,35 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
     return match ? statusLabel(match) : status;
   }, [statuses, status]);
 
+  // UI transition matrix: the dropdown offers only the report's current
+  // status plus the backend's next_expected_statuses (e.g. Under Review
+  // can go On-Hold or Dispatched; Closed is only reachable from On-Hold
+  // or Resolved). Falls back to the full list when the field is absent.
+  const statusOptions = useMemo(() => {
+    const currentValue = statusToValue(report?.status);
+    const nextLabels = report?.next_expected_statuses;
+    if (!Array.isArray(nextLabels)) return statuses;
+    const currentOption =
+      statuses.find((item) => statusValue(item) === currentValue) ||
+      { value: currentValue, label: report?.status || currentValue };
+    const nextOptions = nextLabels
+      .map((label) => {
+        const value = statusToValue(label);
+        return statuses.find((item) => statusValue(item) === value) || { value, label };
+      })
+      .filter((item) => statusValue(item) !== currentValue);
+    return [currentOption, ...nextOptions];
+  }, [report, statuses]);
+
   const statusColor = STATUS_COLORS[normalizeStatusKey(activeStatusLabel)] || NEUTRAL_COLOR;
   const severityColor = SEVERITY_COLORS[String(severity).toLowerCase()] || NEUTRAL_COLOR;
   const reportCoordinates = getCoordinates(report);
+
+  // The DO 47 photolog (DURING + AFTER) and the validator name are only
+  // legal when the update transitions the report into Resolved — the
+  // backend rejects resolution images on any other status change (e.g.
+  // On-Hold transfers, staff force-closes).
+  const isResolvingTransition = status === "RESOLVED" && statusToValue(report?.status) !== "RESOLVED";
 
   const shortLocation = report?.address ? report.address.split(",")[0].trim() : "";
   const cardTitle = report ? [report.category, shortLocation].filter(Boolean).join(" - ") : "";
@@ -379,19 +417,17 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                       value={status}
                       onChange={(e) => setStatus(e.target.value)}
                     >
-                      {statuses.map((item) => (
+                      {statusOptions.map((item) => (
                         <option key={statusValue(item)} value={statusValue(item)}>{statusLabel(item)}</option>
                       ))}
                     </select>
-                    {status === "RESOLVED" && statusToValue(report.status) !== "RESOLVED" &&
-                      report.assigned_to?.email && user?.email &&
-                      report.assigned_to.email === user.email &&
-                      !report.self_validation_allowed && (
-                        <p className="mgmt-validation-hint">
-                          Independent validation: you are the assigned handler, so a
-                          different staff member must mark this report Resolved.
-                        </p>
-                      )}
+                    {status === "CLOSED" && statusToValue(report.status) !== "CLOSED" && (
+                      <p className="mgmt-validation-hint">
+                        Closing requires a remark — state the reason (e.g., not under
+                        DO 47 jurisdiction, referred to another office). If the works
+                        were done, leave it Resolved so the reporter can confirm.
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -470,65 +506,84 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
               )}
             </section>
 
-            <div className="mgmt-photolog-row">
-              <div className="mgmt-section mgmt-photolog-phase">
-                <span className="mgmt-label">
-                  During Photo — works in progress ({duringFiles.length})
-                </span>
-                <label className="mgmt-dropzone">
-                  {duringPreviews.length ? (
-                    <div className="mgmt-preview-row">
-                      {duringPreviews.map((src) => (
-                        <img
-                          key={src}
-                          src={src}
-                          alt="During works preview"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setLightboxSrc(src);
-                          }}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <>
-                      <UploadIcon />
-                      <span>Click to upload</span>
-                    </>
-                  )}
-                  <input type="file" accept="image/*" multiple onChange={handlePhotoChange("DURING")} />
-                </label>
-              </div>
+            {isResolvingTransition && (
+              <div className="mgmt-photolog-row">
+                <div className="mgmt-section mgmt-photolog-phase">
+                  <span className="mgmt-label">
+                    During Photo — works in progress ({duringFiles.length})
+                  </span>
+                  <label className="mgmt-dropzone">
+                    {duringPreviews.length ? (
+                      <div className="mgmt-preview-row">
+                        {duringPreviews.map((src) => (
+                          <img
+                            key={src}
+                            src={src}
+                            alt="During works preview"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setLightboxSrc(src);
+                            }}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <>
+                        <UploadIcon />
+                        <span>Click to upload</span>
+                      </>
+                    )}
+                    <input type="file" accept="image/*" multiple onChange={handlePhotoChange("DURING")} />
+                  </label>
+                </div>
 
-              <div className="mgmt-section mgmt-photolog-phase">
-                <span className="mgmt-label">
-                  After Photo — completed work ({afterFiles.length})
-                </span>
-                <label className="mgmt-dropzone">
-                  {afterPreviews.length ? (
-                    <div className="mgmt-preview-row">
-                      {afterPreviews.map((src) => (
-                        <img
-                          key={src}
-                          src={src}
-                          alt="After works preview"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setLightboxSrc(src);
-                          }}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <>
-                      <UploadIcon />
-                      <span>Click to upload</span>
-                    </>
-                  )}
-                  <input type="file" accept="image/*" multiple onChange={handlePhotoChange("AFTER")} />
-                </label>
+                <div className="mgmt-section mgmt-photolog-phase">
+                  <span className="mgmt-label">
+                    After Photo — completed work ({afterFiles.length})
+                  </span>
+                  <label className="mgmt-dropzone">
+                    {afterPreviews.length ? (
+                      <div className="mgmt-preview-row">
+                        {afterPreviews.map((src) => (
+                          <img
+                            key={src}
+                            src={src}
+                            alt="After works preview"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setLightboxSrc(src);
+                            }}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <>
+                        <UploadIcon />
+                        <span>Click to upload</span>
+                      </>
+                    )}
+                    <input type="file" accept="image/*" multiple onChange={handlePhotoChange("AFTER")} />
+                  </label>
+                </div>
               </div>
-            </div>
+            )}
+
+            {isResolvingTransition && (
+              <div className="mgmt-section">
+                <span className="mgmt-label">DO 47 Validator Name *</span>
+                <input
+                  className="mgmt-input"
+                  type="text"
+                  value={validatorName}
+                  onChange={(e) => setValidatorName(e.target.value)}
+                  placeholder="Name of the technical personnel who validated the completed works"
+                />
+                <p className="mgmt-validation-hint">
+                  Required when marking a report Resolved — record who validated
+                  the rectification works (DO 47 §2).
+                </p>
+              </div>
+            )}
 
             <div className="mgmt-section">
               <span className="mgmt-label">Remarks</span>

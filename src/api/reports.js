@@ -147,3 +147,18 @@ export const updateReport = async (reportNumber, payload) => {
 export const uploadResolutionImages = async (files) => {
     return uploadHazardImageFiles(files);
 };
+
+// POST /reports/:report_number/confirm-resolution/
+// Citizen (reporter) confirmation: moves a RESOLVED report to CLOSED and
+// stamps confirmed_at. Staff cannot use this endpoint; they force-close
+// via PATCH with mandatory remarks instead.
+export const confirmReportResolution = async (reportNumber) => {
+    try {
+        const response = await api.post(
+            `reports/${encodeURIComponent(reportNumber)}/confirm-resolution/`
+        );
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error;
+    }
+};

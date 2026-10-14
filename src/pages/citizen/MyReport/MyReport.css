@@ -477,6 +477,24 @@
   font-style: italic;
 }
 
+/* Jumped-over phase (e.g. Under Review -> On-Hold -> Closed skips
+   Dispatched): muted hollow node instead of a phantom checkmark. */
+.timeline-step.skipped .step-node {
+  background: #f8fafc;
+  border-style: dashed;
+  border-color: #cbd5e1;
+  color: #94a3b8;
+}
+
+.timeline-step.skipped .step-label {
+  color: #94a3b8;
+}
+
+.timeline-step.skipped .step-date {
+  color: #94a3b8;
+  font-style: italic;
+}
+
 .step-label {
   font-size: 12px;
   font-weight: 600;
@@ -1028,4 +1046,130 @@
     align-items: flex-start;
     gap: 12px;
   }
+}
+
+/* DO 47 citizen confirmation: close a resolved report */
+.confirm-resolution-card h3,
+.closure-status-card h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 8px 0;
+}
+
+.confirm-resolution-card p,
+.closure-status-card p {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #64748b;
+  margin: 0 0 16px 0;
+}
+
+.closure-status-card p {
+  margin-bottom: 0;
+}
+
+.btn-confirm-resolution {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-confirm-resolution:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.btn-confirm-resolution:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form-success-banner {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+/* Confirm-resolution modal */
+.confirm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 3000;
+}
+
+.confirm-modal-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+}
+
+.confirm-modal-card h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 10px 0;
+}
+
+.confirm-modal-card p {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #64748b;
+  margin: 0 0 16px 0;
+}
+
+.confirm-modal-card .form-error-banner {
+  margin-bottom: 16px;
+}
+
+.confirm-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.confirm-modal-actions .btn-confirm-resolution {
+  width: auto;
+}
+
+.btn-modal-cancel {
+  padding: 10px 16px;
+  background: #fff;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-modal-cancel:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.btn-modal-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
