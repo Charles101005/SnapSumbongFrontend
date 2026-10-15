@@ -1,28 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { usePsgcAddress } from "../../../hooks/usePsgcAddress";
 import SearchableSelect from "../../../components/shared/SearchableSelect";
+import ModerationPanel from "../../../components/shared/ModerationPanel";
 import { getCitizen, updateCitizen } from "../../../api/users";
-import { getCitizenWarnings, warnCitizen, banCitizen, unbanCitizen } from "../../../api/warnings";
-import { GENDERS, PERMISSIONS } from "../../../shared/constants";
-import { MOCK_ALL_ACCESS } from "../../../shared/config/env";
-import { useAuth } from "../../../context/authContext";
+import { GENDERS } from "../../../shared/constants";
 import { formatDate } from "../../../utils/format";
 import { mapApiErrors } from "../../../utils/apiErrors";
 import "./CitizenProfileModal.css";
 
-// Minimum reason length enforced by the backend moderation serializers.
-const MIN_REASON_LENGTH = 10;
-
 export default function CitizenProfileModal({ userNumber, mode = "view", onClose, onSaved }) {
-  const { user: authUser } = useAuth();
-  const permissions = authUser?.permissions || [];
-  // MOCK_ALL_ACCESS short-circuits the permission check (same as Sidebar).
-  const can = (permission) => MOCK_ALL_ACCESS || permissions.includes(permission);
-  const canWarn = can(PERMISSIONS.USER_WARN);
-  const canBan = can(PERMISSIONS.USER_DEACTIVATE_ANY);
-  const canUnban = can(PERMISSIONS.USER_ACTIVATE_ANY);
-  const canModerate = canWarn || canBan || canUnban;
-
   const isView = mode === "view";
   const [loading, setLoading] = useState(true);
   const [detailError, setDetailError] = useState("");
@@ -41,23 +27,16 @@ export default function CitizenProfileModal({ userNumber, mode = "view", onClose
   const [streetAddress, setStreetAddress] = useState("");
   const [role, setRole] = useState("Citizen");
   const [isActive, setIsActive] = useState(true);
-  const [warningCount, setWarningCount] = useState(0);
   const [createdAt, setCreatedAt] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
-  // Moderation (Flag -> Warn -> Ban) section state.
-  const [warnings, setWarnings] = useState([]);
-  const [modAction, setModAction] = useState(null); // "warn" | "ban" | "unban"
-  const [modReason, setModReason] = useState("");
-  const [modReportNumber, setModReportNumber] = useState("");
-  const [modBusy, setModBusy] = useState(false);
-  const [modNotice, setModNotice] = useState(null); // { type: "success" | "error", text }
-  // Bumped after a moderation action to re-run the detail + warnings loads.
+  // Bumped after a moderation action (via ModerationPanel's onChanged) so the
+  // account-status select refreshes with the latest citizen detail.
   const [reloadKey, setReloadKey] = useState(0);
   // First load shows the full-screen spinner; later reloads refresh in place
-  // so the moderation section does not unmount after every action.
+  // so the moderation panel does not unmount after every action.
   const loadedOnceRef = useRef(false);
 
   useEffect(() => {
@@ -87,7 +66,6 @@ export default function CitizenProfileModal({ userNumber, mode = "view", onClose
         setStreetAddress(detail.street_address || "");
         setRole(detail.role || "Citizen");
         setIsActive(detail.is_active !== false);
-        setWarningCount(Number(detail.warning_count || 0));
         setCreatedAt(detail.created_at || "");
       } catch (err) {
         if (cancelled) return;
@@ -103,21 +81,7 @@ export default function CitizenProfileModal({ userNumber, mode = "view", onClose
     };
   }, [userNumber, reloadKey]);
 
-  // Warning history for the moderation section — 403 or missing data just
-  // leaves the list empty (the count still shows from the detail payload).
-  useEffect(() => {
-    let cancelled = false;
-    getCitizenWarnings(userNumber)
-      .then((data) => {
-        if (!cancelled) setWarnings(data?.warnings || []);
-      })
-      .catch(() => {
-        if (!cancelled) setWarnings([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [userNumber, reloadKey]);
+  // Warning history lives in the shared ModerationPanel, which fetches it.
 
   // Escape closes the lightbox first, then the dialog.
   useEffect(() => {
@@ -177,47 +141,6 @@ export default function CitizenProfileModal({ userNumber, mode = "view", onClose
     } finally {
       setSaving(false);
     }
-  };
-
-  const MODERATION_SUCCESS = {
-    warn: "Warning issued. It now counts toward this citizen's ban eligibility.",
-    ban: "Account banned. The citizen can no longer sign in until restored.",
-    unban: "Account restored. The citizen can sign in again.",
-  };
-
-  const handleModeration = async () => {
-    const reason = modReason.trim();
-    if (reason.length < MIN_REASON_LENGTH) {
-      setModNotice({ type: "error", text: `The reason must be at least ${MIN_REASON_LENGTH} characters.` });
-      return;
-    }
-    const reportNumber = modReportNumber.trim();
-    setModBusy(true);
-    setModNotice(null);
-    try {
-      const payload = { reason };
-      if (reportNumber && modAction !== "unban") payload.report_number = reportNumber;
-      if (modAction === "warn") await warnCitizen(userNumber, payload);
-      else if (modAction === "ban") await banCitizen(userNumber, payload);
-      else await unbanCitizen(userNumber, payload);
-      setModNotice({ type: "success", text: MODERATION_SUCCESS[modAction] });
-      setModAction(null);
-      setModReason("");
-      setModReportNumber("");
-      setReloadKey((key) => key + 1);
-      onSaved?.();
-    } catch (err) {
-      setModNotice({ type: "error", text: err?.detail || err?.message || "Moderation action failed. Please try again." });
-    } finally {
-      setModBusy(false);
-    }
-  };
-
-  const cancelModeration = () => {
-    setModAction(null);
-    setModReason("");
-    setModReportNumber("");
-    setModNotice(null);
   };
 
   const modalShell = (content) => (
@@ -492,134 +415,15 @@ export default function CitizenProfileModal({ userNumber, mode = "view", onClose
             </div>
           </form>
 
-          <section className="cp-moderation" aria-label="Moderation">
-            <div className="cp-mod-header">
-              <div>
-                <h3 className="cp-mod-title">Moderation</h3>
-                <p className="cp-mod-subtitle">
-                  False or troll reports are flagged as Invalid in Operations; warnings
-                  accumulate here and make the citizen eligible for a ban.
-                </p>
-              </div>
-              <span
-                className={`cp-mod-count ${warningCount >= 3 ? "cp-mod-count-danger" : warningCount > 0 ? "cp-mod-count-warn" : ""}`}
-              >
-                {warningCount} {warningCount === 1 ? "warning" : "warnings"}
-              </span>
-            </div>
-
-            {modNotice && (
-              <div
-                className={`cp-banner cp-mod-notice ${modNotice.type === "error" ? "cp-banner-error" : "cp-banner-success"}`}
-                role="status"
-              >
-                {modNotice.text}
-              </div>
-            )}
-
-            {warnings.length > 0 ? (
-              <ul className="cp-warn-list">
-                {warnings.map((warning) => (
-                  <li key={warning.warning_number} className="cp-warn-item">
-                    <div className="cp-warn-item-top">
-                      <span className="cp-warn-number">{warning.warning_number}</span>
-                      <span className="cp-warn-date">{formatDate(warning.created_at)}</span>
-                    </div>
-                    <p className="cp-warn-reason">{warning.reason}</p>
-                    <p className="cp-warn-meta">
-                      {warning.warned_by_name ? `Issued by ${warning.warned_by_name}` : null}
-                      {warning.report_number
-                        ? `${warning.warned_by_name ? " · " : ""}Cited report ${warning.report_number}`
-                        : null}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="cp-warn-empty">No warnings on record.</p>
-            )}
-
-            {canModerate && (modAction ? (
-              <div className="cp-mod-form">
-                <label className="cp-label" htmlFor="cp-mod-reason">
-                  {modAction === "ban" ? "Ban reason *" : modAction === "unban" ? "Restoration reason *" : "Warning reason *"}
-                </label>
-                <textarea
-                  id="cp-mod-reason"
-                  className="cp-input cp-mod-textarea"
-                  rows="3"
-                  value={modReason}
-                  onChange={(event) => setModReason(event.target.value)}
-                  placeholder={
-                    modAction === "warn"
-                      ? "Describe the false report(s) or misuse of the system..."
-                      : modAction === "ban"
-                        ? "State why this account is being banned..."
-                        : "State why this account is being restored..."
-                  }
-                />
-
-                {modAction !== "unban" && (
-                  <>
-                    <label className="cp-label" htmlFor="cp-mod-report">
-                      {modAction === "ban" ? "Cited Invalid report (fast-track ban)" : "Cited Invalid report (optional)"}
-                    </label>
-                    <input
-                      id="cp-mod-report"
-                      className="cp-input"
-                      type="text"
-                      value={modReportNumber}
-                      onChange={(event) => setModReportNumber(event.target.value)}
-                      placeholder="Report ID, e.g. HR-20260101-ABC123"
-                    />
-                    <p className="cp-mod-hint">
-                      {modAction === "ban"
-                        ? "Ban needs 3+ warnings, or cite one of this citizen's Invalid reports for a fast-track ban."
-                        : "Link the flagged (Invalid) report this warning is based on — leave blank for general warnings."}
-                    </p>
-                  </>
-                )}
-
-                <div className="cp-mod-form-actions">
-                  <button type="button" className="cp-btn-discard" onClick={cancelModeration} disabled={modBusy}>
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className={modAction === "ban" ? "cp-btn-ban" : modAction === "unban" ? "cp-btn-restore" : "cp-btn-warn"}
-                    onClick={handleModeration}
-                    disabled={modBusy}
-                  >
-                    {modBusy
-                      ? "Working..."
-                      : modAction === "ban"
-                        ? "Ban Account"
-                        : modAction === "unban"
-                          ? "Restore Account"
-                          : "Issue Warning"}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="cp-mod-actions">
-                {canWarn && isActive && (
-                  <button type="button" className="cp-btn-warn" onClick={() => { setModAction("warn"); setModNotice(null); }}>
-                    Issue Warning
-                  </button>
-                )}
-                {canBan && isActive && (
-                  <button type="button" className="cp-btn-ban" onClick={() => { setModAction("ban"); setModNotice(null); }}>
-                    Ban Account
-                  </button>
-                )}
-                {canUnban && !isActive && (
-                  <button type="button" className="cp-btn-restore" onClick={() => { setModAction("unban"); setModNotice(null); }}>
-                    Restore Account
-                  </button>
-                )}
-              </div>
-            ))}
-          </section>
+          <div className="cp-moderation-wrap">
+            <ModerationPanel
+              userNumber={userNumber}
+              onChanged={() => {
+                setReloadKey((key) => key + 1);
+                onSaved?.();
+              }}
+            />
+          </div>
         </>
       )}
 

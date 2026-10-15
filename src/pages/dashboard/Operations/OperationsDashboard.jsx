@@ -4,7 +4,11 @@ import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout
 import { getReportLookups, getReports } from "../../../api/reports";
 import { REPORT_STATUSES } from "../../../hooks/useStatusCounts";
 import { formatDueDate, slaBadge } from "../../../utils/sla";
+import { PERMISSIONS } from "../../../shared/constants";
+import { MOCK_ALL_ACCESS } from "../../../shared/config/env";
+import { useAuth } from "../../../context/authContext";
 import ReportManagementModal from "./ReportManagementModal";
+import ReportModerationModal from "./ReportModerationModal";
 import "./OperationsDashboard.css";
 
 const PAGE_SIZE = 10;
@@ -30,8 +34,15 @@ function SearchIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" f
 function FilterIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>; }
 function EyeIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>; }
 function PencilIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>; }
+function GavelIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m14.5 12.5-8 8a2.119 2.119 0 1 1-3-3l8-8"/><path d="m16 6-6 6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/></svg>; }
 
 export default function OperationsDashboard() {
+  const { user: authUser } = useAuth();
+  const permissions = authUser?.permissions || [];
+  // MOCK_ALL_ACCESS short-circuits the permission check (same as Sidebar).
+  const can = (permission) => MOCK_ALL_ACCESS || permissions.includes(permission);
+  // Warn/ban the reporter of a flagged (Invalid) report in place.
+  const canModerate = can(PERMISSIONS.USER_WARN) || can(PERMISSIONS.USER_DEACTIVATE_ANY);
   // The sidebar Status Views deep-link this table via ?status=…; the URL is
   // the source of truth for which status filter is applied.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -50,6 +61,8 @@ export default function OperationsDashboard() {
   const [loading, setLoading] = useState(false);
   // Report number whose Update modal is open, or null when closed.
   const [editingReport, setEditingReport] = useState(null);
+  // Report number whose Moderation dialog is open (Invalid rows only), or null.
+  const [moderatingReport, setModeratingReport] = useState(null);
 
   // Adjust state when the URL status changes (sidebar click or browser
   // navigation) — see react.dev "adjusting some state when a prop changes".
@@ -163,9 +176,9 @@ export default function OperationsDashboard() {
 
       <div className="stats-grid">
         <div className="stat-card"><div className="stat-icon stat-icon-total"><ClipboardIcon /></div><div><span className="stat-label">TOTAL REPORTS</span><strong>{totalReports}</strong></div></div>
-        <div className="stat-card"><div className="stat-icon stat-icon-resolved"><CheckIcon /></div><div><span className="stat-label">RESOLVED</span><strong>{resolved}</strong></div></div>
         <div className="stat-card"><div className="stat-icon stat-icon-under-review"><UnderReviewIcon /></div><div><span className="stat-label">UNDER REVIEW</span><strong>{underReview}</strong></div></div>
         <div className="stat-card"><div className="stat-icon stat-icon-dispatched"><DispatchedIcon /></div><div><span className="stat-label">DISPATCHED</span><strong>{dispatched}</strong></div></div>
+        <div className="stat-card"><div className="stat-icon stat-icon-resolved"><CheckIcon /></div><div><span className="stat-label">RESOLVED</span><strong>{resolved}</strong></div></div>
         <div className="stat-card"><div className="stat-icon stat-icon-invalid"><FlagIcon /></div><div><span className="stat-label">INVALID (FLAGGED)</span><strong>{invalid}</strong></div></div>
         <div className="stat-card stat-card-overdue"><div className="stat-icon stat-icon-overdue"><OverdueIcon /></div><div><span className="stat-label">OVERDUE (SLA)</span><strong>{overdueCount}</strong></div></div>
       </div>
@@ -197,6 +210,7 @@ export default function OperationsDashboard() {
           <tbody>
             {loading ? <tr><td colSpan="8" className="empty-table-message">Loading reports...</td></tr> : reports.length ? reports.map((report) => {
               const sla = slaBadge(report);
+              const statusKey = normalize(report.status);
               return (
               <tr key={report.report_number}>
                 <td className="report-number">{report.report_number}</td><td>{report.category}</td><td>{report.address || "—"}</td><td>{new Date(report.created_at).toLocaleDateString()}</td>
@@ -212,15 +226,32 @@ export default function OperationsDashboard() {
                     >
                       <EyeIcon />
                     </Link>
-                    <button
-                      type="button"
-                      className="action-icon-btn"
-                      title={`Edit ${report.report_number}`}
-                      aria-label={`Edit ${report.report_number}`}
-                      onClick={() => setEditingReport(report.report_number)}
-                    >
-                      <PencilIcon />
-                    </button>
+                    {/* Flagged (Invalid) rows: moderate the reporter in place instead
+                        of editing a terminal status. Closed rows are permanent —
+                        no action besides viewing. */}
+                    {statusKey === "invalid" ? (
+                      canModerate && (
+                        <button
+                          type="button"
+                          className="action-icon-btn"
+                          title={`Moderate reporter of ${report.report_number}`}
+                          aria-label={`Moderate reporter of ${report.report_number}`}
+                          onClick={() => setModeratingReport(report.report_number)}
+                        >
+                          <GavelIcon />
+                        </button>
+                      )
+                    ) : statusKey !== "closed" && (
+                      <button
+                        type="button"
+                        className="action-icon-btn"
+                        title={`Edit ${report.report_number}`}
+                        aria-label={`Edit ${report.report_number}`}
+                        onClick={() => setEditingReport(report.report_number)}
+                      >
+                        <PencilIcon />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -238,6 +269,14 @@ export default function OperationsDashboard() {
           lookups={lookups}
           onClose={() => setEditingReport(null)}
           onSaved={() => { load(); loadStatusStats(statuses); }}
+        />
+      )}
+
+      {moderatingReport && (
+        <ReportModerationModal
+          reportNumber={moderatingReport}
+          onClose={() => setModeratingReport(null)}
+          onChanged={() => { load(); loadStatusStats(statuses); }}
         />
       )}
     </DashboardLayout>
