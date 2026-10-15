@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { getCurrentUser, getProfile } from "../../../api/accounts";
+import { getMyModerationSummary, getMyWarnings } from "../../../api/warnings";
 import { useAuth } from "../../../context/authContext";
 // Reuses the existing "app shell" (.app / .sidebar / .main) styles that used
 // to live only inside ReportHazards — the DOM structure below is unchanged,
 // just moved up a level so it can wrap more than one route.
 import "../../../pages/citizen/ReportHazards/ReportHazards.css";
+import "./CitizenLayout.css";
 
 // This layout is shared by every citizen-facing page (Report Hazard, My
 // Reports, Account Settings) so the sidebar/nav only has to be built once,
@@ -27,6 +29,40 @@ export default function CitizenLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
+
+  // Moderation state (Flag -> Warn -> Ban): the amber banner shows whenever
+  // the citizen has warnings; the details list is fetched lazily on expand.
+  const [warningCount, setWarningCount] = useState(0);
+  const [warningsOpen, setWarningsOpen] = useState(false);
+  const [warnings, setWarnings] = useState(null); // null = not fetched yet
+  const [warningsError, setWarningsError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getMyModerationSummary()
+      .then((data) => {
+        if (!cancelled) setWarningCount(Number(data?.warning_count || 0));
+      })
+      .catch(() => {
+        // No banner rather than a broken one on network failure.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const toggleWarnings = () => {
+    const next = !warningsOpen;
+    setWarningsOpen(next);
+    if (next && warnings === null) {
+      setWarningsError("");
+      getMyWarnings()
+        .then((data) => setWarnings(data?.warnings || []))
+        .catch((err) => setWarningsError(err?.detail || err?.message || "Couldn't load your warnings."));
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -191,7 +227,75 @@ export default function CitizenLayout() {
           </svg>
         </button>
 
-        <Outlet context={{ user, updateUser }} />
+        {warningCount > 0 && (
+          <div
+            className={`citizen-warning-banner ${warningCount >= 3 ? "citizen-warning-banner-danger" : ""}`}
+            role="status"
+          >
+            <div className="citizen-warning-banner-head">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <div className="citizen-warning-banner-text">
+                <strong>
+                  {warningCount >= 3
+                    ? `Your account has ${warningCount} warnings and is eligible for a ban.`
+                    : `Your account has received ${warningCount} ${warningCount === 1 ? "warning" : "warnings"}.`}
+                </strong>
+                <span>
+                  {warningCount >= 3
+                    ? "Further reports flagged as invalid will likely result in your account being banned from SnapSumbong."
+                    : "Warnings are issued when a report you filed is flagged as invalid. Reaching 3 warnings may ban your account."}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="citizen-warning-toggle"
+                onClick={toggleWarnings}
+                aria-expanded={warningsOpen}
+              >
+                {warningsOpen ? "Hide details" : "View warnings"}
+              </button>
+            </div>
+
+            {warningsOpen && (
+              <div className="citizen-warning-details">
+                {warningsError ? (
+                  <p className="citizen-warning-error">{warningsError}</p>
+                ) : warnings === null ? (
+                  <p className="citizen-warning-loading">Loading warnings...</p>
+                ) : warnings.length === 0 ? (
+                  <p className="citizen-warning-loading">No warnings on record.</p>
+                ) : (
+                  <ul className="citizen-warning-list">
+                    {warnings.map((warning) => (
+                      <li key={warning.warning_number} className="citizen-warning-item">
+                        <div className="citizen-warning-item-top">
+                          <span className="citizen-warning-number">{warning.warning_number}</span>
+                          <span className="citizen-warning-date">
+                            {new Date(warning.created_at).toLocaleDateString(undefined, {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                        </div>
+                        <p className="citizen-warning-reason">{warning.reason}</p>
+                        {warning.report_number && (
+                          <p className="citizen-warning-meta">Cited report {warning.report_number}</p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        <Outlet context={{ user, updateUser, warningCount }} />
       </main>
     </div>
   );

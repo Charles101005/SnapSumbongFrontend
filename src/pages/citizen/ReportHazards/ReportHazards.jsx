@@ -25,9 +25,9 @@ const MAX_CATEGORIES = 1; // Backend now stores a single category per report (FK
 export default function HazardReportForm() {
   const navigate = useNavigate();
   // The sidebar/user profile now live in CitizenLayout, which renders this
-  // page inside its <Outlet />. `user` here is only needed for the "Submit
-  // as..." confirmation modal, which shows the reporter's name.
-  const { user } = useOutletContext();
+  // page inside its <Outlet />. `user` is used for the "Submit as..."
+  // confirmation modal; `warningCount` drives the pre-submit moderation notice.
+  const { user, warningCount } = useOutletContext();
 
   // Navigation / View State ('form' | 'pin-location' | 'category-selection')
   const [currentView, setCurrentView] = useState("form");
@@ -266,6 +266,14 @@ export default function HazardReportForm() {
               <div className="eyebrow">SNAPSUMBONG RESIDENT PORTAL</div>
               <h1>File New Hazard Report</h1>
             </div>
+
+            {warningCount >= 3 && (
+              <div className="form-warning-banner" role="alert">
+                Your account has {warningCount} warnings for reports flagged as invalid.
+                Submitting further false or invalid reports may lead to your account
+                being banned from SnapSumbong.
+              </div>
+            )}
 
             <form id="hazard-form" onSubmit={handleSubmit}>
               {/* 1. GPS Location Tagging */}

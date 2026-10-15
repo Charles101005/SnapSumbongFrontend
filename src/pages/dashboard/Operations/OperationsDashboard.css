@@ -14,7 +14,7 @@
 }
 .stats-grid {
   display:grid;
-  grid-template-columns:repeat(5,1fr);
+  grid-template-columns:repeat(6,1fr);
   gap:.9rem
 }
 .stat-card {
@@ -54,6 +54,10 @@
 .stat-icon-overdue {
   background:#fee2e2;
   color:#dc2626
+}
+.stat-icon-invalid {
+  background:#ffe4e6;
+  color:#9f1239
 }
 .stat-card-overdue strong {
   color:#dc2626
@@ -323,6 +327,10 @@
 .status-closed {
   background:#e2e8f0;
   color:#334155
+}
+.status-invalid {
+  background:#ffe4e6;
+  color:#9f1239
 }
 .severity-badge {
   border-radius:6px;

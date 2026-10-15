@@ -13,6 +13,7 @@ const STATUS_COLORS = {
   dispatched: "dispatched",
   resolved: "resolved",
   closed: "closed",
+  invalid: "invalid",
 };
 
 const normalizeStatus = (status) => String(status || "").toLowerCase().replace(/[\s-]+/g, "_");

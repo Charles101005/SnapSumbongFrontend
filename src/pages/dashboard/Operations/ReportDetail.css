@@ -117,8 +117,9 @@
 .status-on-hold { background: #fef3c7; color: #b45309; }
 .status-dispatched { background: #cffafe; color: #0e7490; }
 .status-resolved { background: #dcfce7; color: #15803d; }
-.status-closed { background: #e2e8f0; color: #334155; }
-.status-unknown { background: #f1f5f9; color: #475569; }
+  .status-closed { background: #e2e8f0; color: #334155; }
+  .status-invalid { background: #ffe4e6; color: #9f1239; }
+  .status-unknown { background: #f1f5f9; color: #475569; }
 
 /* DO 47 SLA badge (detail view) */
 .report-sla-badge {
@@ -249,8 +250,9 @@
 .status-step-on-hold { color: #d97706; }
 .status-step-dispatched { color: #0891b2; }
 .status-step-resolved { color: #16a34a; }
-.status-step-closed { color: #64748b; }
-.status-step-unknown { color: #64748b; }
+  .status-step-closed { color: #64748b; }
+  .status-step-invalid { color: #be123c; }
+  .status-step-unknown { color: #64748b; }
 
 .report-timeline-entry time,
 .timeline-performed-by {

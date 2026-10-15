@@ -260,7 +260,8 @@
 .status-on-hold { background: #fef3c7; color: #b45309; }
 .status-dispatched { background: #cffafe; color: #0e7490; }
 .status-resolved { background: #dcfce7; color: #15803d; }
-.status-closed { background: #e2e8f0; color: #334155; }
+  .status-closed { background: #e2e8f0; color: #334155; }
+  .status-invalid { background: #ffe4e6; color: #9f1239; }
 
 .action-view-btn {
   background: none;

@@ -6,7 +6,7 @@ import { hazardMarkerIcon } from "../../../utils/leafletHelpers";
 import { getReportDetail, updateReport, uploadResolutionImages } from "../../../api/reports";
 import "./ReportManagementModal.css";
 
-const FALLBACK_STATUSES = ["New", "Assigned", "Under Review", "On-Hold", "Dispatched", "Resolved", "Closed"];
+const FALLBACK_STATUSES = ["New", "Assigned", "Under Review", "On-Hold", "Dispatched", "Resolved", "Closed", "Invalid"];
 const FALLBACK_SEVERITIES = ["P1", "P2", "P3", "P4", "P5"];
 const MAX_RESOLUTION_PHOTOS = 5; // Matches the backend's STORAGE_CONFIG['MAX_SIGNATURE_COUNT'] (combined DURING + AFTER).
 
@@ -18,6 +18,7 @@ const STATUS_COLORS = {
   dispatched: { bg: "#cffafe", text: "#0e7490" },
   resolved: { bg: "#dcfce7", text: "#15803d" },
   closed: { bg: "#e2e8f0", text: "#334155" },
+  invalid: { bg: "#ffe4e6", text: "#9f1239" },
 };
 const SEVERITY_COLORS = {
   p1: { bg: "#fee2e2", text: "#dc2626" },
@@ -238,6 +239,15 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         return;
       }
 
+      // Flagging a report as Invalid (false/troll report) requires a remark
+      // explaining why — the backend rejects the transition without one.
+      const invalidating = statusChanged && status === "INVALID";
+      if (invalidating && !remarks.trim()) {
+        setError("Marking a report Invalid requires a remark stating why it is false or not a valid hazard report.");
+        setSaving(false);
+        return;
+      }
+
       const payload = {};
       if (statusChanged) {
         payload.status = status;
@@ -426,6 +436,14 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                         Closing requires a remark — state the reason (e.g., not under
                         DO 47 jurisdiction, referred to another office). If the works
                         were done, leave it Resolved so the reporter can confirm.
+                      </p>
+                    )}
+                    {status === "INVALID" && statusToValue(report.status) !== "INVALID" && (
+                      <p className="mgmt-validation-hint">
+                        Marking a report Invalid flags it as false or not a valid
+                        hazard report — a remark is required, the report is excluded
+                        from closed/overdue counts, and it can be cited as evidence
+                        when warning or banning the reporter.
                       </p>
                     )}
                   </div>

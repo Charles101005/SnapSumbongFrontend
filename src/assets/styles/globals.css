@@ -501,6 +501,11 @@ body {
   color: #334155;
 }
 
+.status-invalid {
+  background-color: #ffe4e6;
+  color: #9f1239;
+}
+
 /* ===== SHARED SEVERITY BADGES ===== */
 .severity-badge {
   display: inline-block;

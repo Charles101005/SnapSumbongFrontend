@@ -121,6 +121,29 @@
   color: var(--color-error);
 }
 
+/* ===== WARNING COUNT PILL (moderation) ===== */
+.warning-count-pill {
+  display: inline-block;
+  min-width: 1.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-align: center;
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+.warning-count-warn {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+
+.warning-count-danger {
+  background-color: #ffe4e6;
+  color: #9f1239;
+}
+
 /* ===== RETRY LINK (empty-state error row) ===== */
 .retry-link {
   background: none;

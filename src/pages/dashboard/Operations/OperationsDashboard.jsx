@@ -25,6 +25,7 @@ function CheckIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fi
 function UnderReviewIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>; }
 function DispatchedIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12h15M13 6l6 6-6 6"/></svg>; }
 function OverdueIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>; }
+function FlagIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V4s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>; }
 function SearchIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>; }
 function FilterIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>; }
 function EyeIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>; }
@@ -133,6 +134,7 @@ export default function OperationsDashboard() {
   const resolved = countFor("resolved", "closed");
   const underReview = countFor("under_review");
   const dispatched = countFor("dispatched");
+  const invalid = countFor("invalid");
   const totalReports = Object.values(statusStats).reduce((sum, n) => sum + Number(n || 0), 0) || count;
   const categories = lookups.categories || [];
   const statuses = lookups.statuses || [];
@@ -164,6 +166,7 @@ export default function OperationsDashboard() {
         <div className="stat-card"><div className="stat-icon stat-icon-resolved"><CheckIcon /></div><div><span className="stat-label">RESOLVED</span><strong>{resolved}</strong></div></div>
         <div className="stat-card"><div className="stat-icon stat-icon-under-review"><UnderReviewIcon /></div><div><span className="stat-label">UNDER REVIEW</span><strong>{underReview}</strong></div></div>
         <div className="stat-card"><div className="stat-icon stat-icon-dispatched"><DispatchedIcon /></div><div><span className="stat-label">DISPATCHED</span><strong>{dispatched}</strong></div></div>
+        <div className="stat-card"><div className="stat-icon stat-icon-invalid"><FlagIcon /></div><div><span className="stat-label">INVALID (FLAGGED)</span><strong>{invalid}</strong></div></div>
         <div className="stat-card stat-card-overdue"><div className="stat-icon stat-icon-overdue"><OverdueIcon /></div><div><span className="stat-label">OVERDUE (SLA)</span><strong>{overdueCount}</strong></div></div>
       </div>
 

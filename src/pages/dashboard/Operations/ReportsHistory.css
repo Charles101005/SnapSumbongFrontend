@@ -257,6 +257,10 @@
   background:#e2e8f0;
   color:#334155
 }
+.status-invalid {
+  background:#ffe4e6;
+  color:#9f1239
+}
 .severity-badge {
   border-radius:6px;
   padding:.22rem .5rem;

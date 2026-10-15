@@ -4,6 +4,9 @@ import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout
 import CitizenProfileModal from "./CitizenProfileModal";
 import "./ManageCitizens.css";
 import { getCitizens } from "../../../api/users";
+import { useAuth } from "../../../context/authContext";
+import { PERMISSIONS } from "../../../shared/constants";
+import { MOCK_ALL_ACCESS } from "../../../shared/config/env";
 import { formatLastActive } from "../../../utils/format";
 
 const ROWS_PER_PAGE = 8;
@@ -50,6 +53,14 @@ function PencilIcon() {
 }
 
 export default function ManageCitizens() {
+  const { user: authUser } = useAuth();
+  const permissions = authUser?.permissions || [];
+  // MOCK_ALL_ACCESS short-circuits the permission check (same as Sidebar).
+  const can = (permission) => MOCK_ALL_ACCESS || permissions.includes(permission);
+  // Only the account status is editable in the modal — gate the Edit action
+  // on the same permissions the save endpoint requires.
+  const canEditStatus = can(PERMISSIONS.USER_DEACTIVATE_ANY) || can(PERMISSIONS.USER_ACTIVATE_ANY);
+
   const [rows, setRows] = useState([]);
   const [count, setCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -177,6 +188,7 @@ export default function ManageCitizens() {
                 <th>USER</th>
                 <th>EMAIL ADDRESS</th>
                 <th>ACCOUNT STATUS</th>
+                <th>WARNINGS</th>
                 <th>LAST ACTIVITY</th>
                 <th>ACTIONS</th>
               </tr>
@@ -184,11 +196,11 @@ export default function ManageCitizens() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="empty-table-message">Loading citizens...</td>
+                  <td colSpan="6" className="empty-table-message">Loading citizens...</td>
                 </tr>
               ) : error && rows.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="empty-table-message">
+                  <td colSpan="6" className="empty-table-message">
                     {error}{" "}
                     <button
                       type="button"
@@ -202,6 +214,7 @@ export default function ManageCitizens() {
               ) : rows.length > 0 ? (
                 rows.map((citizen) => {
                   const status = citizen.is_active ? "ACTIVE" : "DEACTIVATED";
+                  const warnings = Number(citizen.warning_count || 0);
                   return (
                     <tr key={citizen.user_number}>
                       <td>
@@ -211,6 +224,14 @@ export default function ManageCitizens() {
                       <td>
                         <span className={`status-badge status-${status.toLowerCase()}`}>
                           {status === "ACTIVE" ? "Active" : "Deactivated"}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className={`warning-count-pill ${warnings >= 3 ? "warning-count-danger" : warnings > 0 ? "warning-count-warn" : ""}`}
+                          title={warnings > 0 ? `${warnings} warning${warnings === 1 ? "" : "s"} on record` : "No warnings on record"}
+                        >
+                          {warnings}
                         </span>
                       </td>
                       <td className="last-activity-cell">{formatLastActive(citizen.last_active)}</td>
@@ -225,15 +246,17 @@ export default function ManageCitizens() {
                           >
                             <EyeIcon />
                           </button>
-                          <button
-                            type="button"
-                            className="action-icon-btn"
-                            title={`Edit ${citizen.full_name}`}
-                            aria-label={`Edit ${citizen.full_name}`}
-                            onClick={() => setManaging({ userNumber: citizen.user_number, mode: "edit" })}
-                          >
-                            <PencilIcon />
-                          </button>
+                          {canEditStatus && (
+                            <button
+                              type="button"
+                              className="action-icon-btn"
+                              title={`Edit ${citizen.full_name}`}
+                              aria-label={`Edit ${citizen.full_name}`}
+                              onClick={() => setManaging({ userNumber: citizen.user_number, mode: "edit" })}
+                            >
+                              <PencilIcon />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -241,7 +264,7 @@ export default function ManageCitizens() {
                 })
               ) : (
                 <tr>
-                  <td colSpan="5" className="empty-table-message">No citizens found matching your filters.</td>
+                  <td colSpan="6" className="empty-table-message">No citizens found matching your filters.</td>
                 </tr>
               )}
             </tbody>

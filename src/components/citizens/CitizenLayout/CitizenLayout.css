@@ -1,0 +1,136 @@
+/* ===== CITIZEN WARNING BANNER (Flag -> Warn -> Ban) ===== */
+.citizen-warning-banner {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #fcd34d;
+  border-left: 4px solid #d97706;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.citizen-warning-banner-danger {
+  border-color: #fda4af;
+  border-left-color: #be123c;
+  background: #fff1f2;
+  color: #9f1239;
+}
+
+.citizen-warning-banner-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.citizen-warning-banner-head > svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+.citizen-warning-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.citizen-warning-banner-text strong {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.citizen-warning-banner-text span {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.citizen-warning-toggle {
+  flex: none;
+  margin-left: auto;
+  padding: 0.25rem 0.7rem;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: inherit;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s;
+}
+
+.citizen-warning-toggle:hover {
+  background: rgba(146, 64, 14, 0.08);
+}
+
+.citizen-warning-banner-danger .citizen-warning-toggle:hover {
+  background: rgba(159, 18, 57, 0.08);
+}
+
+.citizen-warning-details {
+  margin-top: 0.7rem;
+  padding-top: 0.65rem;
+  border-top: 1px dashed rgba(146, 64, 14, 0.35);
+}
+
+.citizen-warning-banner-danger .citizen-warning-details {
+  border-top-color: rgba(159, 18, 57, 0.35);
+}
+
+.citizen-warning-loading,
+.citizen-warning-error {
+  margin: 0;
+  font-size: var(--text-xs);
+}
+
+.citizen-warning-error {
+  color: #be123c;
+  font-weight: 600;
+}
+
+.citizen-warning-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.citizen-warning-item {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(146, 64, 14, 0.18);
+  border-radius: 6px;
+  padding: 0.5rem 0.65rem;
+}
+
+.citizen-warning-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.citizen-warning-number {
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.citizen-warning-date {
+  font-size: var(--text-xs);
+  opacity: 0.75;
+}
+
+.citizen-warning-reason {
+  margin: 0.25rem 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.citizen-warning-meta {
+  margin: 0.2rem 0 0;
+  font-size: var(--text-xs);
+  opacity: 0.75;
+}

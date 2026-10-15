@@ -14,6 +14,7 @@ const STATUS_META = {
   DISPATCHED: { label: "Dispatched", badgeClass: "status-dispatched" },
   RESOLVED: { label: "Resolved", badgeClass: "status-resolved" },
   CLOSED: { label: "Closed", badgeClass: "status-closed" },
+  INVALID: { label: "Invalid", badgeClass: "status-invalid" },
 };
 
 const normalizeStatus = (status) =>

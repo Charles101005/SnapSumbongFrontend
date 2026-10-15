@@ -22,6 +22,7 @@ const STATUS_META = {
   DISPATCHED: { label: 'Dispatched', badgeClass: 'status-dispatched' },
   RESOLVED: { label: 'Resolved', badgeClass: 'status-resolved' },
   CLOSED: { label: 'Closed', badgeClass: 'status-closed' },
+  INVALID: { label: 'Invalid', badgeClass: 'status-invalid' },
 };
 const STATUS_OPTIONS = Object.entries(STATUS_META).map(([value, meta]) => ({
   value,
@@ -38,6 +39,7 @@ const STATUS_TO_STEP = {
   DISPATCHED: 2,
   RESOLVED: 3,
   CLOSED: 3,
+  INVALID: 3,
 };
 
 const TIMELINE_STEPS = [

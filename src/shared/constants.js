@@ -8,6 +8,7 @@ export const PERMISSIONS = {
     USER_READ_ALL: "user:read_all",
     USER_ACTIVATE_ANY: "user:activate_any",
     USER_DEACTIVATE_ANY: "user:deactivate_any",
+    USER_WARN: "user:warn",
     // Employees
     EMPLOYEE_CREATE: "employee:create",
     EMPLOYEE_READ_ALL: "employee:read_all",
@@ -27,6 +28,7 @@ export const PERMISSIONS = {
     REPORT_READ_ASSIGNED: "report:read_assigned",
     REPORT_UPDATE_ASSIGNED: "report:update_assigned",
     REPORT_READ_ALL: "report:read_all",
+    REPORT_FLAG: "report:flag",
     // Analytics
     ANALYTIC_READ_OWN_METRICS: "analytic:read_own_metrics",
     ANALYTIC_READ_ASSIGNED_METRICS: "analytic:read_assigned_metrics",

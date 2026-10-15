@@ -265,6 +265,8 @@
 .dash-home .status-dispatched { background: #cffafe; color: #0e7490; }
 .dash-home .status-resolved { background: #d9f5e5; color: #24975d; }
 .dash-home .status-closed { background: #e2e8f0; color: #334155; }
+
+.dash-home .status-invalid { background: #ffe4e6; color: #9f1239; }
 .dash-home .status-pending,
 .dash-home .status-in_progress,
 .dash-home .status-ongoing { background: #fef3c7; color: #b45309; }
