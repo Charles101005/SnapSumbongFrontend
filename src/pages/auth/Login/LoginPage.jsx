@@ -52,7 +52,7 @@ export default function LoginPage() {
 
       navigate(homePathFor(currentUser), { replace: true });
     } catch (err) {
-      setErrors({ form: err?.message || err?.detail || "Invalid email or password." });
+      setErrors({ form: err?.detail || err?.message || "Invalid email or password." });
     } finally {
       setSubmitting(false);
     }

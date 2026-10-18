@@ -41,6 +41,11 @@ async function performRefresh() {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // Network/CORS/server-down errors have no response — synthesize one so
+    // every API module's `error.response.data` rethrow is always safe.
+    if (!error.response) {
+      error.response = { status: 0, data: { detail: "Cannot reach the server. Please try again." } };
+    }
     const originalRequest = error.config;
     const isAuthEndpoint =
       originalRequest?.url?.includes("accounts/auth/refresh") ||

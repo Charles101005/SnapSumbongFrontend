@@ -17,6 +17,37 @@ const valueOf = (item) => item?.value || item;
 const labelOf = (item) => item?.label || item;
 const normalize = (value) => String(value || "").toLowerCase().replace(/[\s-]+/g, "_");
 
+// Date filter modes: quick presets plus a custom start/end range.
+const DATE_MODES = { TODAY: "today", LAST_7_DAYS: "last_7_days", THIS_MONTH: "this_month", ALL: "all", CUSTOM: "custom" };
+const toISODate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+// 1st through last day of the month containing `now`, so reports filed later
+// in the month still match once the range is applied.
+const currentMonthRange = (now = new Date()) => ({
+  from: toISODate(new Date(now.getFullYear(), now.getMonth(), 1)),
+  to: toISODate(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+});
+// Resolve the selected date mode into from/to ISO dates ("" = no bound).
+// Presets are computed at request time so they stay correct across
+// day/month boundaries; custom uses the From/to inputs as-is.
+const resolveDateRange = (mode, fromDate, toDate) => {
+  const now = new Date();
+  switch (mode) {
+    case DATE_MODES.TODAY: {
+      const today = toISODate(now);
+      return { from: today, to: today };
+    }
+    case DATE_MODES.LAST_7_DAYS:
+      // Inclusive 7-day window: today and the 6 preceding days.
+      return { from: toISODate(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6)), to: toISODate(now) };
+    case DATE_MODES.THIS_MONTH:
+      return currentMonthRange(now);
+    case DATE_MODES.CUSTOM:
+      return { from: fromDate || "", to: toDate || "" };
+    default:
+      return { from: "", to: "" };
+  }
+};
+
 const prettifyStatus = (status) => normalize(status).split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ").replace(/^On Hold$/i, "On-Hold");
 const displayStatus = (status, statuses = []) => {
   const match = statuses.find((s) => valueOf(s) === status || labelOf(s) === status);
@@ -56,7 +87,7 @@ export default function OperationsDashboard() {
   const [count, setCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({ category: "", severity: "", status: urlStatus, search: "", fromDate: "", toDate: "", overdue: false });
+  const [filters, setFilters] = useState({ category: "", severity: "", status: urlStatus, search: "", dateMode: DATE_MODES.ALL, fromDate: "", toDate: "", overdue: false });
   const [draft, setDraft] = useState(filters);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -81,13 +112,15 @@ export default function OperationsDashboard() {
     try {
       setLoading(true);
       setError("");
+      // Resolve the date range from the selected preset or custom inputs.
+      const { from: fromDate, to: toDate } = resolveDateRange(filters.dateMode, filters.fromDate, filters.toDate);
       const reportData = await getReports({
         q: filters.search || undefined,
         category_id: filters.category || undefined,
         status: filters.status || undefined,
         severity: filters.severity || undefined,
-        from_date: filters.fromDate || undefined,
-        to_date: filters.toDate || undefined,
+        from_date: fromDate || undefined,
+        to_date: toDate || undefined,
         // DO 47 SLA: show only open reports past their due date.
         overdue: filters.overdue || undefined,
         // exclude_closed hides phase-four reports (resolved + closed). Only
@@ -165,7 +198,7 @@ export default function OperationsDashboard() {
   }, { replace: true });
   const applyFilters = () => { setPage(1); setFilters(draft); syncStatusParam(draft.status); };
   const reset = () => {
-    const empty = { category: "", severity: "", status: "", search: "", fromDate: "", toDate: "", overdue: false };
+    const empty = { category: "", severity: "", status: "", search: "", dateMode: DATE_MODES.ALL, fromDate: "", toDate: "", overdue: false };
     setPage(1); setDraft(empty); setFilters(empty);
     syncStatusParam("");
   };
@@ -194,7 +227,19 @@ export default function OperationsDashboard() {
           <div className="filter-group filter-search"><label>Search</label><div className="search-wrap"><SearchIcon/><input placeholder="Search" value={draft.search} onChange={(e) => updateDraft("search", e.target.value)} onKeyDown={(e) => e.key === "Enter" && applyFilters()} /></div></div>
         </div>
         <div className="filters-row filter-bottom">
-          <div className="filter-group"><label>Date Range</label><div className="date-range"><span>From</span><input type="date" value={draft.fromDate} onChange={(e) => updateDraft("fromDate", e.target.value)} /><span>to</span><input type="date" value={draft.toDate} onChange={(e) => updateDraft("toDate", e.target.value)} /></div></div>
+          <div className="filter-group date-filter">
+            <label>Date</label>
+            <select value={draft.dateMode} onChange={(e) => updateDraft("dateMode", e.target.value)}>
+              <option value={DATE_MODES.TODAY}>Today</option>
+              <option value={DATE_MODES.LAST_7_DAYS}>Last 7 Days</option>
+              <option value={DATE_MODES.THIS_MONTH}>This Month</option>
+              <option value={DATE_MODES.ALL}>All Time</option>
+              <option value={DATE_MODES.CUSTOM}>Custom Range</option>
+            </select>
+            {draft.dateMode === DATE_MODES.CUSTOM && (
+              <div className="date-range"><span>From</span><input type="date" value={draft.fromDate} onChange={(e) => updateDraft("fromDate", e.target.value)} /><span>to</span><input type="date" value={draft.toDate} onChange={(e) => updateDraft("toDate", e.target.value)} /></div>
+            )}
+          </div>
           <div className="filter-actions">
             <label className="overdue-toggle" title="Show only open reports past their DO 47 response time">
               <input type="checkbox" checked={draft.overdue} onChange={(e) => updateDraft("overdue", e.target.checked)} />
