@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import { getReportMetrics, getHandlerCompliance } from "../../../api/analytics";
+import { REPORT_STATUSES } from "../../../hooks/useStatusCounts";
 import "./Analytics.css";
 
 const pct = (value) => (value === null || value === undefined ? "—" : `${value}%`);
@@ -26,7 +27,9 @@ export default function Analytics() {
   }, []);
 
   const counts = metrics?.count_by_status || {};
-  const entries = Object.entries(counts);
+  const entries = Object.entries(counts).sort(
+    ([a], [b]) => REPORT_STATUSES.indexOf(a) - REPORT_STATUSES.indexOf(b)
+  );
   const weights = compliance?.weights || {};
 
   return (

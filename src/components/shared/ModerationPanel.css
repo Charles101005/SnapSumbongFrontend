@@ -178,6 +178,15 @@
   box-shadow: 0 0 0 3px var(--color-primary-light);
 }
 
+.mp-input.mp-input-readonly,
+.mp-input.mp-input-readonly:focus {
+  background-color: var(--color-bg-page);
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+  cursor: default;
+  box-shadow: none;
+}
+
 .mp-textarea {
   resize: vertical;
   min-height: 64px;

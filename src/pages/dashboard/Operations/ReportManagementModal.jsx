@@ -8,6 +8,9 @@ import "./ReportManagementModal.css";
 
 const FALLBACK_STATUSES = ["New", "Assigned", "Under Review", "On-Hold", "Dispatched", "Resolved", "Closed", "Invalid"];
 const FALLBACK_SEVERITIES = ["P1", "P2", "P3", "P4", "P5"];
+// Invalid is a triage verdict only offered once the report has reached
+// Under Review (the stage after Assigned); later stages keep it.
+const INVALID_VISIBLE_AFTER = ["UNDER_REVIEW", "ON_HOLD", "DISPATCHED", "RESOLVED", "CLOSED", "INVALID"];
 const MAX_RESOLUTION_PHOTOS = 5; // Matches the backend's STORAGE_CONFIG['MAX_SIGNATURE_COUNT'] (combined DURING + AFTER).
 
 const STATUS_COLORS = {
@@ -242,8 +245,38 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
       // Flagging a report as Invalid (false/troll report) requires a remark
       // explaining why — the backend rejects the transition without one.
       const invalidating = statusChanged && status === "INVALID";
+      if (invalidating && !INVALID_VISIBLE_AFTER.includes(currentStatusValue)) {
+        setError("A report can only be flagged Invalid after it has reached Under Review (after Assigned).");
+        setSaving(false);
+        return;
+      }
       if (invalidating && !remarks.trim()) {
         setError("Marking a report Invalid requires a remark stating why it is false or not a valid hazard report.");
+        setSaving(false);
+        return;
+      }
+
+      // Severity is the triage verdict made during verification — the backend
+      // rejects a move into Under Review until one exists (set earlier or
+      // chosen right now).
+      const enteringReview = statusChanged && status === "UNDER_REVIEW";
+      if (enteringReview && !severity) {
+        setError("Set the severity (P1-P5) before moving this report to Under Review.");
+        setSaving(false);
+        return;
+      }
+
+      // An Assigned report with no triage verdict must leave Assigned and
+      // gain a severity in the same save — report exactly what's missing.
+      const fromAssigned = currentStatusValue === "ASSIGNED";
+      if (fromAssigned && !report.severity && (!statusChanged || !severity)) {
+        if (statusChanged && !severity) {
+          setError("Set the severity (P1-P5) before saving — an Assigned report must set its severity in the same update as the status change.");
+        } else if (!statusChanged && severity) {
+          setError("Change the status from Assigned (e.g., to Under Review) as well — a report with no severity must update status and severity together.");
+        } else {
+          setError("This Assigned report has no severity yet — change the status (e.g., to Under Review) and select a severity (P1-P5) before saving.");
+        }
         setSaving(false);
         return;
       }
@@ -293,22 +326,6 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
     }
   };
 
-  const handleDiscard = () => {
-    if (!report) return;
-    setSeverity(report.severity || "");
-    setStatus(statusToValue(report.status) || "");
-    setRemarks(report.remarks || "");
-    setValidatorName("");
-    duringPreviews.forEach((src) => URL.revokeObjectURL(src));
-    afterPreviews.forEach((src) => URL.revokeObjectURL(src));
-    setDuringFiles([]);
-    setAfterFiles([]);
-    setDuringPreviews([]);
-    setAfterPreviews([]);
-    setError("");
-    setSuccess("");
-  };
-
   const activeStatusLabel = useMemo(() => {
     const match = statuses.find((item) => statusValue(item) === status);
     return match ? statusLabel(match) : status;
@@ -320,8 +337,10 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   // or Resolved). Falls back to the full list when the field is absent.
   const statusOptions = useMemo(() => {
     const currentValue = statusToValue(report?.status);
+    const invalidAllowed = INVALID_VISIBLE_AFTER.includes(currentValue);
+    const hideInvalid = (item) => statusValue(item) === "INVALID" && !invalidAllowed;
     const nextLabels = report?.next_expected_statuses;
-    if (!Array.isArray(nextLabels)) return statuses;
+    if (!Array.isArray(nextLabels)) return statuses.filter((item) => !hideInvalid(item));
     const currentOption =
       statuses.find((item) => statusValue(item) === currentValue) ||
       { value: currentValue, label: report?.status || currentValue };
@@ -330,7 +349,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         const value = statusToValue(label);
         return statuses.find((item) => statusValue(item) === value) || { value, label };
       })
-      .filter((item) => statusValue(item) !== currentValue);
+      .filter((item) => statusValue(item) !== currentValue && !hideInvalid(item));
     return [currentOption, ...nextOptions];
   }, [report, statuses]);
 
@@ -414,10 +433,24 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                       value={severity}
                       onChange={(e) => setSeverity(e.target.value)}
                     >
+                      {!severity && (
+                        <option value="" disabled>Select severity...</option>
+                      )}
                       {severities.map((item) => (
                         <option key={statusValue(item)} value={statusValue(item)}>{statusLabel(item)}</option>
                       ))}
                     </select>
+                    {status === "UNDER_REVIEW" && statusToValue(report.status) !== "UNDER_REVIEW" && !severity && (
+                      <p className="mgmt-validation-hint">
+                        Under Review requires a severity — select P1-P5 before saving.
+                      </p>
+                    )}
+                    {statusToValue(report.status) === "ASSIGNED" && !severity && status !== "UNDER_REVIEW" && (
+                      <p className="mgmt-validation-hint">
+                        This report is Assigned with no severity — set P1-P5 and change
+                        the status (e.g., to Under Review) before saving.
+                      </p>
+                    )}
                   </div>
                   <div className="mgmt-field">
                     <span className="mgmt-label">Update Status</span>
@@ -615,7 +648,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
             </div>
 
             <div className="mgmt-actions">
-              <button className="btn-discard-pill" onClick={handleDiscard} disabled={saving}>Discard Changes</button>
+              <button className="btn-discard-pill" onClick={onClose} disabled={saving}>Close</button>
               <button className="btn-save-pill" onClick={handleSave} disabled={saving}>{saving ? "Saving..." : "Save All Updates"}</button>
             </div>
           </>

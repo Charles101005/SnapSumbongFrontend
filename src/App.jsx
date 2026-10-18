@@ -11,7 +11,6 @@ import VerifyEmail from "./pages/auth/ResetPassVerify/VerifyEmail";
 import NewPass from "./pages/auth/NewPass/NewPass";
 import OperationsDashboard from "./pages/dashboard/Operations/OperationsDashboard";
 import ReportsHistory from "./pages/dashboard/Operations/ReportsHistory";
-import ReportDetail from "./pages/dashboard/Operations/ReportDetail";
 import Analytics from "./pages/dashboard/Operations/Analytics";
 import RoleManagement from "./pages/dashboard/RoleManagement/RoleManagement";
 import AddNewRole from "./pages/dashboard/RoleManagement/AddNewRole";
@@ -108,7 +107,9 @@ function AppRoutes() {
                 <Route path="/dashboard/report-management" element={<Navigate to="/dashboard/operations" replace />} />
                 <Route path="/dashboard/operations" element={<OperationsDashboard />} />
                 <Route path="/dashboard/operations/history" element={<ReportsHistory />} />
-                <Route path="/dashboard/operations/report-details" element={<ReportDetail />} />
+                {/* The standalone Report Detail page now lives inside the
+                    Operations tables as a read-only modal. */}
+                <Route path="/dashboard/operations/report-details" element={<Navigate to="/dashboard/operations/history" replace />} />
                 <Route path="/dashboard/operations/analytics" element={<Analytics />} />
                 <Route path="/dashboard/audit-trail" element={<AuditTrail />} />
                 <Route path="/dashboard/account-settings" element={<DashboardAccountSettings />} />

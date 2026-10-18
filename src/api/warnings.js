@@ -56,7 +56,8 @@ export const getCitizenWarnings = async (userNumber) => {
 // payload: { reason: string (min 10 chars), report_number?: string }
 // -> 201 { warning_number, reason, report_number, warned_by_name, created_at }
 // errors: USER_NOT_FOUND, WARN_TARGET_INACTIVE, LINKED_REPORT_NOT_INVALID,
-//         LINKED_REPORT_NOT_OWNED, VALIDATION_ERROR
+//         LINKED_REPORT_NOT_OWNED, LINKED_REPORT_ALREADY_WARNED,
+//         VALIDATION_ERROR
 // requires permission: user:warn
 export const warnCitizen = async (userNumber, payload) => {
     try {

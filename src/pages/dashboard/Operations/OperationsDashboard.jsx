@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import { getReportLookups, getReports } from "../../../api/reports";
 import { REPORT_STATUSES } from "../../../hooks/useStatusCounts";
@@ -9,6 +9,7 @@ import { MOCK_ALL_ACCESS } from "../../../shared/config/env";
 import { useAuth } from "../../../context/authContext";
 import ReportManagementModal from "./ReportManagementModal";
 import ReportModerationModal from "./ReportModerationModal";
+import ReportDetail from "./ReportDetail";
 import "./OperationsDashboard.css";
 
 const PAGE_SIZE = 10;
@@ -63,6 +64,8 @@ export default function OperationsDashboard() {
   const [editingReport, setEditingReport] = useState(null);
   // Report number whose Moderation dialog is open (Invalid rows only), or null.
   const [moderatingReport, setModeratingReport] = useState(null);
+  // Report number whose read-only detail dialog is open, or null when closed.
+  const [viewingReport, setViewingReport] = useState(null);
 
   // Adjust state when the URL status changes (sidebar click or browser
   // navigation) — see react.dev "adjusting some state when a prop changes".
@@ -218,14 +221,15 @@ export default function OperationsDashboard() {
                 <td><span className={`status-badge status-${statusClass(report.status)}`}>{displayStatus(report.status, statuses)}</span></td><td><span className={`severity-badge severity-${String(report.severity || "").toLowerCase()}`}>{report.severity || "—"}</span></td>
                 <td>
                   <div className="table-actions">
-                    <Link
-                      to={`/dashboard/operations/report-details?report=${encodeURIComponent(report.report_number)}`}
+                    <button
+                      type="button"
                       className="action-icon-btn"
                       title={`View ${report.report_number}`}
                       aria-label={`View ${report.report_number}`}
+                      onClick={() => setViewingReport(report.report_number)}
                     >
                       <EyeIcon />
-                    </Link>
+                    </button>
                     {/* Flagged (Invalid) rows: moderate the reporter in place instead
                         of editing a terminal status. Closed rows are permanent —
                         no action besides viewing. */}
@@ -276,6 +280,14 @@ export default function OperationsDashboard() {
         <ReportModerationModal
           reportNumber={moderatingReport}
           onClose={() => setModeratingReport(null)}
+          onChanged={() => { load(); loadStatusStats(statuses); }}
+        />
+      )}
+
+      {viewingReport && (
+        <ReportDetail
+          reportNumber={viewingReport}
+          onClose={() => setViewingReport(null)}
           onChanged={() => { load(); loadStatusStats(statuses); }}
         />
       )}

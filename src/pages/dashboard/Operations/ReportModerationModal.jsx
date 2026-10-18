@@ -7,7 +7,7 @@ const normalize = (value) => String(value || "").toLowerCase().replace(/[\s-]+/g
 
 // Flag -> Warn -> Ban entry point from the Operations table: opened from an
 // Invalid row so staff can moderate the reporter without leaving the page.
-export default function ReportModerationModal({ reportNumber, onClose, onChanged }) {
+export default function ReportModerationModal({ reportNumber, initialAction, onClose, onChanged }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -122,6 +122,8 @@ export default function ReportModerationModal({ reportNumber, onClose, onChanged
         <ModerationPanel
           userNumber={report.reported_by_user_number}
           defaultReportNumber={reportNumber}
+          initialAction={initialAction}
+          showCancelButton={false}
           onChanged={onChanged}
         />
       </div>

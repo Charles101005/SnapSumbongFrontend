@@ -8,11 +8,12 @@ export const REPORT_STATUSES = ["new", "assigned", "under_review", "on_hold", "d
 
 export const STATUS_VIEWS = [
   { key: "new", label: "New", status: "new" },
-  { key: "on_hold", label: "Pending", status: "on_hold" },
-  { key: "under_review", label: "Under Review", status: "under_review" },
   { key: "assigned", label: "Assigned", status: "assigned" },
+  { key: "under_review", label: "Under Review", status: "under_review" },
+  { key: "on_hold", label: "On-Hold", status: "on_hold" },
   { key: "dispatched", label: "Dispatched", status: "dispatched" },
   { key: "resolved", label: "Resolved", status: "resolved" },
+  { key: "closed", label: "Closed", status: "closed" },
   { key: "invalid", label: "Invalid", status: "invalid" },
 ];
 

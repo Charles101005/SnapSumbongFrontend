@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import { getReportDetail, getReportHistoryDetail } from "../../../api/reports";
 import { formatDueDate, slaBadge } from "../../../utils/sla";
+import { PERMISSIONS } from "../../../shared/constants";
+import { MOCK_ALL_ACCESS } from "../../../shared/config/env";
+import { useAuth } from "../../../context/authContext";
+import ReportModerationModal from "./ReportModerationModal";
 import "./ReportDetail.css";
 
 const STATUS_COLORS = {
@@ -29,28 +31,30 @@ function DownloadIcon() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3" /></svg>;
 }
 
-export default function ReportDetail() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const reportId = searchParams.get("report");
+export default function ReportDetail({ reportNumber, onClose, onChanged }) {
+  const { user: authUser } = useAuth();
+  const permissions = authUser?.permissions || [];
+  // MOCK_ALL_ACCESS short-circuits the permission check (same as Sidebar).
+  const can = (permission) => MOCK_ALL_ACCESS || permissions.includes(permission);
+  const canModerate = can(PERMISSIONS.USER_WARN) || can(PERMISSIONS.USER_DEACTIVATE_ANY);
   const [report, setReport] = useState(null);
   const [error, setError] = useState("");
   const [timelineError, setTimelineError] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [selectedTimelineEvent, setSelectedTimelineEvent] = useState(null);
-  const goBack = () => navigate("/dashboard/operations/history");
+  const [moderating, setModerating] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setReport(null);
     setError("");
     setTimelineError(false);
-    if (!reportId) {
+    if (!reportNumber) {
       setError("No report was selected.");
       return () => { cancelled = true; };
     }
 
-    Promise.allSettled([getReportDetail(reportId), getReportHistoryDetail(reportId)])
+    Promise.allSettled([getReportDetail(reportNumber), getReportHistoryDetail(reportNumber)])
       .then(([detailResult, historyResult]) => {
         if (cancelled) return;
         if (detailResult.status === "rejected") {
@@ -67,45 +71,76 @@ export default function ReportDetail() {
         if (historyResult.status === "rejected") setTimelineError(true);
       });
     return () => { cancelled = true; };
-  }, [reportId]);
+  }, [reportNumber]);
 
+  // Single Escape handler with priority: lightbox -> activity details -> close dialog.
   useEffect(() => {
-    if (!lightboxSrc && !selectedTimelineEvent) return;
     const handleKeyDown = (event) => {
-      if (event.key === "Escape") {
-        setLightboxSrc(null);
-        setSelectedTimelineEvent(null);
-      }
+      if (event.key !== "Escape") return;
+      if (lightboxSrc) { setLightboxSrc(null); return; }
+      if (selectedTimelineEvent) { setSelectedTimelineEvent(null); return; }
+      if (moderating) return;
+      onClose?.();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [lightboxSrc, selectedTimelineEvent]);
+  }, [lightboxSrc, selectedTimelineEvent, moderating, onClose]);
+
+  // Lock background scroll while the dialog is open.
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, []);
+
+  if (!reportNumber) return null;
 
   const statusClass = STATUS_COLORS[normalizeStatus(report?.status)] || "unknown";
+  const isInvalid = normalizeStatus(report?.status) === "invalid";
   const sla = report ? slaBadge(report) : null;
 
   return (
-    <DashboardLayout title="Management Overview">
-      <div className="report-detail-wrapper">
-        {error ? (
-          <section className="report-detail-card report-detail-message">
-            <p>{error}</p>
-            <button className="report-detail-close" type="button" onClick={goBack}>Back to Report History</button>
-          </section>
-        ) : !report ? (
-          <section className="report-detail-card report-detail-message"><p>Loading report...</p></section>
-        ) : (
-          <article className="report-detail-card">
-            <header className="report-detail-header">
-              <h2 className="report-detail-title">
-                Report Details: #{report.report_number}{report.category ? ` – ${report.category}` : ""}
-              </h2>
+    <div className="report-detail-modal-overlay" onClick={onClose}>
+      <section
+        className="report-detail-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="report-detail-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="report-detail-modal-header">
+          <h2 className="report-detail-title" id="report-detail-modal-title">
+            {report
+              ? `Report Details: #${report.report_number}${report.category ? ` – ${report.category}` : ""}`
+              : "Report Details"}
+          </h2>
+          <div className="report-detail-modal-header-actions">
+            {report && (
               <button className="report-detail-export" type="button" onClick={() => window.print()}>
                 <DownloadIcon />
                 Export as PDF
               </button>
-            </header>
+            )}
+            <button
+              className="report-detail-modal-x"
+              type="button"
+              onClick={onClose}
+              aria-label="Close report details"
+            >
+              &times;
+            </button>
+          </div>
+        </header>
 
+        {error ? (
+          <div className="report-detail-modal-message">
+            <p>{error}</p>
+            <button className="report-detail-close" type="button" onClick={onClose}>Close</button>
+          </div>
+        ) : !report ? (
+          <div className="report-detail-modal-message"><p>Loading report...</p></div>
+        ) : (
+          <div className="report-detail-modal-body">
             <div className="report-detail-fields">
               <DetailField label="Location" value={report.address || "—"} />
               <DetailField label="Reported Severity" value={report.severity || "—"} />
@@ -209,16 +244,39 @@ export default function ReportDetail() {
                 <p className="report-detail-empty">No status history has been recorded for this report.</p>
               )}
             </section>
-
-            <footer className="report-detail-footer">
-              <button className="report-detail-close" type="button" onClick={goBack}>Close</button>
-            </footer>
-          </article>
+          </div>
         )}
-      </div>
+
+        {report && !error && (
+          <footer className="report-detail-footer">
+            {canModerate && isInvalid && (
+              <button
+                className="report-detail-moderate"
+                type="button"
+                onClick={() => setModerating(true)}
+              >
+                Issue a warning
+              </button>
+            )}
+            <button className="report-detail-close" type="button" onClick={onClose}>Close</button>
+          </footer>
+        )}
+
+        {moderating && report && (
+          <ReportModerationModal
+            reportNumber={report.report_number}
+            initialAction="warn"
+            onClose={() => setModerating(false)}
+            onChanged={onChanged}
+          />
+        )}
+      </section>
 
       {lightboxSrc && (
-        <div className="report-media-overlay" onClick={() => setLightboxSrc(null)}>
+        <div
+          className="report-media-overlay"
+          onClick={(event) => { event.stopPropagation(); setLightboxSrc(null); }}
+        >
           <button type="button" className="report-media-close" onClick={() => setLightboxSrc(null)} aria-label="Close image">&times;</button>
           <img src={lightboxSrc} alt="Full size report attachment" onClick={(event) => event.stopPropagation()} />
         </div>
@@ -231,7 +289,7 @@ export default function ReportDetail() {
           onClose={() => setSelectedTimelineEvent(null)}
         />
       )}
-    </DashboardLayout>
+    </div>
   );
 }
 
@@ -246,7 +304,7 @@ function TimelineActivityModal({ event, reportNumber, onClose }) {
   const primaryAction = event.primary_action || `Updated report status #${reportNumber}`;
 
   return (
-    <div className="activity-modal-overlay" onClick={onClose}>
+    <div className="activity-modal-overlay" onClick={(eventClick) => { eventClick.stopPropagation(); onClose(); }}>
       <section
         className="activity-modal"
         role="dialog"

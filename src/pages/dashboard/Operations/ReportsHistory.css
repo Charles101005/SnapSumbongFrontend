@@ -216,6 +216,11 @@
   font-weight:600
 }
 .action-link {
+  padding:0;
+  border:0;
+  background:transparent;
+  font:inherit;
+  cursor:pointer;
   text-decoration:none
 }
 .status-badge,.severity-badge {

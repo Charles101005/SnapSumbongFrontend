@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCitizen } from "../../api/users";
 import { getCitizenWarnings, warnCitizen, banCitizen, unbanCitizen } from "../../api/warnings";
 import { PERMISSIONS } from "../../shared/constants";
@@ -10,6 +10,12 @@ import "./ModerationPanel.css";
 // Minimum reason length enforced by the backend moderation serializers.
 const MIN_REASON_LENGTH = 10;
 
+// Report numbers are matched case-insensitively (backend lookup uses __iexact).
+const normalizeReport = (value) => String(value || "").trim().toUpperCase();
+
+const DUPLICATE_REPORT_NOTICE =
+  "A warning has already been issued for this report. Each report can only support one warning.";
+
 const MODERATION_SUCCESS = {
   warn: "Warning issued. It now counts toward this citizen's ban eligibility.",
   ban: "Account banned. The citizen can no longer sign in until restored.",
@@ -20,7 +26,7 @@ const MODERATION_SUCCESS = {
 // Operations Report Moderation modal. Fetches its own moderation data so it
 // works in any dialog; both endpoints fail soft (403/missing data leaves the
 // count/history empty and hides the gated action buttons).
-export default function ModerationPanel({ userNumber, defaultReportNumber = "", onChanged }) {
+export default function ModerationPanel({ userNumber, defaultReportNumber = "", initialAction = null, showCancelButton = true, onChanged }) {
   const { user: authUser } = useAuth();
   const permissions = authUser?.permissions || [];
   // MOCK_ALL_ACCESS short-circuits the permission check (same as Sidebar).
@@ -29,18 +35,29 @@ export default function ModerationPanel({ userNumber, defaultReportNumber = "", 
   const canBan = can(PERMISSIONS.USER_DEACTIVATE_ANY);
   const canUnban = can(PERMISSIONS.USER_ACTIVATE_ANY);
   const canModerate = canWarn || canBan || canUnban;
+  const reportLocked = Boolean(defaultReportNumber);
 
   const [loading, setLoading] = useState(true);
   const [isActive, setIsActive] = useState(null);
   const [warningCount, setWarningCount] = useState(0);
   const [warnings, setWarnings] = useState([]);
-  const [modAction, setModAction] = useState(null); // "warn" | "ban" | "unban"
+  const [modAction, setModAction] = useState(initialAction); // "warn" | "ban" | "unban"
   const [modReason, setModReason] = useState("");
   const [modReportNumber, setModReportNumber] = useState(defaultReportNumber);
   const [modBusy, setModBusy] = useState(false);
   const [modNotice, setModNotice] = useState(null); // { type: "success" | "error", text }
   // Guards against a stale fetch landing after userNumber changed.
   const loadSeqRef = useRef(0);
+
+  // Reports that already carry a warning for this citizen — each report can
+  // only support one warning (mirrors the backend LINKED_REPORT_ALREADY_WARNED check).
+  const warnedReportSet = useMemo(
+    () => new Set(warnings.map((w) => normalizeReport(w.report_number)).filter(Boolean)),
+    [warnings],
+  );
+  // True when the warn form's report (locked or typed) is already warned.
+  const duplicateReportOpen =
+    modAction === "warn" && Boolean(normalizeReport(modReportNumber)) && warnedReportSet.has(normalizeReport(modReportNumber));
 
   const fetchNow = useCallback(async () => {
     const seq = ++loadSeqRef.current;
@@ -67,6 +84,10 @@ export default function ModerationPanel({ userNumber, defaultReportNumber = "", 
       return;
     }
     const reportNumber = modReportNumber.trim();
+    if (modAction === "warn" && warnedReportSet.has(normalizeReport(reportNumber))) {
+      setModNotice({ type: "error", text: DUPLICATE_REPORT_NOTICE });
+      return;
+    }
     setModBusy(true);
     setModNotice(null);
     try {
@@ -149,6 +170,11 @@ export default function ModerationPanel({ userNumber, defaultReportNumber = "", 
 
           {canModerate && (modAction ? (
             <div className="mp-form">
+              {duplicateReportOpen && (
+                <div className="mp-banner mp-banner-error" role="status">
+                  {DUPLICATE_REPORT_NOTICE}
+                </div>
+              )}
               <label className="mp-label" htmlFor="mp-mod-reason">
                 {modAction === "ban" ? "Ban reason *" : modAction === "unban" ? "Restoration reason *" : "Warning reason *"}
               </label>
@@ -170,33 +196,43 @@ export default function ModerationPanel({ userNumber, defaultReportNumber = "", 
               {modAction !== "unban" && (
                 <>
                   <label className="mp-label" htmlFor="mp-mod-report">
-                    {modAction === "ban" ? "Cited Invalid report (fast-track ban)" : "Cited Invalid report (optional)"}
+                    {modAction === "ban"
+                      ? "Cited Invalid report (fast-track ban)"
+                      : reportLocked
+                        ? "Cited Invalid report"
+                        : "Cited Invalid report (optional)"}
                   </label>
                   <input
                     id="mp-mod-report"
-                    className="mp-input"
+                    className={`mp-input${reportLocked ? " mp-input-readonly" : ""}`}
                     type="text"
                     value={modReportNumber}
                     onChange={(event) => setModReportNumber(event.target.value)}
+                    readOnly={reportLocked}
+                    aria-readonly={reportLocked || undefined}
                     placeholder="Report ID, e.g. HR-20260101-ABC123"
                   />
                   <p className="mp-hint">
                     {modAction === "ban"
                       ? "Ban needs 3+ warnings, or cite one of this citizen's Invalid reports for a fast-track ban."
-                      : "Link the flagged (Invalid) report this warning is based on — leave blank for general warnings."}
+                      : reportLocked
+                        ? "Auto-attached — this action is linked to the flagged (Invalid) report you are moderating."
+                        : "Link the flagged (Invalid) report this warning is based on — leave blank for general warnings."}
                   </p>
                 </>
               )}
 
               <div className="mp-form-actions">
-                <button type="button" className="mp-btn-cancel" onClick={cancelModeration} disabled={modBusy}>
-                  Cancel
-                </button>
+                {showCancelButton && (
+                  <button type="button" className="mp-btn-cancel" onClick={cancelModeration} disabled={modBusy}>
+                    Cancel
+                  </button>
+                )}
                 <button
                   type="button"
                   className={modAction === "ban" ? "mp-btn-ban" : modAction === "unban" ? "mp-btn-restore" : "mp-btn-warn"}
                   onClick={handleModeration}
-                  disabled={modBusy}
+                  disabled={modBusy || duplicateReportOpen}
                 >
                   {modBusy
                     ? "Working..."
