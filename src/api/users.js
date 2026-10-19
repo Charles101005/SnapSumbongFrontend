@@ -24,6 +24,23 @@ export const getEmployees = async ({ q, is_active, role_id, page, page_size } = 
     }
 };
 
+// GET /accounts/employees/handlers/
+// query: q, page, page_size
+// -> { count, next, previous, results: [{ user_number, full_name, email, role, is_active, last_active }] }
+// Active staff eligible to receive hazard reports (transfer targets).
+// requires permission: employee:read_handlers or employee:read_all
+export const getReportHandlers = async ({ q, page, page_size } = {}) => {
+    try {
+        const response = await api.get("accounts/employees/handlers/", {
+            params: { q, page, page_size },
+        });
+        return response.data;
+    } catch (error) {
+        if (error.response?.data) throw error.response.data;
+        throw networkError();
+    }
+};
+
 // POST /accounts/employees/
 // payload: { email, role_id, last_name, first_name, middle_name?, contact_number,
 //            birth_date, gender, street_address, region_code, province_code, city_code, barangay_code }

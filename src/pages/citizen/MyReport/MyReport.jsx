@@ -100,7 +100,14 @@ export default function MyReport() {
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [confirmSubmitting, setConfirmSubmitting] = useState(false);
   const [confirmError, setConfirmError] = useState('');
-  const [confirmSuccess, setConfirmSuccess] = useState('');
+  // Centered success popup shown after a confirmed closure; dismissed by
+  // tapping outside it (or Escape), which returns to the list view.
+  const [successPopupOpen, setSuccessPopupOpen] = useState(false);
+
+  // Bumped after a successful confirmation so the list/stats effects refetch
+  // (the report just moved Resolved -> Closed; view-only state changes don't
+  // re-run those effects on their own).
+  const [refreshTick, setRefreshTick] = useState(0);
 
   // Temporary control states (bound to form controls)
   const [tempCategoryId, setTempCategoryId] = useState('');
@@ -161,7 +168,7 @@ export default function MyReport() {
     return () => {
       cancelled = true;
     };
-  }, [appliedCategoryId, appliedStatus, appliedDate, appliedSearch, currentPage]);
+  }, [appliedCategoryId, appliedStatus, appliedDate, appliedSearch, currentPage, refreshTick]);
 
   // --- Load summary counts once on mount ---
   useEffect(() => {
@@ -185,7 +192,7 @@ export default function MyReport() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshTick]);
 
   const handleApplyFilters = () => {
     setAppliedCategoryId(tempCategoryId);
@@ -233,7 +240,14 @@ export default function MyReport() {
     setDetailError('');
     setConfirmModalOpen(false);
     setConfirmError('');
-    setConfirmSuccess('');
+  };
+
+  // Closing the success popup (tap outside / Escape) returns to the list
+  // and refetches it — the report just moved Resolved -> Closed.
+  const dismissSuccessPopup = () => {
+    setSuccessPopupOpen(false);
+    handleBackToList();
+    setRefreshTick((tick) => tick + 1);
   };
 
   // DO 47 citizen step: confirm the completed works to close the report.
@@ -244,8 +258,7 @@ export default function MyReport() {
     try {
       await confirmReportResolution(selectedReportRow.report_number);
       setConfirmModalOpen(false);
-      setConfirmSuccess('Thank you! Your report has been closed.');
-      await handleViewDetails(selectedReportRow); // reload — status is now Closed
+      setSuccessPopupOpen(true);
     } catch (err) {
       setConfirmError(err?.detail || err?.message || 'Unable to confirm the resolution. Please try again.');
     } finally {
@@ -313,7 +326,6 @@ export default function MyReport() {
 
         {detailLoading && <p className="category-loading-state">Loading report details...</p>}
         {detailError && <div className="form-error-banner">{detailError}</div>}
-        {confirmSuccess && <div className="form-success-banner">{confirmSuccess}</div>}
 
         {selectedReportDetail && (
           <div className="detail-layout">
@@ -574,6 +586,8 @@ export default function MyReport() {
             onClose={() => { if (!confirmSubmitting) setConfirmModalOpen(false); }}
           />
         )}
+
+        {successPopupOpen && <SuccessPopup onDismiss={dismissSuccessPopup} />}
       </div>
     );
   }
@@ -925,6 +939,38 @@ function ConfirmResolutionModal({ submitting, error, onConfirm, onClose }) {
             {submitting ? 'Confirming...' : 'Yes, close this report'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Centered success popup shown after the citizen confirms a closure.
+// Dismissed by tapping anywhere outside the card (or pressing Escape),
+// which returns to the My Reports list via onDismiss.
+function SuccessPopup({ onDismiss }) {
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onDismiss();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onDismiss]);
+
+  return (
+    <div className="success-popup-overlay" onClick={onDismiss}>
+      <div
+        className="success-popup-card"
+        role="status"
+        aria-live="polite"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="success-check-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+        <p>Thank you! Your report has been closed successfully.</p>
+        <span className="success-popup-hint">Tap anywhere to continue</span>
       </div>
     </div>
   );

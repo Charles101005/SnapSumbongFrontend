@@ -5,6 +5,7 @@ import { PERMISSIONS } from "../../../shared/constants";
 import { MOCK_ALL_ACCESS } from "../../../shared/config/env";
 import { useAuth } from "../../../context/authContext";
 import ReportModerationModal from "./ReportModerationModal";
+import TransferReportModal from "./TransferReportModal";
 import "./ReportDetail.css";
 
 const STATUS_COLORS = {
@@ -37,12 +38,15 @@ export default function ReportDetail({ reportNumber, onClose, onChanged }) {
   // MOCK_ALL_ACCESS short-circuits the permission check (same as Sidebar).
   const can = (permission) => MOCK_ALL_ACCESS || permissions.includes(permission);
   const canModerate = can(PERMISSIONS.USER_WARN) || can(PERMISSIONS.USER_DEACTIVATE_ANY);
+  const canTransfer = can(PERMISSIONS.REPORT_ASSIGN);
   const [report, setReport] = useState(null);
   const [error, setError] = useState("");
   const [timelineError, setTimelineError] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [selectedTimelineEvent, setSelectedTimelineEvent] = useState(null);
   const [moderating, setModerating] = useState(false);
+  const [transferring, setTransferring] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,7 +75,7 @@ export default function ReportDetail({ reportNumber, onClose, onChanged }) {
         if (historyResult.status === "rejected") setTimelineError(true);
       });
     return () => { cancelled = true; };
-  }, [reportNumber]);
+  }, [reportNumber, reloadKey]);
 
   // Single Escape handler with priority: lightbox -> activity details -> close dialog.
   useEffect(() => {
@@ -80,11 +84,12 @@ export default function ReportDetail({ reportNumber, onClose, onChanged }) {
       if (lightboxSrc) { setLightboxSrc(null); return; }
       if (selectedTimelineEvent) { setSelectedTimelineEvent(null); return; }
       if (moderating) return;
+      if (transferring) return;
       onClose?.();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [lightboxSrc, selectedTimelineEvent, moderating, onClose]);
+  }, [lightboxSrc, selectedTimelineEvent, moderating, transferring, onClose]);
 
   // Lock background scroll while the dialog is open.
   useEffect(() => {
@@ -97,6 +102,9 @@ export default function ReportDetail({ reportNumber, onClose, onChanged }) {
 
   const statusClass = STATUS_COLORS[normalizeStatus(report?.status)] || "unknown";
   const isInvalid = normalizeStatus(report?.status) === "invalid";
+  // Phase-4 statuses (Resolved/Closed/Invalid) are finished; only open
+  // reports can be transferred to another officer.
+  const isClosed = ["resolved", "closed", "invalid"].includes(normalizeStatus(report?.status));
   const sla = report ? slaBadge(report) : null;
 
   return (
@@ -249,6 +257,15 @@ export default function ReportDetail({ reportNumber, onClose, onChanged }) {
 
         {report && !error && (
           <footer className="report-detail-footer">
+            {canTransfer && !isClosed && (
+              <button
+                className="report-detail-transfer"
+                type="button"
+                onClick={() => setTransferring(true)}
+              >
+                Transfer to officer
+              </button>
+            )}
             {canModerate && isInvalid && (
               <button
                 className="report-detail-moderate"
@@ -268,6 +285,17 @@ export default function ReportDetail({ reportNumber, onClose, onChanged }) {
             initialAction="warn"
             onClose={() => setModerating(false)}
             onChanged={onChanged}
+          />
+        )}
+
+        {transferring && report && (
+          <TransferReportModal
+            report={report}
+            onClose={() => setTransferring(false)}
+            onChanged={() => {
+              setReloadKey((key) => key + 1);
+              onChanged?.();
+            }}
           />
         )}
       </section>

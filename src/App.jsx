@@ -10,7 +10,6 @@ import ResetPass from "./pages/auth/ResetPass/ResetPass";
 import VerifyEmail from "./pages/auth/ResetPassVerify/VerifyEmail";
 import NewPass from "./pages/auth/NewPass/NewPass";
 import OperationsDashboard from "./pages/dashboard/Operations/OperationsDashboard";
-import ReportsHistory from "./pages/dashboard/Operations/ReportsHistory";
 import Analytics from "./pages/dashboard/Operations/Analytics";
 import RoleManagement from "./pages/dashboard/RoleManagement/RoleManagement";
 import AddNewRole from "./pages/dashboard/RoleManagement/AddNewRole";
@@ -106,10 +105,12 @@ function AppRoutes() {
                     Operations Reports Overview table as a modal. */}
                 <Route path="/dashboard/report-management" element={<Navigate to="/dashboard/operations" replace />} />
                 <Route path="/dashboard/operations" element={<OperationsDashboard />} />
-                <Route path="/dashboard/operations/history" element={<ReportsHistory />} />
                 {/* The standalone Report Detail page now lives inside the
-                    Operations tables as a read-only modal. */}
-                <Route path="/dashboard/operations/report-details" element={<Navigate to="/dashboard/operations/history" replace />} />
+                    Operations tables as a read-only modal. The legacy Report
+                    History page was folded into Reports Overview (all statuses
+                    show there), so old bookmarks land on Overview. */}
+                <Route path="/dashboard/operations/history" element={<Navigate to="/dashboard/operations" replace />} />
+                <Route path="/dashboard/operations/report-details" element={<Navigate to="/dashboard/operations" replace />} />
                 <Route path="/dashboard/operations/analytics" element={<Analytics />} />
                 <Route path="/dashboard/audit-trail" element={<AuditTrail />} />
                 <Route path="/dashboard/account-settings" element={<DashboardAccountSettings />} />

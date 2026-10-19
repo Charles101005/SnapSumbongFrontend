@@ -6,10 +6,6 @@
   padding: 1.5rem 1.75rem;
 }
 
-.mgmt-banner {
-  margin-bottom: 1rem;
-}
-
 .mgmt-empty {
   padding: 3rem 1rem;
   text-align: center;
@@ -770,17 +766,6 @@
   color: var(--color-text-dark);
 }
 
-/* Success banner - mirrored from .form-error (OperationsDashboard.css),
-   referenced by the save flow but previously defined nowhere. */
-.form-success {
-  background: #f0fdf4;
-  color: #15803d;
-  border: 1px solid #bbf7d0;
-  padding: 0.6rem 0.75rem;
-  border-radius: 7px;
-  font-size: 0.68rem;
-}
-
 /* DO 47 inline notices: status-transition requirements (validator name on
    resolve, mandatory remark on staff force-close). */
 .mgmt-validation-hint {
@@ -792,6 +777,53 @@
   border-radius: 6px;
   font-size: 0.64rem;
   line-height: 1.4;
+}
+
+/* Post-save inline validation for status-dependent rules — shown directly
+   above the field it applies to; the only feedback for these rules (no top
+   banner). Red border, light red background, warning icon. */
+.mgmt-field-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  padding: 0.55rem 0.7rem;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  color: #b91c1c;
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.mgmt-field-alert svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+/* Success variant: shown directly above the Save All Updates button after a
+   successful save (palette mirrors the old .form-success banner). */
+.mgmt-field-alert--success {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #15803d;
+}
+
+/* Save-level feedback (error or success) sits directly above the action
+   buttons — keep them hugged together. */
+.mgmt-field-alert + .mgmt-actions {
+  margin-top: 0.5rem;
+}
+
+/* Photolog variant: spans both DURING/AFTER columns; grid gap provides the
+   spacing below, and the following phase's own top margin is neutralized. */
+.mgmt-field-alert--grid {
+  grid-column: 1 / -1;
+  margin: 1.5rem 0 0;
+}
+
+.mgmt-field-alert--grid + .mgmt-photolog-phase {
+  margin-top: 0;
 }
 
 @media (max-width: 720px) {

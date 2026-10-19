@@ -328,8 +328,10 @@
 }
 
 /* ===== MODERATION (shared ModerationPanel) ===== */
+/* Inside .cp-form, so horizontal inset comes from the form padding and the
+   spacing below comes from .cp-actions' margin-top. */
 .cp-moderation-wrap {
-  margin: 0 1.75rem 1.5rem;
+  margin: 1.75rem 0 0;
 }
 
 /* ===== RESPONSIVE ===== */

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import { getReportLookups, getReports } from "../../../api/reports";
-import { REPORT_STATUSES } from "../../../hooks/useStatusCounts";
+import { REPORT_STATUSES, STATUS_VIEWS } from "../../../hooks/useStatusCounts";
 import { formatDueDate, slaBadge } from "../../../utils/sla";
 import { PERMISSIONS } from "../../../shared/constants";
 import { MOCK_ALL_ACCESS } from "../../../shared/config/env";
@@ -58,10 +58,9 @@ const statusClass = (status) => normalize(status);
 
 function ClipboardIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>; }
 function CheckIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>; }
-function UnderReviewIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>; }
-function DispatchedIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12h15M13 6l6 6-6 6"/></svg>; }
 function OverdueIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>; }
 function FlagIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V4s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>; }
+function ActivityIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>; }
 function SearchIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>; }
 function FilterIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>; }
 function EyeIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>; }
@@ -76,10 +75,26 @@ export default function OperationsDashboard() {
   // Warn/ban the reporter of a flagged (Invalid) report in place.
   const canModerate = can(PERMISSIONS.USER_WARN) || can(PERMISSIONS.USER_DEACTIVATE_ANY);
   // The sidebar Status Views deep-link this table via ?status=…; the URL is
-  // the source of truth for which status filter is applied.
+  // also how the Analytics page drills down (?severity=…&overdue=true and
+  // ?range=…&from=…&to=…), so URL params mirror the applied deep-linkable
+  // filters. Category/search stay local state.
   const [searchParams, setSearchParams] = useSearchParams();
   const rawStatus = (searchParams.get("status") || "").trim().toLowerCase();
   const urlStatus = REPORT_STATUSES.includes(rawStatus) ? rawStatus.toUpperCase() : "";
+  const rawSeverity = (searchParams.get("severity") || "").trim().toUpperCase();
+  const urlSeverity = /^P[1-5]$/.test(rawSeverity) ? rawSeverity : "";
+  const urlOverdue = (searchParams.get("overdue") || "").trim() === "true";
+  const DATE_RANGE_VALUES = Object.values(DATE_MODES);
+  const rawRange = (searchParams.get("range") || "").trim();
+  const urlRange = rawRange && rawRange !== DATE_MODES.ALL && DATE_RANGE_VALUES.includes(rawRange) ? rawRange : "";
+  const validDate = (value) => (/^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "");
+  const urlFrom = validDate((searchParams.get("from") || "").trim());
+  const urlTo = validDate((searchParams.get("to") || "").trim());
+  const urlDateMode = urlRange || (urlFrom || urlTo ? DATE_MODES.CUSTOM : DATE_MODES.ALL);
+  // Status Views (?status=…) pre-filter the table via the URL. The compact
+  // summary bar stays visible in both modes; only the page header adapts.
+  const isStatusView = Boolean(urlStatus);
+  const statusView = STATUS_VIEWS.find((v) => v.status === rawStatus);
   const [lookups, setLookups] = useState({ categories: [], statuses: [], severities: [] });
   const [statusStats, setStatusStats] = useState({});
   const [overdueCount, setOverdueCount] = useState(0);
@@ -87,7 +102,7 @@ export default function OperationsDashboard() {
   const [count, setCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({ category: "", severity: "", status: urlStatus, search: "", dateMode: DATE_MODES.ALL, fromDate: "", toDate: "", overdue: false });
+  const [filters, setFilters] = useState({ category: "", severity: urlSeverity, status: urlStatus, search: "", dateMode: urlDateMode, fromDate: urlFrom, toDate: urlTo, overdue: urlOverdue });
   const [draft, setDraft] = useState(filters);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -98,14 +113,31 @@ export default function OperationsDashboard() {
   // Report number whose read-only detail dialog is open, or null when closed.
   const [viewingReport, setViewingReport] = useState(null);
 
-  // Adjust state when the URL status changes (sidebar click or browser
-  // navigation) — see react.dev "adjusting some state when a prop changes".
-  const [prevUrlStatus, setPrevUrlStatus] = useState(urlStatus);
-  if (prevUrlStatus !== urlStatus) {
-    setPrevUrlStatus(urlStatus);
+  // Adjust state when the deep-link params change (sidebar click, Analytics
+  // drill-down, or browser navigation) — see react.dev "adjusting some state
+  // when a prop changes". Only the fields whose URL value actually changed are
+  // applied, so a plain ?status= navigation leaves the other filters alone.
+  const deepLink = `${urlStatus}|${urlSeverity}|${urlOverdue ? "1" : "0"}|${urlRange}|${urlFrom}|${urlTo}`;
+  const [prevDeepLink, setPrevDeepLink] = useState(deepLink);
+  if (prevDeepLink !== deepLink) {
+    const [prevStatus, prevSeverity, prevOverdue, prevRange, prevFrom, prevTo] = prevDeepLink.split("|");
+    setPrevDeepLink(deepLink);
     setPage(1);
-    setFilters((current) => ({ ...current, status: urlStatus }));
-    setDraft((current) => ({ ...current, status: urlStatus }));
+    const dateChanged = `${urlRange}|${urlFrom}|${urlTo}` !== `${prevRange}|${prevFrom}|${prevTo}`;
+    const applyUrl = (current) => {
+      const next = { ...current };
+      if (urlStatus !== prevStatus) next.status = urlStatus;
+      if (urlSeverity !== prevSeverity) next.severity = urlSeverity;
+      if ((urlOverdue ? "1" : "0") !== prevOverdue) next.overdue = urlOverdue;
+      if (dateChanged) {
+        next.dateMode = urlDateMode;
+        next.fromDate = urlFrom;
+        next.toDate = urlTo;
+      }
+      return Object.keys(next).every((key) => next[key] === current[key]) ? current : next;
+    };
+    setFilters(applyUrl);
+    setDraft(applyUrl);
   }
 
   const load = async () => {
@@ -123,10 +155,9 @@ export default function OperationsDashboard() {
         to_date: toDate || undefined,
         // DO 47 SLA: show only open reports past their due date.
         overdue: filters.overdue || undefined,
-        // exclude_closed hides phase-four reports (resolved + closed). Only
-        // apply it on the unfiltered overview — status views like Resolved
-        // must still return their own rows.
-        exclude_closed: !filters.status,
+        // Reports Overview lists every report regardless of status (including
+        // Resolved/Closed/Invalid), so exclude_closed is always off here.
+        exclude_closed: false,
         page,
         page_size: PAGE_SIZE,
       });
@@ -180,9 +211,8 @@ export default function OperationsDashboard() {
   useEffect(() => { load(); }, [page, filters]);
 
   const countFor = (...keys) => keys.reduce((sum, key) => sum + Number(statusStats[normalize(key)] || 0), 0);
-  const resolved = countFor("resolved", "closed");
-  const underReview = countFor("under_review");
-  const dispatched = countFor("dispatched");
+  // Active = every open report (not yet Resolved, Closed, or Invalid).
+  const active = countFor("new", "assigned", "under_review", "on_hold", "dispatched");
   const invalid = countFor("invalid");
   const totalReports = Object.values(statusStats).reduce((sum, n) => sum + Number(n || 0), 0) || count;
   const categories = lookups.categories || [];
@@ -190,43 +220,91 @@ export default function OperationsDashboard() {
   const severities = lookups.severities || [];
 
   const updateDraft = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
-  const syncStatusParam = (status) => setSearchParams((prev) => {
+  // Mirror the deep-linkable filters into the URL so sidebar links, Analytics
+  // drill-downs and browser back/forward all read from one source of truth.
+  // Category/search stay page-local and are never written to the URL.
+  const syncParamsFrom = (source) => setSearchParams((prev) => {
     const next = new URLSearchParams(prev);
-    if (status) next.set("status", String(status).toLowerCase());
-    else next.delete("status");
+    const put = (key, value) => { if (value) next.set(key, String(value)); else next.delete(key); };
+    put("status", source.status ? String(source.status).toLowerCase() : "");
+    put("severity", source.severity || "");
+    if (source.overdue) next.set("overdue", "true");
+    else next.delete("overdue");
+    if (source.dateMode && source.dateMode !== DATE_MODES.ALL) put("range", source.dateMode);
+    else next.delete("range");
+    const custom = source.dateMode === DATE_MODES.CUSTOM;
+    put("from", custom ? source.fromDate || "" : "");
+    put("to", custom ? source.toDate || "" : "");
     return next;
   }, { replace: true });
-  const applyFilters = () => { setPage(1); setFilters(draft); syncStatusParam(draft.status); };
+  // Status/severity/overdue/date are URL-driven; Apply Filters commits the
+  // draft (including the local category/search fields) and mirrors the rest.
+  const applyFilters = () => { setPage(1); setFilters(draft); syncParamsFrom(draft); };
   const reset = () => {
-    const empty = { category: "", severity: "", status: "", search: "", dateMode: DATE_MODES.ALL, fromDate: "", toDate: "", overdue: false };
+    // Status Views keep their locked status on reset — clearing it would
+    // silently kick the user back to the Overview.
+    const empty = { category: "", severity: "", status: isStatusView ? urlStatus : "", search: "", dateMode: DATE_MODES.ALL, fromDate: "", toDate: "", overdue: false };
     setPage(1); setDraft(empty); setFilters(empty);
-    syncStatusParam("");
+    syncParamsFrom(empty);
+  };
+
+  const openStatusView = (status) => setSearchParams((prev) => {
+    const next = new URLSearchParams(prev);
+    next.set("status", String(status).toLowerCase());
+    return next;
+  });
+  // Total chip: leave the Status View but keep the other filters applied.
+  const openOverview = () => setSearchParams((prev) => {
+    const next = new URLSearchParams(prev);
+    next.delete("status");
+    return next;
+  }, { replace: true });
+  // Overdue chip: toggling writes ?overdue=… and the deep-link effect applies
+  // it — a drill-down action like the other chips, not a pending draft edit.
+  const toggleOverdue = () => {
+    syncParamsFrom({ ...filters, overdue: !filters.overdue });
   };
 
   return (
-    <DashboardLayout title="Operations - Reports Overview">
+    <DashboardLayout title={isStatusView ? `Operations - ${statusView?.label || urlStatus}` : "Operations - Reports Overview"}>
       <div className="section-header">
-        <h2 className="section-title">Reports Overview</h2>
-        <p className="section-subtitle">Manage and monitor citizen reports for community improvement.</p>
+        <h2 className="section-title">{isStatusView ? `${statusView?.label || prettifyStatus(urlStatus)} Reports` : "Reports Overview"}</h2>
+        <p className="section-subtitle">{isStatusView ? `Filtered to ${statusView?.label || prettifyStatus(urlStatus)} reports — counts are shown in the sidebar.` : "Manage and monitor citizen reports for community improvement."}</p>
       </div>
 
-      <div className="stats-grid">
-        <div className="stat-card"><div className="stat-icon stat-icon-total"><ClipboardIcon /></div><div><span className="stat-label">TOTAL REPORTS</span><strong>{totalReports}</strong></div></div>
-        <div className="stat-card"><div className="stat-icon stat-icon-under-review"><UnderReviewIcon /></div><div><span className="stat-label">UNDER REVIEW</span><strong>{underReview}</strong></div></div>
-        <div className="stat-card"><div className="stat-icon stat-icon-dispatched"><DispatchedIcon /></div><div><span className="stat-label">DISPATCHED</span><strong>{dispatched}</strong></div></div>
-        <div className="stat-card"><div className="stat-icon stat-icon-resolved"><CheckIcon /></div><div><span className="stat-label">RESOLVED</span><strong>{resolved}</strong></div></div>
-        <div className="stat-card"><div className="stat-icon stat-icon-invalid"><FlagIcon /></div><div><span className="stat-label">INVALID (FLAGGED)</span><strong>{invalid}</strong></div></div>
-        <div className="stat-card stat-card-overdue"><div className="stat-icon stat-icon-overdue"><OverdueIcon /></div><div><span className="stat-label">OVERDUE (SLA)</span><strong>{overdueCount}</strong></div></div>
+      {/* Compact summary strip — shown in Overview and Status Views. Total /
+          Resolved / Invalid navigate, Overdue toggles its filter, Active is
+          informational (no single status maps to it). */}
+      <div className="summary-bar">
+        <button type="button" className="summary-metric" title="Show all reports" onClick={openOverview}>
+          <span className="summary-icon summary-icon-total"><ClipboardIcon /></span>
+          <span className="summary-text"><span className="summary-label">TOTAL REPORTS</span><strong>{totalReports}</strong></span>
+        </button>
+        <div className="summary-metric summary-metric-static" title="New + Assigned + Under Review + On-Hold + Dispatched">
+          <span className="summary-icon summary-icon-active"><ActivityIcon /></span>
+          <span className="summary-text"><span className="summary-label">ACTIVE</span><strong>{active}</strong></span>
+        </div>
+        <button type="button" className="summary-metric" title="View Resolved reports" onClick={() => openStatusView("resolved")}>
+          <span className="summary-icon summary-icon-resolved"><CheckIcon /></span>
+          <span className="summary-text"><span className="summary-label">RESOLVED</span><strong>{countFor("resolved")}</strong></span>
+        </button>
+        <button type="button" className="summary-metric" title="View Invalid reports" onClick={() => openStatusView("invalid")}>
+          <span className="summary-icon summary-icon-invalid"><FlagIcon /></span>
+          <span className="summary-text"><span className="summary-label">INVALID</span><strong>{invalid}</strong></span>
+        </button>
+        <button type="button" className={`summary-metric${filters.overdue ? " summary-metric-toggled" : ""}`} title="Toggle the Overdue only filter" aria-pressed={filters.overdue} onClick={toggleOverdue}>
+          <span className="summary-icon summary-icon-overdue"><OverdueIcon /></span>
+          <span className="summary-text"><span className="summary-label">OVERDUE (SLA)</span><strong>{overdueCount}</strong></span>
+        </button>
       </div>
 
+      {/* Sticky filter row — stays pinned while the table scrolls. Status is
+          driven by the URL only (sidebar + summary-bar chips), so there is no
+          Status dropdown here. */}
       <div className="filters-section">
         <div className="filters-row">
           <div className="filter-group"><label>Category</label><select value={draft.category} onChange={(e) => updateDraft("category", e.target.value)}><option value="">All Categories</option>{categories.map((c) => <option key={c.hazard_id} value={c.hazard_id}>{c.hazard_name}</option>)}</select></div>
           <div className="filter-group"><label>Severity</label><select value={draft.severity} onChange={(e) => updateDraft("severity", e.target.value)}><option value="">All Severities</option>{severities.map((s) => <option key={valueOf(s)} value={valueOf(s)}>{labelOf(s)}</option>)}</select></div>
-          <div className="filter-group"><label>Status</label><select value={draft.status} onChange={(e) => updateDraft("status", e.target.value)}><option value="">All Statuses</option>{statuses.map((s) => <option key={valueOf(s)} value={valueOf(s)}>{labelOf(s)}</option>)}</select></div>
-          <div className="filter-group filter-search"><label>Search</label><div className="search-wrap"><SearchIcon/><input placeholder="Search" value={draft.search} onChange={(e) => updateDraft("search", e.target.value)} onKeyDown={(e) => e.key === "Enter" && applyFilters()} /></div></div>
-        </div>
-        <div className="filters-row filter-bottom">
           <div className="filter-group date-filter">
             <label>Date</label>
             <select value={draft.dateMode} onChange={(e) => updateDraft("dateMode", e.target.value)}>
@@ -240,6 +318,7 @@ export default function OperationsDashboard() {
               <div className="date-range"><span>From</span><input type="date" value={draft.fromDate} onChange={(e) => updateDraft("fromDate", e.target.value)} /><span>to</span><input type="date" value={draft.toDate} onChange={(e) => updateDraft("toDate", e.target.value)} /></div>
             )}
           </div>
+          <div className="filter-group filter-search"><label>Search</label><div className="search-wrap"><SearchIcon/><input placeholder="Search" value={draft.search} onChange={(e) => updateDraft("search", e.target.value)} onKeyDown={(e) => e.key === "Enter" && applyFilters()} /></div></div>
           <div className="filter-actions">
             <label className="overdue-toggle" title="Show only open reports past their DO 47 response time">
               <input type="checkbox" checked={draft.overdue} onChange={(e) => updateDraft("overdue", e.target.checked)} />
@@ -261,7 +340,10 @@ export default function OperationsDashboard() {
               const statusKey = normalize(report.status);
               return (
               <tr key={report.report_number}>
-                <td className="report-number">{report.report_number}</td><td>{report.category}</td><td>{report.address || "—"}</td><td>{new Date(report.created_at).toLocaleDateString()}</td>
+                <td className="report-number">{report.report_number}</td>
+                <td className="cell-truncate" title={report.category || ""}>{report.category}</td>
+                <td className="cell-truncate" title={report.address || ""}>{report.address || "—"}</td>
+                <td>{new Date(report.created_at).toLocaleDateString()}</td>
                 <td><span className={`sla-badge sla-${sla.tone}`} title={report.due_at ? `Due ${formatDueDate(report.due_at)}` : "No SLA set"}>{sla.text}</span></td>
                 <td><span className={`status-badge status-${statusClass(report.status)}`}>{displayStatus(report.status, statuses)}</span></td><td><span className={`severity-badge severity-${String(report.severity || "").toLowerCase()}`}>{report.severity || "—"}</span></td>
                 <td>

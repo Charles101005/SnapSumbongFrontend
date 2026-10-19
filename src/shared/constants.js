@@ -28,6 +28,7 @@ export const PERMISSIONS = {
     REPORT_READ_ASSIGNED: "report:read_assigned",
     REPORT_UPDATE_ASSIGNED: "report:update_assigned",
     REPORT_READ_ALL: "report:read_all",
+    REPORT_ASSIGN: "report:assign",
     REPORT_FLAG: "report:flag",
     // Analytics
     ANALYTIC_READ_OWN_METRICS: "analytic:read_own_metrics",

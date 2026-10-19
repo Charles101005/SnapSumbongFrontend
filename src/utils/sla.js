@@ -40,6 +40,10 @@ export const slaBadge = (report) => {
     }
 
     if (days === null) return { tone: "none", text: "No SLA" };
+    // Past due but not flagged overdue by the backend: the SLA clock is no
+    // longer live (closed/resolved/invalid reports). Show a neutral dash
+    // instead of a misleading negative countdown.
+    if (days < 0) return { tone: "none", text: "—" };
     if (days === 0) return { tone: "soon", text: "Due today" };
     if (days <= 2) return { tone: "soon", text: `${days}d left` };
     return { tone: "ok", text: `${days}d left` };

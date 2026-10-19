@@ -538,7 +538,7 @@ body {
 
 /* ===== SHARED FILTERS =====
    Class names here are intentionally unique (.filter-card, .filter-field, ...)
-   because Operations/ReportsHistory/MyReport define their own .filters-section /
+   because Operations/MyReport define their own .filters-section /
    .filters-row / .filter-group / .filter-actions / .btn-apply rules — sharing
    those names caused cross-page cascade collisions in the bundled CSS. */
 .filter-card {

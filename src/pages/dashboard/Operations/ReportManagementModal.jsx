@@ -52,6 +52,42 @@ function ImageIcon() {
   );
 }
 
+function WarningIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
+
+function CheckCircleIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  );
+}
+
+// Inline field-level validation alert (red border, light red background,
+// warning icon) shown directly above the field it applies to — the only
+// feedback for status-dependent save rules (no top banner). The success
+// variant (green border, light green background, check icon) sits directly
+// above the Save All Updates button after a successful save.
+function FieldAlert({ message, className, variant = "error" }) {
+  const classes = ["mgmt-field-alert"];
+  if (variant === "success") classes.push("mgmt-field-alert--success");
+  if (className) classes.push(className);
+  return (
+    <div className={classes.join(" ")} role={variant === "success" ? "status" : "alert"}>
+      {variant === "success" ? <CheckCircleIcon /> : <WarningIcon />}
+      <span>{message}</span>
+    </div>
+  );
+}
+
 const statusValue = (item) => item?.value || item;
 const statusLabel = (item) => item?.label || item;
 const statusToValue = (status) => String(status || "").toUpperCase().replace(/[^A-Z]+/g, "_").replace(/^_|_$/g, "");
@@ -90,6 +126,14 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  // Inline field-level validation for status-dependent save rules — shown
+  // directly above the field each rule applies to instead of the top
+  // banner, mirroring the backend's domain-error messages.
+  const [severityError, setSeverityError] = useState("");
+  const [statusError, setStatusError] = useState("");
+  const [photosError, setPhotosError] = useState("");
+  const [validatorError, setValidatorError] = useState("");
+  const [remarksError, setRemarksError] = useState("");
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [mapExpanded, setMapExpanded] = useState(false);
 
@@ -102,6 +146,11 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
     setReport(null);
     setSuccess("");
     setError("");
+    setSeverityError("");
+    setStatusError("");
+    setPhotosError("");
+    setValidatorError("");
+    setRemarksError("");
     setLoadingDetail(Boolean(reportNumber));
   }
 
@@ -161,6 +210,11 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         setDuringPreviews([]);
         setAfterPreviews([]);
         setError("");
+        setSeverityError("");
+        setStatusError("");
+        setPhotosError("");
+        setValidatorError("");
+        setRemarksError("");
         setLoadingDetail(false);
       })
       .catch((err) => {
@@ -185,10 +239,12 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
     const files = selected.slice(0, remaining);
 
     if (selected.length > remaining) {
-      setError(`DURING and AFTER photos are limited to ${MAX_RESOLUTION_PHOTOS} combined. Only the first ${files.length} were kept.`);
+      setPhotosError(`DURING and AFTER photos are limited to ${MAX_RESOLUTION_PHOTOS} combined. Only the first ${files.length} were kept.`);
     } else {
-      setError("");
+      setPhotosError("");
     }
+    setError("");
+    setSuccess("");
 
     // Revoke any previously-generated preview URLs before replacing them.
     const setFiles = phase === "DURING" ? setDuringFiles : setAfterFiles;
@@ -217,51 +273,57 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
       const resolving = statusChanged && status === "RESOLVED";
 
       // DO 47 photolog: resolving requires at least one DURING and one AFTER
-      // photo — mirror the backend rule here for immediate feedback.
+      // photo — mirror the backend's domain errors inline at the photolog.
       if (resolving && (!duringFiles.length || !afterFiles.length)) {
-        setError("Resolving requires at least one 'During' photo and one 'After' photo of the rectification works.");
+        setError("");
+        if (!duringFiles.length && !afterFiles.length) {
+          setPhotosError("Resolution images are required when transitioning to resolved status.");
+        } else if (!duringFiles.length) {
+          setPhotosError("The photolog requires at least one 'During' photo of the rectification works.");
+        } else {
+          setPhotosError("The photolog requires at least one 'After' photo of the completed rectification.");
+        }
         setSaving(false);
         return;
       }
 
       // DO 47 §2: resolving requires the declared name of the technical
-      // personnel who validated the completed works.
+      // personnel who validated the completed works (ValidatorNameRequiredError).
       if (resolving && !validatorName.trim()) {
-        setError("Enter the name of the DO 47 validator of the completed works before marking this report Resolved.");
+        setError("");
+        setValidatorError("The name of the DO 47 validator is required when transitioning to resolved status.");
         setSaving(false);
         return;
       }
 
-      // Staff force-close (e.g. not under DO 47 jurisdiction) requires a
-      // remark explaining why — the backend rejects CLOSED without one.
-      // A report resolved the normal way is closed by the citizen instead.
-      const closing = statusChanged && status === "CLOSED";
-      if (closing && !remarks.trim()) {
-        setError("Closing requires a remark explaining the reason (e.g., not under DO 47 jurisdiction or referred to another office).");
-        setSaving(false);
-        return;
-      }
-
-      // Flagging a report as Invalid (false/troll report) requires a remark
-      // explaining why — the backend rejects the transition without one.
+      // Flagging a report as Invalid (false/troll report) is only legal once
+      // the report has reached Under Review (after Assigned).
       const invalidating = statusChanged && status === "INVALID";
       if (invalidating && !INVALID_VISIBLE_AFTER.includes(currentStatusValue)) {
-        setError("A report can only be flagged Invalid after it has reached Under Review (after Assigned).");
-        setSaving(false);
-        return;
-      }
-      if (invalidating && !remarks.trim()) {
-        setError("Marking a report Invalid requires a remark stating why it is false or not a valid hazard report.");
+        setError("");
+        setStatusError("A report can only be flagged Invalid after it has reached Under Review (after Assigned).");
         setSaving(false);
         return;
       }
 
-      // Severity is the triage verdict made during verification — the backend
-      // rejects a move into Under Review until one exists (set earlier or
-      // chosen right now).
+      // The backend (MandatoryRemarksStatusError) requires a detailed remark
+      // when moving a report to On-Hold, Closed, or Invalid — surface that
+      // as a single inline alert above the Remarks field.
+      const remarksMandatory = statusChanged && ["ON_HOLD", "CLOSED", "INVALID"].includes(status);
+      if (remarksMandatory && !remarks.trim()) {
+        setError("");
+        setRemarksError("A detailed remark is required when moving a report to this status.");
+        setSaving(false);
+        return;
+      }
+
+      // Severity is the triage verdict made during verification — the
+      // backend rejects a move into Under Review until one exists (set
+      // earlier or chosen right now).
       const enteringReview = statusChanged && status === "UNDER_REVIEW";
       if (enteringReview && !severity) {
-        setError("Set the severity (P1-P5) before moving this report to Under Review.");
+        setError("");
+        setSeverityError("Set the severity (P1-P5) before moving this report to Under Review.");
         setSaving(false);
         return;
       }
@@ -270,12 +332,13 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
       // gain a severity in the same save — report exactly what's missing.
       const fromAssigned = currentStatusValue === "ASSIGNED";
       if (fromAssigned && !report.severity && (!statusChanged || !severity)) {
+        setError("");
         if (statusChanged && !severity) {
-          setError("Set the severity (P1-P5) before saving — an Assigned report must set its severity in the same update as the status change.");
+          setSeverityError("Set the severity (P1-P5) before saving — an Assigned report must set its severity in the same update as the status change.");
         } else if (!statusChanged && severity) {
-          setError("Change the status from Assigned (e.g., to Under Review) as well — a report with no severity must update status and severity together.");
+          setSeverityError("Change the status from Assigned (e.g., to Under Review) as well — a report with no severity must update status and severity together.");
         } else {
-          setError("This Assigned report has no severity yet — change the status (e.g., to Under Review) and select a severity (P1-P5) before saving.");
+          setSeverityError("This Assigned report has no severity yet — change the status (e.g., to Under Review) and select a severity (P1-P5) before saving.");
         }
         setSaving(false);
         return;
@@ -389,13 +452,12 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
           </button>
         </header>
 
-        {error && <div className="form-error mgmt-banner">{typeof error === "string" ? error : JSON.stringify(error)}</div>}
-        {success && <div className="form-success mgmt-banner">{success}</div>}
-
         {loadingDetail ? (
           <div className="mgmt-empty">Loading report...</div>
         ) : !report ? (
-          <div className="mgmt-empty">Report not available.</div>
+          <div className="mgmt-empty">
+            <FieldAlert message={typeof error === "string" && error ? error : "Report not available."} />
+          </div>
         ) : (
           <>
             <div className="mgmt-header">
@@ -427,11 +489,13 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                 <div className="mgmt-controls-row">
                   <div className="mgmt-field">
                     <span className="mgmt-label">Severity</span>
+                    {severityError && <FieldAlert message={severityError} />}
                     <select
                       className="pill-select"
                       style={{ backgroundColor: severityColor.bg, color: severityColor.text }}
                       value={severity}
-                      onChange={(e) => setSeverity(e.target.value)}
+                      onChange={(e) => { setSeverity(e.target.value); setSeverityError(""); setError(""); setSuccess(""); }}
+                      aria-invalid={Boolean(severityError)}
                     >
                       {!severity && (
                         <option value="" disabled>Select severity...</option>
@@ -454,11 +518,24 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                   </div>
                   <div className="mgmt-field">
                     <span className="mgmt-label">Update Status</span>
+                    {statusError && <FieldAlert message={statusError} />}
                     <select
                       className="pill-select"
                       style={{ backgroundColor: statusColor.bg, color: statusColor.text }}
                       value={status}
-                      onChange={(e) => setStatus(e.target.value)}
+                      onChange={(e) => {
+                        // Every save rule depends on the chosen status —
+                        // switching it clears all inline feedback.
+                        setStatus(e.target.value);
+                        setSeverityError("");
+                        setStatusError("");
+                        setPhotosError("");
+                        setValidatorError("");
+                        setRemarksError("");
+                        setError("");
+                        setSuccess("");
+                      }}
+                      aria-invalid={Boolean(statusError)}
                     >
                       {statusOptions.map((item) => (
                         <option key={statusValue(item)} value={statusValue(item)}>{statusLabel(item)}</option>
@@ -559,6 +636,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
 
             {isResolvingTransition && (
               <div className="mgmt-photolog-row">
+                {photosError && <FieldAlert message={photosError} className="mgmt-field-alert--grid" />}
                 <div className="mgmt-section mgmt-photolog-phase">
                   <span className="mgmt-label">
                     During Photo — works in progress ({duringFiles.length})
@@ -622,12 +700,14 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
             {isResolvingTransition && (
               <div className="mgmt-section">
                 <span className="mgmt-label">DO 47 Validator Name *</span>
+                {validatorError && <FieldAlert message={validatorError} />}
                 <input
                   className="mgmt-input"
                   type="text"
                   value={validatorName}
-                  onChange={(e) => setValidatorName(e.target.value)}
+                  onChange={(e) => { setValidatorName(e.target.value); setValidatorError(""); setError(""); setSuccess(""); }}
                   placeholder="Name of the technical personnel who validated the completed works"
+                  aria-invalid={Boolean(validatorError)}
                 />
                 <p className="mgmt-validation-hint">
                   Required when marking a report Resolved — record who validated
@@ -638,15 +718,19 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
 
             <div className="mgmt-section">
               <span className="mgmt-label">Remarks</span>
+              {remarksError && <FieldAlert message={remarksError} />}
               <textarea
                 className="mgmt-textarea"
                 rows="4"
                 value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
+                onChange={(e) => { setRemarks(e.target.value); setRemarksError(""); setError(""); setSuccess(""); }}
                 placeholder="Provide remarks about the hazard..."
+                aria-invalid={Boolean(remarksError)}
               />
             </div>
 
+            {error && <FieldAlert message={typeof error === "string" ? error : JSON.stringify(error)} />}
+            {success && <FieldAlert message={success} variant="success" />}
             <div className="mgmt-actions">
               <button className="btn-discard-pill" onClick={onClose} disabled={saving}>Close</button>
               <button className="btn-save-pill" onClick={handleSave} disabled={saving}>{saving ? "Saving..." : "Save All Updates"}</button>

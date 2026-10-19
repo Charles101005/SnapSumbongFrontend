@@ -148,6 +148,24 @@ export const uploadResolutionImages = async (files) => {
     return uploadHazardImageFiles(files);
 };
 
+// POST /reports/:report_number/transfer/
+// Supervisor handoff: reassigns an open report to another eligible officer.
+// payload: { assigned_to: <user_number>, remarks?: string }
+// Status is intentionally not part of the contract — a transfer is a
+// handoff, not a workflow transition.
+// requires permission: report:assign
+export const transferReport = async (reportNumber, payload) => {
+    try {
+        const response = await api.post(
+            `reports/${encodeURIComponent(reportNumber)}/transfer/`,
+            payload
+        );
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error;
+    }
+};
+
 // POST /reports/:report_number/confirm-resolution/
 // Citizen (reporter) confirmation: moves a RESOLVED report to CLOSED and
 // stamps confirmed_at. Staff cannot use this endpoint; they force-close

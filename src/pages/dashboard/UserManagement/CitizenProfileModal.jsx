@@ -401,6 +401,27 @@ export default function CitizenProfileModal({ userNumber, mode = "view", onClose
               )}
             </div>
 
+            {/* Sits inside the form so Cancel/Save stay the last elements, but
+                its buttons are all type="button"; the onKeyDown guard stops
+                Enter in the moderation inputs from submitting the status form
+                (buttons/textareas keep their normal keyboard behavior). */}
+            <div
+              className="cp-moderation-wrap"
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && event.target.tagName === "INPUT") {
+                  event.preventDefault();
+                }
+              }}
+            >
+              <ModerationPanel
+                userNumber={userNumber}
+                onChanged={() => {
+                  setReloadKey((key) => key + 1);
+                  onSaved?.();
+                }}
+              />
+            </div>
+
             <div className="cp-actions">
               {isView ? (
                 <button type="button" className="cp-btn-discard" onClick={onClose}>Close</button>
@@ -414,16 +435,6 @@ export default function CitizenProfileModal({ userNumber, mode = "view", onClose
               )}
             </div>
           </form>
-
-          <div className="cp-moderation-wrap">
-            <ModerationPanel
-              userNumber={userNumber}
-              onChanged={() => {
-                setReloadKey((key) => key + 1);
-                onSaved?.();
-              }}
-            />
-          </div>
         </>
       )}
 
