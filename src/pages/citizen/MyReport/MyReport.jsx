@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import MapAutoResize from '../../../components/shared/MapAutoResize';
+import Pagination from '../../../components/shared/Pagination';
 import './MyReport.css';
 import { getReports, getReportDetail, getHazardCategories, confirmReportResolution } from '../../../api/reports';
 import { getReportMetrics } from '../../../api/analytics';
@@ -20,6 +21,7 @@ const STATUS_META = {
   UNDER_REVIEW: { label: 'Under Review', badgeClass: 'status-under-review' },
   ON_HOLD: { label: 'On Hold', badgeClass: 'status-on-hold' },
   DISPATCHED: { label: 'Dispatched', badgeClass: 'status-dispatched' },
+  ONGOING: { label: 'Ongoing', badgeClass: 'status-ongoing' },
   RESOLVED: { label: 'Resolved', badgeClass: 'status-resolved' },
   CLOSED: { label: 'Closed', badgeClass: 'status-closed' },
   INVALID: { label: 'Invalid', badgeClass: 'status-invalid' },
@@ -37,9 +39,10 @@ const STATUS_TO_STEP = {
   UNDER_REVIEW: 1,
   ON_HOLD: 1,
   DISPATCHED: 2,
-  RESOLVED: 3,
-  CLOSED: 3,
-  INVALID: 3,
+  ONGOING: 3,
+  RESOLVED: 4,
+  CLOSED: 4,
+  INVALID: 4,
 };
 
 const TIMELINE_STEPS = [
@@ -48,6 +51,7 @@ const TIMELINE_STEPS = [
   { expected: 'Assigned', pendingIcon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6' },
   { expected: 'Under Review', pendingIcon: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M21 21l-4.35-4.35' },
   { expected: 'Dispatched', pendingIcon: 'M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.1-2.1z' },
+  { expected: 'Ongoing', pendingIcon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18a6 6 0 1 1 0-12 6 6 0 0 1 0 12zm0-11a1 1 0 1 0 0 2 1 1 0 0 0 0-2z' },
   { expected: 'Resolved', pendingIcon: 'M22 11.08V12a10 10 0 1 1-5.93-9.14 M22 4 12 14.01l-3-3' },
 ];
 
@@ -64,6 +68,13 @@ const formatDate = (isoString) => {
   const date = new Date(isoString);
   if (Number.isNaN(date.getTime())) return isoString;
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+};
+
+const formatDateTime = (isoString) => {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return isoString;
+  return date.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 };
 
 const formatCoordinates = (latitude, longitude) => {
@@ -95,6 +106,9 @@ export default function MyReport() {
   const [selectedReportDetail, setSelectedReportDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
+  // Resolution-timeline "View Details": the step whose status-change
+  // dialog is open (null = closed).
+  const [timelineStepDetail, setTimelineStepDetail] = useState(null);
 
   // --- Citizen confirmation (close a resolved report) ---
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
@@ -145,7 +159,7 @@ export default function MyReport() {
 
     (async () => {
       try {
-        const params = { page: currentPage };
+        const params = { page: currentPage, page_size: ROWS_PER_PAGE };
         if (appliedCategoryId) params.category_id = appliedCategoryId;
         if (appliedStatus) params.status = appliedStatus;
         if (appliedDate) params.created_at = appliedDate;
@@ -238,6 +252,7 @@ export default function MyReport() {
     setSelectedReportRow(null);
     setSelectedReportDetail(null);
     setDetailError('');
+    setTimelineStepDetail(null);
     setConfirmModalOpen(false);
     setConfirmError('');
   };
@@ -315,6 +330,9 @@ export default function MyReport() {
         label: getTimelineStatusLabel(targetStatus || step.expected),
         date: entry?.created_at || '',
         skipped,
+        // The audit-log entry backing this step; powers the "View Details"
+        // dialog (null when the phase was reached without recorded history).
+        entry: entry || null,
       };
     });
 
@@ -370,12 +388,20 @@ export default function MyReport() {
                 <div className="timeline-stepper" style={{ '--tl-progress': currentStep }}>
                   {steps.map((step, idx) => {
                     const reached = idx <= currentStep;
+                    // Reached steps with recorded history open the status
+                    // details dialog; skipped ("Not needed") and upcoming
+                    // ("Pending") steps have nothing to show and stay inert.
+                    const clickable = reached && !step.skipped && !!step.entry;
                     return (
-                      <div
+                      <button
                         key={step.expected}
-                        className={`timeline-step ${step.skipped ? 'skipped' : reached ? 'completed' : 'upcoming'}`}
+                        type="button"
+                        className={`timeline-step ${step.skipped ? 'skipped' : reached ? 'completed' : 'upcoming'}${clickable ? ' clickable' : ''}`}
+                        onClick={clickable ? () => setTimelineStepDetail(step) : undefined}
+                        disabled={!clickable}
+                        aria-haspopup="dialog"
                       >
-                        <div className="step-node">
+                        <span className="step-node">
                           {step.skipped ? (
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
                               <line x1="6" y1="12" x2="18" y2="12" />
@@ -389,12 +415,13 @@ export default function MyReport() {
                               <path d={step.pendingIcon} />
                             </svg>
                           )}
-                        </div>
-                        <div className="step-label">{step.label}</div>
-                        <div className="step-date">
+                        </span>
+                        <span className="step-label">{step.label}</span>
+                        <span className="step-date">
                           {step.skipped ? 'Not needed' : reached ? formatDate(step.date) || '—' : 'Pending'}
-                        </div>
-                      </div>
+                        </span>
+                        {clickable && <span className="step-view-hint">View Details</span>}
+                      </button>
                       );
                     })}
                   </div>
@@ -588,6 +615,13 @@ export default function MyReport() {
         )}
 
         {successPopupOpen && <SuccessPopup onDismiss={dismissSuccessPopup} />}
+
+        {timelineStepDetail && (
+          <TimelineDetailsModal
+            step={timelineStepDetail}
+            onClose={() => setTimelineStepDetail(null)}
+          />
+        )}
       </div>
     );
   }
@@ -770,28 +804,9 @@ export default function MyReport() {
       </div>
 
       {/* Pagination */}
-      <div className="pagination">
-        <span className="pagination-info">
-          Showing {startRow} to {endRow} of {pageMeta.count} reports
-        </span>
-        <div className="pagination-buttons">
-          <button className="pagination-btn" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => p - 1)}>
-            Previous
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <button
-              key={page}
-              className={`pagination-btn ${page === currentPage ? 'active' : ''}`}
-              onClick={() => setCurrentPage(page)}
-            >
-              {page}
-            </button>
-          ))}
-          <button className="pagination-btn" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => p + 1)}>
-            Next
-          </button>
-        </div>
-      </div>
+      <Pagination currentPage={currentPage} totalPages={totalPages} loading={listLoading} onPageChange={setCurrentPage}>
+        Showing {startRow} to {endRow} of {pageMeta.count.toLocaleString()} reports
+      </Pagination>
     </div>
   );
 }
@@ -940,6 +955,101 @@ function ConfirmResolutionModal({ submitting, error, onConfirm, onClose }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Citizen-safe labels for the raw audit action codes returned in the
+// timeline entries (backend keeps the codes, not display text).
+const TIMELINE_ACTION_LABELS = {
+  CREATE: 'Report created',
+  STATUS_CHANGE: 'Status updated',
+  TRANSFER: 'Report transferred',
+};
+
+// Status-change details for one resolution-timeline step. Mirrors the
+// officers' "Activity Details" dialog but only exposes what the reporter
+// may see: status, timestamp, the actor's role (never a name/email), a
+// plain-language summary, and that change's own remarks.
+function TimelineDetailsModal({ step, onClose }) {
+  const entry = step.entry || {};
+  const performer = !entry.performed_by_role
+    ? 'System'
+    : entry.performed_by_role === 'Citizen'
+      ? 'You'
+      : entry.performed_by_role;
+
+  const summary = entry.action === 'CREATE'
+    ? 'Report submitted.'
+    : entry.action === 'TRANSFER'
+      ? 'Report reassigned to another officer.'
+      : entry.from_status || entry.to_status
+        ? `Status changed${entry.from_status ? ` from ${entry.from_status}` : ''} to ${entry.to_status || step.label}.`
+        : `Report status updated to ${step.label}.`;
+
+  useEffect(() => {
+    const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className="tl-details-overlay" onClick={onClose}>
+      <section
+        className="tl-details-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tl-details-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="tl-details-header">
+          <div className="tl-details-heading">
+            <span className="tl-details-icon" aria-hidden="true">i</span>
+            <div>
+              <h3 id="tl-details-title">Status Details</h3>
+              <p>How your report reached this stage</p>
+            </div>
+          </div>
+          <button className="tl-details-x" type="button" onClick={onClose} aria-label="Close details">
+            &times;
+          </button>
+        </header>
+
+        <div className="tl-details-body">
+          <div className="tl-details-field">
+            <span className="tl-details-label">Status</span>
+            <span className="tl-details-value">{step.label}</span>
+          </div>
+          <div className="tl-details-field">
+            <span className="tl-details-label">Date &amp; Time</span>
+            <span className="tl-details-value">{formatDateTime(entry.created_at || step.date) || '—'}</span>
+          </div>
+          <div className="tl-details-field">
+            <span className="tl-details-label">Performed by</span>
+            <span className="tl-details-value">{performer}</span>
+          </div>
+          <div className="tl-details-field">
+            <span className="tl-details-label">Action</span>
+            <span className="tl-details-value">{TIMELINE_ACTION_LABELS[entry.action] || 'Status updated'}</span>
+          </div>
+          <div className="tl-details-field tl-details-field-wide">
+            <span className="tl-details-label">What changed</span>
+            <span className="tl-details-value">{summary}</span>
+          </div>
+          {entry.remarks && (
+            <div className="tl-details-field tl-details-field-wide tl-details-remarks">
+              <span className="tl-details-label">Remarks</span>
+              <span className="tl-details-value">{entry.remarks}</span>
+            </div>
+          )}
+        </div>
+
+        <footer className="tl-details-footer">
+          <button className="tl-details-close-btn" type="button" onClick={onClose}>
+            Close
+          </button>
+        </footer>
+      </section>
     </div>
   );
 }

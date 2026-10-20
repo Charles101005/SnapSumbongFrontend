@@ -14,6 +14,7 @@ const STATUS_COLORS = {
   under_review: "under-review",
   on_hold: "on-hold",
   dispatched: "dispatched",
+  ongoing: "ongoing",
   resolved: "resolved",
   closed: "closed",
   invalid: "invalid",

@@ -112,7 +112,12 @@ function AppRoutes() {
                 <Route path="/dashboard/operations/history" element={<Navigate to="/dashboard/operations" replace />} />
                 <Route path="/dashboard/operations/report-details" element={<Navigate to="/dashboard/operations" replace />} />
                 <Route path="/dashboard/operations/analytics" element={<Analytics />} />
-                <Route path="/dashboard/audit-trail" element={<AuditTrail />} />
+                {/* Audit Trail: guarded per route group (any-of permission
+                    semantics). Sidebar visibility is gated by the same
+                    permissions via can() in Sidebar.jsx. */}
+                <Route element={<RequirePermission permissions={[PERMISSIONS.AUDIT_READ_SYSTEM_LOGS, PERMISSIONS.AUDIT_READ_REPORT_LOGS]} />}>
+                    <Route path="/dashboard/audit-trail" element={<AuditTrail />} />
+                </Route>
                 <Route path="/dashboard/account-settings" element={<DashboardAccountSettings />} />
             </Route>
 

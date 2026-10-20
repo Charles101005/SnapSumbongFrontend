@@ -22,6 +22,41 @@
   color: var(--color-info-text);
 }
 
+/* Live role names from the backend (Roles table) — without these the
+   badge would render with no background since .role-badge sets none. */
+.role-system-admin {
+  background-color: #f3e8ff;
+  color: #7c3aed;
+}
+
+.role-supervisor {
+  background-color: var(--color-info-bg);
+  color: var(--color-info-text);
+}
+
+.role-citizen {
+  background-color: var(--color-success-bg, #dcfce7);
+  color: var(--color-success, #15803d);
+}
+
+.role-system {
+  background-color: var(--color-border-light, #f1f5f9);
+  color: var(--color-text-muted, #64748b);
+}
+
+/* ===== RETRY LINK (empty-state error row) ===== */
+.retry-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: underline;
+  cursor: pointer;
+  font-style: normal;
+}
+
 /* ===== PAGE SCOPED LAYOUT =====
    All polish rules below are scoped under .audit-trail-page so they can
    never leak into other pages that share .reports-table / .pagination. */
@@ -209,6 +244,39 @@
   font-size: var(--text-md);
   color: var(--color-text-body);
   line-height: 1.6;
+}
+
+/* ===== ADDITIONAL DATA (payload from the detail endpoint) ===== */
+.activity-payload {
+  margin-top: 1.25rem;
+}
+
+.activity-payload-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.activity-payload-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.activity-payload-key {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.activity-payload-value {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--color-text-body);
+  word-break: break-word;
 }
 
 .activity-details-footer {

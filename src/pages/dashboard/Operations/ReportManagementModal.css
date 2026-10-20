@@ -779,6 +779,19 @@
   line-height: 1.4;
 }
 
+/* Severity is optional while a report is Assigned — quiet info note that
+   points to when the field becomes mandatory (never styled as a warning). */
+.mgmt-info-hint {
+  margin-top: 0.4rem;
+  padding: 0.4rem 0.55rem;
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.64rem;
+  line-height: 1.4;
+}
+
 /* Post-save inline validation for status-dependent rules — shown directly
    above the field it applies to; the only feedback for these rules (no top
    banner). Red border, light red background, warning icon. */

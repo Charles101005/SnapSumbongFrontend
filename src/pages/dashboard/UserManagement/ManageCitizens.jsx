@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
+import Pagination from "../../../components/shared/Pagination";
 import CitizenProfileModal from "./CitizenProfileModal";
 import "./ManageCitizens.css";
 import { getCitizens } from "../../../api/users";
@@ -271,37 +272,9 @@ export default function ManageCitizens() {
           </table>
         </div>
 
-        <div className="pagination">
-          <span className="pagination-info">
-            Showing {startRow} to {endRow} of {count.toLocaleString()} Citizens
-          </span>
-          <div className="pagination-buttons">
-            <button
-              className="pagination-btn"
-              disabled={loading || safePage <= 1}
-              onClick={() => setCurrentPage((p) => p - 1)}
-            >
-              Previous
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <button
-                key={page}
-                className={`pagination-btn ${page === safePage ? "active" : ""}`}
-                disabled={loading}
-                onClick={() => setCurrentPage(page)}
-              >
-                {page}
-              </button>
-            ))}
-            <button
-              className="pagination-btn"
-              disabled={loading || safePage >= totalPages}
-              onClick={() => setCurrentPage((p) => p + 1)}
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        <Pagination currentPage={safePage} totalPages={totalPages} loading={loading} onPageChange={setCurrentPage}>
+          Showing {startRow} to {endRow} of {count.toLocaleString()} Citizens
+        </Pagination>
       </div>
 
       {managing?.userNumber && (

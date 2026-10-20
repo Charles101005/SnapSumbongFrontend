@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
+import Pagination from "../../../components/shared/Pagination";
 import { getReportLookups, getReports } from "../../../api/reports";
 import { REPORT_STATUSES, STATUS_VIEWS } from "../../../hooks/useStatusCounts";
 import { formatDueDate, slaBadge } from "../../../utils/sla";
@@ -163,7 +164,14 @@ export default function OperationsDashboard() {
       });
       setReports(reportData.results || []);
       setCount(reportData.count || 0);
-      setTotalPages(Math.max(1, reportData.total_pages || 1));
+      const pages = Math.max(1, reportData.total_pages || 1);
+      if (page > pages) {
+        // Page is past the end (e.g. after filters shrink the set) — clamp
+        // and let the [page, filters] effect refetch.
+        setPage(pages);
+        return;
+      }
+      setTotalPages(pages);
     } catch (err) {
       setError(err?.detail || err?.message || "Unable to load monitoring data.");
     } finally {
@@ -212,7 +220,7 @@ export default function OperationsDashboard() {
 
   const countFor = (...keys) => keys.reduce((sum, key) => sum + Number(statusStats[normalize(key)] || 0), 0);
   // Active = every open report (not yet Resolved, Closed, or Invalid).
-  const active = countFor("new", "assigned", "under_review", "on_hold", "dispatched");
+  const active = countFor("new", "assigned", "under_review", "on_hold", "dispatched", "ongoing");
   const invalid = countFor("invalid");
   const totalReports = Object.values(statusStats).reduce((sum, n) => sum + Number(n || 0), 0) || count;
   const categories = lookups.categories || [];
@@ -280,7 +288,7 @@ export default function OperationsDashboard() {
           <span className="summary-icon summary-icon-total"><ClipboardIcon /></span>
           <span className="summary-text"><span className="summary-label">TOTAL REPORTS</span><strong>{totalReports}</strong></span>
         </button>
-        <div className="summary-metric summary-metric-static" title="New + Assigned + Under Review + On-Hold + Dispatched">
+        <div className="summary-metric summary-metric-static" title="New + Assigned + Under Review + On-Hold + Dispatched + Ongoing">
           <span className="summary-icon summary-icon-active"><ActivityIcon /></span>
           <span className="summary-text"><span className="summary-label">ACTIVE</span><strong>{active}</strong></span>
         </div>
@@ -392,7 +400,9 @@ export default function OperationsDashboard() {
         </table>
       </div>
 
-      <div className="pagination"><span>Showing {reports.length ? ((page - 1) * PAGE_SIZE) + 1 : 0} to {Math.min(page * PAGE_SIZE, count)} of {count} reports</span><div><button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</button><button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</button></div></div>
+      <Pagination currentPage={page} totalPages={totalPages} loading={loading} onPageChange={setPage}>
+        Showing {count ? ((page - 1) * PAGE_SIZE) + 1 : 0} to {Math.min(page * PAGE_SIZE, count)} of {count.toLocaleString()} reports
+      </Pagination>
 
       {editingReport && (
         <ReportManagementModal

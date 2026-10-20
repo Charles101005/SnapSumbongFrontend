@@ -1,11 +1,33 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import "./AuditTrail.css";
-import mockData from "../../../data/mock.json";
+import { getAuditLogs, getAuditLog, getAuditModuleLookup } from "../../../api/audits";
+import { getRoleLookup } from "../../../api/roles";
+import Pagination from "../../../components/shared/Pagination";
 
-const { auditLogs: MOCK_LOGS, constants } = mockData;
-const { auditModules: MODULES, auditRoles: USER_ROLES } = constants;
 const ROWS_PER_PAGE = 4;
+const ALL_MODULES = "All";
+const ALL_ROLES = "All";
+
+const formatDateTime = (value) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+};
+
+const toRoleBadgeClass = (role) =>
+  `role-badge role-${String(role || "system").toLowerCase().replace(/\s+/g, "-")}`;
+
+// Backend list rows use different field names than the table renders.
+const mapLog = (log) => ({
+  id: log.audit_log_number,
+  userName: log.actor_name,
+  role: log.actor_role,
+  action: log.action,
+  module: log.module,
+  date: formatDateTime(log.created_at),
+});
 
 function SearchIcon() {
   return (
@@ -25,9 +47,49 @@ function FilterIcon() {
 }
 
 function ActivityDetailsModal({ log, onClose }) {
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const data = await getAuditLog(log.id);
+        if (cancelled) return;
+        setDetail(data);
+      } catch (err) {
+        if (cancelled) return;
+        setDetail(null);
+        setError(err?.detail || "Failed to load activity details. Please try again.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [log.id, refreshKey]);
+
   const handleCopyLogId = () => {
     navigator.clipboard.writeText(log.id);
   };
+
+  // payload is a free-form JSON object (e.g. status_change from/to, remarks).
+  // Null/empty top-level values are noise — skip them.
+  const payloadEntries = Object.entries(detail?.payload || {}).filter(
+    ([, value]) => value !== null && value !== undefined && value !== ""
+  );
+  const payloadLabel = (key) =>
+    key
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  const payloadValue = (value) =>
+    typeof value === "object" ? JSON.stringify(value) : String(value);
 
   return (
     <div className="activity-details-overlay" onClick={onClose}>
@@ -62,7 +124,7 @@ function ActivityDetailsModal({ log, onClose }) {
               <label className="activity-detail-label">PERFORMED BY</label>
               <div className="activity-detail-value">
                 {log.userName}
-                <span className={`activity-detail-role-badge role-${log.role.toLowerCase().replace(" ", "-")}`}>
+                <span className={`activity-detail-role-badge ${toRoleBadgeClass(log.role).replace("role-badge ", "")}`}>
                   {log.role}
                 </span>
               </div>
@@ -84,8 +146,39 @@ function ActivityDetailsModal({ log, onClose }) {
 
           <div className="activity-description">
             <label className="activity-detail-label">DESCRIPTION</label>
-            <p className="activity-description-text">{log.description}</p>
+            {loading ? (
+              <p className="activity-description-text">Loading details...</p>
+            ) : error ? (
+              <p className="activity-description-text">
+                {error}{" "}
+                <button
+                  type="button"
+                  className="retry-link"
+                  onClick={() => setRefreshKey((key) => key + 1)}
+                >
+                  Try again
+                </button>
+              </p>
+            ) : (
+              <p className="activity-description-text">
+                {detail?.description || "No description recorded."}
+              </p>
+            )}
           </div>
+
+          {!loading && !error && payloadEntries.length > 0 && (
+            <div className="activity-payload">
+              <label className="activity-detail-label">ADDITIONAL DATA</label>
+              <dl className="activity-payload-list">
+                {payloadEntries.map(([key, value]) => (
+                  <div className="activity-payload-item" key={key}>
+                    <dt className="activity-payload-key">{payloadLabel(key)}</dt>
+                    <dd className="activity-payload-value">{payloadValue(value)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
         </div>
 
         <div className="activity-details-footer">
@@ -103,39 +196,92 @@ function ActivityDetailsModal({ log, onClose }) {
 
 export default function AuditTrail() {
   const [draftSearch, setDraftSearch] = useState("");
-  const [draftModule, setDraftModule] = useState("All Module");
-  const [draftRole, setDraftRole] = useState("All Roles");
+  const [draftModule, setDraftModule] = useState(ALL_MODULES);
+  const [draftRole, setDraftRole] = useState(ALL_ROLES);
   const [draftDateFrom, setDraftDateFrom] = useState("");
   const [draftDateTo, setDraftDateTo] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [moduleFilter, setModuleFilter] = useState("All Module");
-  const [roleFilter, setRoleFilter] = useState("All Roles");
+  const [moduleFilter, setModuleFilter] = useState(ALL_MODULES);
+  const [roleFilter, setRoleFilter] = useState(ALL_ROLES);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedLog, setSelectedLog] = useState(null);
 
-  const filteredLogs = useMemo(() => {
-    return MOCK_LOGS.filter((log) => {
-      if (moduleFilter !== "All Module" && log.module !== moduleFilter) return false;
-      if (roleFilter !== "All Roles" && log.role !== roleFilter) return false;
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        const match =
-          log.id.toLowerCase().includes(q) ||
-          log.userName.toLowerCase().includes(q) ||
-          log.action.toLowerCase().includes(q);
-        if (!match) return false;
-      }
-      return true;
-    });
-  }, [moduleFilter, roleFilter, searchQuery]);
+  const [logs, setLogs] = useState([]);
+  const [count, setCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / ROWS_PER_PAGE));
-  const safePage = Math.min(currentPage, totalPages);
-  const paginatedLogs = filteredLogs.slice((safePage - 1) * ROWS_PER_PAGE, safePage * ROWS_PER_PAGE);
-  const startRow = filteredLogs.length === 0 ? 0 : (safePage - 1) * ROWS_PER_PAGE + 1;
-  const endRow = Math.min(safePage * ROWS_PER_PAGE, filteredLogs.length);
+  const [moduleOptions, setModuleOptions] = useState([]);
+  const [roleOptions, setRoleOptions] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadLookups = async () => {
+      try {
+        const [modules, roles] = await Promise.all([getAuditModuleLookup(), getRoleLookup()]);
+        if (cancelled) return;
+        setModuleOptions(modules || []);
+        setRoleOptions(roles || []);
+      } catch {
+        // Lookups only feed the filter dropdowns — the list fetch below
+        // surfaces its own error row if the API is unreachable.
+      }
+    };
+    loadLookups();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const data = await getAuditLogs({
+          q: searchQuery || undefined,
+          module: moduleFilter !== ALL_MODULES ? moduleFilter : undefined,
+          role_id: roleFilter !== ALL_ROLES ? Number(roleFilter) : undefined,
+          from_date: dateFrom || undefined,
+          to_date: dateTo || undefined,
+          page: currentPage,
+          page_size: ROWS_PER_PAGE,
+        });
+        if (cancelled) return;
+        const pages = data.total_pages || 1;
+        if (currentPage > pages) {
+          // Page is past the end (e.g. after filters shrink the result set) —
+          // clamp and refetch.
+          setCurrentPage(pages);
+          return;
+        }
+        setLogs((data.results || []).map(mapLog));
+        setCount(data.count || 0);
+        setTotalPages(pages);
+      } catch (err) {
+        if (cancelled) return;
+        setLogs([]);
+        setCount(0);
+        setTotalPages(1);
+        setError(err?.detail || "Failed to load audit logs. Please try again.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchQuery, moduleFilter, roleFilter, dateFrom, dateTo, currentPage, refreshKey]);
+
+  const safePage = Math.max(1, Math.min(currentPage, totalPages || 1));
+  const startRow = count === 0 ? 0 : (safePage - 1) * ROWS_PER_PAGE + 1;
+  const endRow = Math.min(safePage * ROWS_PER_PAGE, count);
 
   const handleApplyFilters = () => {
     setSearchQuery(draftSearch);
@@ -148,13 +294,13 @@ export default function AuditTrail() {
 
   const handleReset = () => {
     setDraftSearch("");
-    setDraftModule("All Module");
-    setDraftRole("All Roles");
+    setDraftModule(ALL_MODULES);
+    setDraftRole(ALL_ROLES);
     setDraftDateFrom("");
     setDraftDateTo("");
     setSearchQuery("");
-    setModuleFilter("All Module");
-    setRoleFilter("All Roles");
+    setModuleFilter(ALL_MODULES);
+    setRoleFilter(ALL_ROLES);
     setDateFrom("");
     setDateTo("");
     setCurrentPage(1);
@@ -187,16 +333,19 @@ export default function AuditTrail() {
             <div className="filter-field">
               <label className="filter-label">Module</label>
               <select className="filter-select" value={draftModule} onChange={(e) => setDraftModule(e.target.value)}>
-                {MODULES.map((m) => (
-                  <option key={m} value={m}>{m}</option>
+                <option value={ALL_MODULES}>All Module</option>
+                {moduleOptions.map((m) => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
                 ))}
               </select>
             </div>
             <div className="filter-field">
               <label className="filter-label">User Role</label>
               <select className="filter-select" value={draftRole} onChange={(e) => setDraftRole(e.target.value)}>
-                {USER_ROLES.map((r) => (
-                  <option key={r} value={r}>{r}</option>
+                <option value={ALL_ROLES}>All Roles</option>
+                <option value="0">System</option>
+                {roleOptions.map((r) => (
+                  <option key={r.role_id} value={r.role_id}>{r.role_name}</option>
                 ))}
               </select>
             </div>
@@ -232,13 +381,30 @@ export default function AuditTrail() {
               </tr>
             </thead>
             <tbody>
-              {paginatedLogs.length > 0 ? (
-                paginatedLogs.map((log) => (
+              {loading ? (
+                <tr>
+                  <td colSpan="7" className="empty-table-message">Loading audit logs...</td>
+                </tr>
+              ) : error && logs.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="empty-table-message">
+                    {error}{" "}
+                    <button
+                      type="button"
+                      className="retry-link"
+                      onClick={() => setRefreshKey((key) => key + 1)}
+                    >
+                      Try again
+                    </button>
+                  </td>
+                </tr>
+              ) : logs.length > 0 ? (
+                logs.map((log) => (
                   <tr key={log.id}>
                     <td><span className="report-id-link">{log.id}</span></td>
                     <td>{log.userName}</td>
                     <td>
-                      <span className={`role-badge role-${log.role.toLowerCase().replace(" ", "-")}`}>
+                      <span className={toRoleBadgeClass(log.role)}>
                         {log.role}
                       </span>
                     </td>
@@ -261,28 +427,14 @@ export default function AuditTrail() {
           </table>
         </div>
 
-        <div className="pagination">
-          <span className="pagination-info">
-            Showing {startRow} to {endRow} of {filteredLogs.length} entries
-          </span>
-          <div className="pagination-buttons">
-            <button className="pagination-btn" disabled={safePage <= 1} onClick={() => setCurrentPage((p) => p - 1)}>
-              Previous
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <button
-                key={page}
-                className={`pagination-btn ${page === safePage ? "active" : ""}`}
-                onClick={() => setCurrentPage(page)}
-              >
-                {page}
-              </button>
-            ))}
-            <button className="pagination-btn" disabled={safePage >= totalPages} onClick={() => setCurrentPage((p) => p + 1)}>
-              Next
-            </button>
-          </div>
-        </div>
+        <Pagination
+          currentPage={safePage}
+          totalPages={totalPages}
+          loading={loading}
+          onPageChange={setCurrentPage}
+        >
+          Showing {startRow} to {endRow} of {count.toLocaleString()} entries
+        </Pagination>
       </div>
 
       {selectedLog && (

@@ -268,8 +268,8 @@
 
 .dash-home .status-invalid { background: #ffe4e6; color: #9f1239; }
 .dash-home .status-pending,
-.dash-home .status-in_progress,
-.dash-home .status-ongoing { background: #fef3c7; color: #b45309; }
+.dash-home .status-in_progress { background: #fef3c7; color: #b45309; }
+.dash-home .status-ongoing { background: #dbeafe; color: #1d4ed4; }
 .dash-home .severity-badge {
   border-radius: 6px;
   padding: 0.22rem 0.5rem;

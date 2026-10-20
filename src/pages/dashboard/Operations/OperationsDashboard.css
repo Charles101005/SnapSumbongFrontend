@@ -374,6 +374,10 @@
   background:#cffafe;
   color:#0e7490
 }
+.status-ongoing {
+  background:#dbeafe;
+  color:#1d4ed4
+}
 .status-resolved {
   background:#d9f5e5;
   color:#24975d
@@ -412,30 +416,7 @@
   color:#98a2b3!important;
   padding:1.5rem!important
 }
-.pagination {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  color:#7d8796;
-  font-size:.58rem
-}
-.pagination>div {
-  display:flex;
-  gap:.4rem
-}
-.pagination button {
-  border:1px solid #e0e5eb;
-  background:#fff;
-  color:#64748b;
-  border-radius:5px;
-  padding:.28rem .55rem;
-  font-size:.58rem;
-  cursor:pointer
-}
-.pagination button:disabled {
-  opacity:.45;
-  cursor:not-allowed
-}
+/* Pagination base styles live in globals.css (SHARED PAGINATION). */
 .form-error {
   background:#fff1f2;
   color:#be123c;

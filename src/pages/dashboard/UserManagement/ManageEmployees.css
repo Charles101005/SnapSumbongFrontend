@@ -227,49 +227,7 @@
   font-style: italic;
 }
 
-/* ===== PAGINATION ===== */
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.pagination-info {
-  font-size: var(--text-base);
-  color: var(--color-text-muted);
-}
-
-.pagination-buttons {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.pagination-btn {
-  padding: 0.4rem 0.875rem;
-  font-size: var(--text-base);
-  font-weight: 500;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background-color: var(--color-bg-card);
-  color: var(--color-text-body);
-  cursor: pointer;
-  transition: background-color 0.15s, color 0.15s;
-}
-
-.pagination-btn:hover:not(:disabled) {
-  background-color: var(--color-border-light);
-}
-
-.pagination-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.pagination-btn.active {
-  background-color: var(--color-primary);
-  color: #ffffff;
-  border-color: var(--color-primary);
-}
+/* Pagination base styles live in globals.css (SHARED PAGINATION). */
 
 /* ===== PAGE SCOPED LAYOUT & POLISH =====
    Scoped under .manage-employees-page so these overrides win only on this

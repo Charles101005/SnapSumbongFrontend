@@ -12,6 +12,7 @@ const STATUS_META = {
   UNDER_REVIEW: { label: "Under Review", badgeClass: "status-under-review" },
   ON_HOLD: { label: "On Hold", badgeClass: "status-on-hold" },
   DISPATCHED: { label: "Dispatched", badgeClass: "status-dispatched" },
+  ONGOING: { label: "Ongoing", badgeClass: "status-ongoing" },
   RESOLVED: { label: "Resolved", badgeClass: "status-resolved" },
   CLOSED: { label: "Closed", badgeClass: "status-closed" },
   INVALID: { label: "Invalid", badgeClass: "status-invalid" },

@@ -157,6 +157,7 @@
 .status-under-review { background: #f3e8ff; color: #7e22ce; }
 .status-on-hold { background: #fef3c7; color: #b45309; }
 .status-dispatched { background: #cffafe; color: #0e7490; }
+.status-ongoing { background: #dbeafe; color: #1d4ed4; }
 .status-resolved { background: #dcfce7; color: #15803d; }
   .status-closed { background: #e2e8f0; color: #334155; }
   .status-invalid { background: #ffe4e6; color: #9f1239; }
@@ -290,6 +291,7 @@
 .status-step-under-review { color: #9333ea; }
 .status-step-on-hold { color: #d97706; }
 .status-step-dispatched { color: #0891b2; }
+.status-step-ongoing { color: #1d4ed4; }
 .status-step-resolved { color: #16a34a; }
   .status-step-closed { color: #64748b; }
   .status-step-invalid { color: #be123c; }

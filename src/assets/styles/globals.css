@@ -491,6 +491,11 @@ body {
   color: #0e7490;
 }
 
+.status-ongoing {
+  background-color: #dbeafe;
+  color: #1d4ed4;
+}
+
 .status-resolved {
   background-color: var(--color-success-bg);
   color: var(--color-success-text);
@@ -824,4 +829,13 @@ body {
   background-color: var(--color-primary);
   color: #ffffff;
   border-color: var(--color-primary);
+}
+
+.pagination-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  color: var(--color-text-muted);
+  user-select: none;
 }

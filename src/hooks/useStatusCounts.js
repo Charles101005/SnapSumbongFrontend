@@ -4,7 +4,7 @@ import { getReportMetrics } from "../api/analytics";
 // Sidebar "Status Views" entries. `status` is the API status value from
 // HazardReports.Status (lowercase — the reports filter is case-insensitive)
 // and is used as the ?status= query param for the shared reports table.
-export const REPORT_STATUSES = ["new", "assigned", "under_review", "on_hold", "dispatched", "resolved", "closed", "invalid"];
+export const REPORT_STATUSES = ["new", "assigned", "under_review", "on_hold", "dispatched", "ongoing", "resolved", "closed", "invalid"];
 
 export const STATUS_VIEWS = [
   { key: "new", label: "New", status: "new" },
@@ -12,6 +12,7 @@ export const STATUS_VIEWS = [
   { key: "under_review", label: "Under Review", status: "under_review" },
   { key: "on_hold", label: "On-Hold", status: "on_hold" },
   { key: "dispatched", label: "Dispatched", status: "dispatched" },
+  { key: "ongoing", label: "Ongoing", status: "ongoing" },
   { key: "resolved", label: "Resolved", status: "resolved" },
   { key: "closed", label: "Closed", status: "closed" },
   { key: "invalid", label: "Invalid", status: "invalid" },
