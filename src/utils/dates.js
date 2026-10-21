@@ -33,13 +33,30 @@ export const RANGE_PRESETS = [
   { key: "last_7_days", label: "Last 7 Days" },
   { key: "last_30_days", label: "Last 30 Days" },
   { key: "all", label: "All Time" },
+  { key: "custom", label: "Custom Range" },
+];
+
+// Compact list-filter preset set (the "Date" dropdown shared by the
+// All Reports / Audit Trail filter rows). Resolved by resolveRange below.
+export const DATE_FILTER_PRESETS = [
+  { key: "today", label: "Today" },
+  { key: "last_7_days", label: "Last 7 Days" },
+  { key: "this_month", label: "This Month" },
+  { key: "all", label: "All Time" },
+  { key: "custom", label: "Custom Range" },
 ];
 
 // Resolve a preset key into an inclusive ISO date range, evaluated at request
-// time so ranges stay correct across day/month boundaries.
-export const resolveRange = (preset, now = new Date()) => {
+// time so ranges stay correct across day/month boundaries. The optional
+// `custom` bounds are only read for the "custom" preset ("" = unbounded,
+// mirroring OperationsDashboard's CUSTOM date mode).
+export const resolveRange = (preset, now = new Date(), custom = {}) => {
   const today = toISODate(now);
   switch (preset) {
+    case "today":
+      return { from: today, to: today };
+    case "custom":
+      return { from: custom.from || "", to: custom.to || "" };
     case "last_month": {
       // Day 1 of the previous month through its last day.
       const firstThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);

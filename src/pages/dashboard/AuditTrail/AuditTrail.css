@@ -99,6 +99,15 @@
   padding: 0 0.875rem;
 }
 
+/* ===== DATE PRESET FILTER (matches the All Reports "Date" dropdown) ===== */
+.audit-trail-page .audit-date-filter .filter-select {
+  width: 220px;
+}
+
+.audit-trail-page .audit-date-filter .date-range-wrapper {
+  margin-top: 0.15rem;
+}
+
 /* ===== ACTIVITY DETAILS MODAL ===== */
 .activity-details-overlay {
   position: fixed;
@@ -277,6 +286,61 @@
   font-size: var(--text-md);
   color: var(--color-text-body);
   word-break: break-word;
+}
+
+.activity-payload-item--inline {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.375rem;
+}
+
+.activity-payload-item--inline > .activity-payload-key::after {
+  content: ":";
+}
+
+.activity-payload-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--color-border-light);
+}
+
+.activity-payload-group .activity-payload-item {
+  gap: 0.125rem;
+}
+
+.activity-payload-array {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 0.75rem;
+}
+
+.activity-payload-array-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--text-sm);
+  color: var(--color-text-body);
+}
+
+.activity-payload-array-item::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.activity-payload-empty {
+  color: var(--color-text-muted);
 }
 
 .activity-details-footer {

@@ -5,9 +5,8 @@ import Pagination from "../../../components/shared/Pagination";
 import CitizenProfileModal from "./CitizenProfileModal";
 import "./ManageCitizens.css";
 import { getCitizens } from "../../../api/users";
-import { useAuth } from "../../../context/authContext";
 import { PERMISSIONS } from "../../../shared/constants";
-import { MOCK_ALL_ACCESS } from "../../../shared/config/env";
+import { usePermissions } from "../../../hooks/usePermissions";
 import { formatLastActive } from "../../../utils/format";
 
 const ROWS_PER_PAGE = 8;
@@ -54,10 +53,7 @@ function PencilIcon() {
 }
 
 export default function ManageCitizens() {
-  const { user: authUser } = useAuth();
-  const permissions = authUser?.permissions || [];
-  // MOCK_ALL_ACCESS short-circuits the permission check (same as Sidebar).
-  const can = (permission) => MOCK_ALL_ACCESS || permissions.includes(permission);
+  const { can } = usePermissions();
   // Only the account status is editable in the modal — gate the Edit action
   // on the same permissions the save endpoint requires.
   const canEditStatus = can(PERMISSIONS.USER_DEACTIVATE_ANY) || can(PERMISSIONS.USER_ACTIVATE_ANY);

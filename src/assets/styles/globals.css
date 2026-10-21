@@ -156,6 +156,9 @@ body {
   display: flex;
   flex-direction: column;
   padding-left: 0.625rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border-light);
 }
 
 .sidebar-subnav-item {
@@ -207,6 +210,10 @@ body {
   font-weight: 600;
   line-height: 1.4;
   text-align: center;
+}
+
+.sidebar-count-badge.is-zero {
+  opacity: 0.45;
 }
 
 .sidebar-subnav-item.active .sidebar-count-badge {
@@ -541,6 +548,38 @@ body {
   color: #dc2626;
 }
 
+/* ===== SHARED SLA BADGES =====
+   Used by both OperationsDashboard and Analytics (Open Past SLA panel). */
+.sla-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sla-ok {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.sla-soon {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.sla-overdue {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.sla-none {
+  background: #f8fafc;
+  color: #94a3b8;
+  font-weight: 400;
+}
+
 /* ===== SHARED FILTERS =====
    Class names here are intentionally unique (.filter-card, .filter-field, ...)
    because Operations/MyReport define their own .filters-section /
@@ -838,4 +877,40 @@ body {
   min-width: 2rem;
   color: var(--color-text-muted);
   user-select: none;
+}
+
+/* Data-scope badge: shows which row set a staff view actually contains for
+   the current user's permissions (system-wide / assigned / own). Shared by
+   the Operations table and the Analytics page headers. */
+.scope-badge {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 0.6rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-page);
+  color: var(--color-text-muted);
+}
+
+.scope-badge.scope-all {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #4338ca;
+}
+
+.scope-badge.scope-assigned {
+  background: #ecfeff;
+  border-color: #a5f3fc;
+  color: #0e7490;
+}
+
+.scope-badge.scope-own {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #15803d;
 }

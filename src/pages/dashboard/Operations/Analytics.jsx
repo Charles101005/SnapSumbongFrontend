@@ -1,14 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  Area,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
-  ComposedChart,
   LabelList,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -17,27 +14,34 @@ import {
   YAxis,
 } from "recharts";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
-import { getHandlerCompliance } from "../../../api/analytics";
-import { REPORT_STATUSES } from "../../../hooks/useStatusCounts";
-import { formatDate } from "../../../utils/format";
-import { formatDueDate, slaBadge } from "../../../utils/sla";
-import { RANGE_PRESETS, formatRange, previousPeriod, resolveRange } from "../../../utils/dates";
 import {
-  bucketSeries,
+  ActivityIcon,
+  AlertIcon,
+  BarsIcon,
+  ClipboardIcon,
+  ClockIcon,
+  DiamondIcon,
+  ListIcon,
+  RefreshIcon,
+  ShieldIcon,
+  TimerIcon,
+} from "../../../components/shared/icons";
+import { getAnalyticsOverview, getHandlerWorkload } from "../../../api/analytics";
+import { getReports } from "../../../api/reports";
+import { REPORT_STATUSES } from "../../../hooks/useStatusCounts";
+import { usePermissions } from "../../../hooks/usePermissions";
+import { useAuth } from "../../../context/authContext";
+import { formatDate, round1 } from "../../../utils/format";
+import { formatDueDate, slaBadge } from "../../../utils/sla";
+import { RANGE_PRESETS, addDays, formatRange, monthRange, previousPeriod, resolveRange, toISODate } from "../../../utils/dates";
+import {
   detectSpikes,
-  fetchAllReports,
   formatDays,
   formatPct,
   granularityFor,
-  openOverdue,
   pctDelta,
   ppDelta,
-  resolutionStats,
-  resolutionTrend,
-  seriesBounds,
-  severityCounts,
-  slowestResolved,
-  statusCounts,
+  zeroFillDaily,
 } from "../../../utils/analytics";
 import "./Analytics.css";
 
@@ -67,43 +71,15 @@ const STATUS_LABELS = {
 };
 const OPEN_STATUSES = REPORT_STATUSES.filter((s) => !["resolved", "closed", "invalid"].includes(s));
 
-const pct = (value) => (value === null || value === undefined ? "—" : `${value}%`);
-const ratingSlug = (rating) => String(rating || "").toLowerCase().replace(/\s+/g, "-");
 const fmtDay = (iso) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-const round1 = (value) => Math.round(value * 10) / 10;
+const shortDay = (iso) =>
+  new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+// Server weekly buckets carry a Monday week_start; label the full span.
+const weekLabel = (iso) => `${shortDay(iso)} – ${shortDay(toISODate(addDays(new Date(`${iso}T00:00:00`), 6)))}`;
 
-/* ===== Icons (inline SVG — the app ships no icon package) ===== */
-const ReportsIcon = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" /></svg>
-);
-const ClockIcon = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
-);
-const ShieldIcon = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" /></svg>
-);
-const DiamondIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 22 12 12 22 2 12z" /></svg>
-);
-const AlertIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
-);
-const RefreshIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
-);
-const BarsIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 20V10M12 20V4M6 20v-6" /></svg>
-);
-const ListIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
-);
-const ActivityIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
-);
-const TimerIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2" /><path d="M9 2h6" /></svg>
-);
+// One page of the live Open Past SLA list (staff-only filter server-side).
+const OVERDUE_LIMIT = 6;
 
 /* ===== Small building blocks ===== */
 function DeltaChip({ value, unit = "%", goodDirection = "up" }) {
@@ -148,14 +124,9 @@ function VolumeTooltip({ active, payload, label }) {
   return (
     <div className="an-tooltip">
       <strong>{row.date ? fmtDay(row.date) : label}</strong>
-      {payload
-        .filter((item) => item.dataKey !== "spike")
-        .map((item) => (
-          <span key={item.dataKey}>
-            {item.name}: <b>{item.value ?? "—"}</b>
-          </span>
-        ))}
-      {row.spikeRatio ? <em>Spike — {row.spikeRatio}× typical volume</em> : null}
+      <span>
+        {payload[0]?.name}: <b>{payload[0]?.value ?? "—"}</b>
+      </span>
     </div>
   );
 }
@@ -175,106 +146,131 @@ function TrendTooltip({ active, payload, label }) {
 
 export default function Analytics() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  // All widgets come from GET /analytics/overview/, scoped server-side the
+  // same way as report reads — the badge tells them which set they're seeing.
+  const { analyticsScope } = usePermissions();
+  const isStaff = Boolean(user?.is_staff);
   const [preset, setPreset] = useState("this_month");
+  // Custom Range bounds — prefilled to This Month (1st → today) so picking
+  // "Custom Range" keeps a meaningful window instead of dropping to All Time.
+  const [customFrom, setCustomFrom] = useState(() => monthRange().from);
+  const [customTo, setCustomTo] = useState(() => toISODate(new Date()));
   const [reloadKey, setReloadKey] = useState(0);
-  const [current, setCurrent] = useState(null);
-  const [previous, setPrevious] = useState(null);
+  const [overview, setOverview] = useState(null);
+  const [prevOverview, setPrevOverview] = useState(null);
+  const [overdue, setOverdue] = useState({ rows: [], count: 0, error: "" });
   const [loading, setLoading] = useState(true);
   const [dataError, setDataError] = useState("");
   const [prevError, setPrevError] = useState("");
-  const [compliance, setCompliance] = useState(null);
-  const [complianceNote, setComplianceNote] = useState("");
+  const [workload, setWorkload] = useState(null);
+  const [workloadError, setWorkloadError] = useState("");
 
-  const range = useMemo(() => resolveRange(preset), [preset]);
+  const range = useMemo(
+    () => resolveRange(preset, new Date(), { from: customFrom, to: customTo }),
+    [preset, customFrom, customTo]
+  );
   const prevRange = useMemo(() => previousPeriod(range), [range]);
 
   useEffect(() => {
     let cancelled = false;
-    const activeRange = resolveRange(preset);
+    const activeRange = resolveRange(preset, new Date(), { from: customFrom, to: customTo });
     const activePrevRange = previousPeriod(activeRange);
 
     (async () => {
       setLoading(true);
       setDataError("");
       setPrevError("");
+      setWorkloadError("");
       const results = await Promise.allSettled([
-        fetchAllReports(activeRange),
-        activePrevRange ? fetchAllReports(activePrevRange) : Promise.resolve(null),
+        getAnalyticsOverview(activeRange),
+        activePrevRange ? getAnalyticsOverview(activePrevRange) : Promise.resolve(null),
+        // `overdue=true` is staff-only server-side; the panel is gated on it.
+        isStaff
+          ? getReports({ overdue: true, exclude_closed: false, page: 1, page_size: OVERDUE_LIMIT })
+          : Promise.resolve(null),
+        getHandlerWorkload({ from: activeRange.from, to: activeRange.to }),
       ]);
       if (cancelled) return;
 
       if (results[0].status === "fulfilled") {
-        setCurrent(results[0].value);
+        setOverview(results[0].value);
       } else {
-        setCurrent(null);
+        setOverview(null);
         const err = results[0].reason;
-        setDataError(err?.detail || err?.message || "Unable to load report data for this period.");
+        setDataError(err?.detail || err?.message || "Unable to load analytics for this period.");
       }
+
       if (results[1].status === "fulfilled") {
-        setPrevious(results[1].value);
+        setPrevOverview(results[1].value);
       } else if (activePrevRange) {
-        setPrevious(null);
+        setPrevOverview(null);
         setPrevError("Previous-period comparison is unavailable right now.");
       }
+
+      if (results[2].status === "fulfilled") {
+        const payload = results[2].value || {};
+        setOverdue({ rows: payload.results || [], count: payload.count ?? 0, error: "" });
+      } else if (isStaff) {
+        const err = results[2].reason;
+        setOverdue({ rows: [], count: 0, error: err?.detail || err?.message || "Past-SLA list unavailable right now." });
+      }
+
+      if (results[3].status === "fulfilled") {
+        setWorkload(results[3].value);
+      } else {
+        setWorkload(null);
+        const err = results[3].reason;
+        setWorkloadError(err?.detail || err?.message || "Unable to load handler workload.");
+      }
+
       setLoading(false);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [preset, reloadKey]);
-
-  useEffect(() => {
-    let cancelled = false;
-    getHandlerCompliance()
-      .then((data) => {
-        if (!cancelled) setCompliance(data);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        if (err?.status === 403) {
-          setComplianceNote("Your role does not include handler-performance access — ask a Supervisor to review DO 47 compliance scores.");
-        } else {
-          setComplianceNote(err?.detail || err?.message || "Unable to load compliance metrics.");
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadKey]);
+  }, [preset, customFrom, customTo, reloadKey, isStaff]);
 
   /* ===== Derived series & stats ===== */
-  const bounds = useMemo(
-    () => (current ? seriesBounds(range, current.reports) : { from: "", to: "" }),
-    [current, range]
-  );
+  // Bounded selections fill the exact period; All Time falls back to the
+  // span of intake the server actually saw.
+  const bounds = useMemo(() => {
+    if (range.from && range.to) return range;
+    if (overview?.span?.from && overview?.span?.to) return overview.span;
+    return { from: "", to: "" };
+  }, [range, overview]);
   const granularity = useMemo(() => granularityFor(bounds), [bounds]);
   const currentSeries = useMemo(
-    () => (current ? bucketSeries(current.reports, bounds, granularity) : []),
-    [current, bounds, granularity]
+    () => zeroFillDaily(overview?.intake?.daily, bounds, granularity),
+    [overview, bounds, granularity]
   );
-  const prevSeries = useMemo(() => {
-    if (!previous || !prevRange) return [];
-    return bucketSeries(previous.reports, seriesBounds(prevRange, previous.reports), granularity);
-  }, [previous, prevRange, granularity]);
   const spikes = useMemo(() => detectSpikes(currentSeries), [currentSeries]);
-  const volumeData = useMemo(() => {
-    const spikeByDate = new Map(spikes.map((s) => [s.date, s]));
-    return currentSeries.map((bucket, index) => ({
-      ...bucket,
-      previous: prevSeries[index] ? prevSeries[index].count : null,
-      spike: spikeByDate.has(bucket.date) ? bucket.count : null,
-      spikeRatio: spikeByDate.get(bucket.date)?.ratio ?? null,
-    }));
-  }, [currentSeries, prevSeries, spikes]);
 
-  const sevCounts = useMemo(() => severityCounts(current?.reports || []), [current]);
-  const statusMixRaw = useMemo(() => statusCounts(current?.reports || []), [current]);
-  const resolution = useMemo(() => resolutionStats(current?.reports || []), [current]);
-  const prevResolution = useMemo(() => resolutionStats(previous?.reports || []), [previous]);
-  const overdueList = useMemo(() => openOverdue(current?.reports || []), [current]);
-  const slowest = useMemo(() => slowestResolved(current?.reports || [], 5), [current]);
-  const trend = useMemo(() => (current ? resolutionTrend(current.reports, bounds) : []), [current, bounds]);
+  const sevCounts = useMemo(() => overview?.intake?.by_severity || {}, [overview]);
+  const statusMixRaw = useMemo(() => overview?.intake?.by_status || {}, [overview]);
+  const delivery = overview?.delivery;
+  const sla = overview?.sla;
+  const prevDelivery = prevOverview?.delivery;
+  const prevSla = prevOverview?.sla;
+  const overdueList = overdue.rows;
+  const slowest = delivery?.slowest || [];
+  // Same granularity as the volume chart: short ranges chart daily points
+  // (weekly buckets would collapse to a single dot), long ones go weekly.
+  const trend = useMemo(() => {
+    if (!delivery) return [];
+    return granularity === "day"
+      ? (delivery.daily || []).map((point) => ({
+          label: shortDay(point.date),
+          avgDays: point.avg_days,
+          resolved: point.resolved,
+        }))
+      : (delivery.weekly || []).map((week) => ({
+          label: weekLabel(week.week_start),
+          avgDays: week.avg_days,
+          resolved: week.resolved,
+        }));
+  }, [delivery, granularity]);
 
   const severityData = useMemo(
     () => SEVERITY_ORDER.map((s) => ({ severity: s, count: sevCounts[s], fill: SEVERITY_COLORS[s] })),
@@ -292,16 +288,21 @@ export default function Analytics() {
     return ["resolved", "closed", "invalid"].map(toRow).filter((row) => row.count > 0);
   }, [statusMixRaw]);
 
-  const hasComparison = prevSeries.length > 0;
+  const slaPct = sla?.on_time_pct ?? null;
+  const prevSlaPct = prevSla?.on_time_pct ?? null;
+
+  const volumeDelta =
+    overview && prevOverview && !prevError
+      ? (overview.intake.total ?? 0) - (prevOverview.intake.total ?? 0)
+      : null;
   const avgPerBucket = currentSeries.length
     ? round1(currentSeries.reduce((sum, b) => sum + b.count, 0) / currentSeries.length)
     : 0;
 
-  const totalDelta = pctDelta(current?.total ?? null, previous?.total ?? null);
-  const avgDelta = pctDelta(resolution.avgDays, prevResolution.avgDays);
-  const slaDelta = ppDelta(resolution.slaPct, prevResolution.slaPct);
-  const slaTone =
-    resolution.slaPct === null ? "muted" : resolution.slaPct >= 90 ? "good" : resolution.slaPct >= 75 ? "warn" : "bad";
+  const totalDelta = pctDelta(overview?.intake?.total ?? null, prevOverview?.intake?.total ?? null);
+  const avgDelta = pctDelta(delivery?.avg_days ?? null, prevDelivery?.avg_days ?? null);
+  const slaDelta = ppDelta(slaPct, prevSlaPct);
+  const slaTone = slaPct === null ? "muted" : slaPct >= 90 ? "good" : slaPct >= 75 ? "warn" : "bad";
 
   // Drill-downs keep the selected period so the Operations table matches the
   // chart. The overdue list is a live state (any creation date), so it does not.
@@ -319,14 +320,21 @@ export default function Analytics() {
     return `/dashboard/operations${query ? `?${query}` : ""}`;
   };
 
-  const weights = compliance?.weights || {};
-
   return (
     <DashboardLayout title="Operations Dashboard">
       <div className="an-page">
         <div className="section-header an-header">
           <div className="an-header-text">
-            <h2 className="section-title">Analytics</h2>
+            <h2 className="section-title">
+              Analytics
+              <span className={`scope-badge scope-${analyticsScope}`}>
+                {analyticsScope === "assigned"
+                  ? "My assigned reports"
+                  : analyticsScope === "own"
+                    ? "My submitted reports"
+                    : "System-wide"}
+              </span>
+            </h2>
             <p className="section-subtitle">
               Actionable hazard-report insights for {formatRange(range)}
               {prevRange ? ` vs ${formatRange(prevRange)}` : ""}.
@@ -343,6 +351,14 @@ export default function Analytics() {
                 ))}
               </select>
             </label>
+            {preset === "custom" && (
+              <div className="an-range-custom">
+                <span>From</span>
+                <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+                <span>to</span>
+                <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+              </div>
+            )}
             <button type="button" className="an-refresh" onClick={() => setReloadKey((key) => key + 1)}>
               <RefreshIcon /> Refresh
             </button>
@@ -358,18 +374,14 @@ export default function Analytics() {
         {/* Compact KPI summary bar */}
         <div className="an-kpi-bar">
           <div className="an-kpi">
-            <span className="an-kpi-icon an-tone-indigo"><ReportsIcon /></span>
+            <span className="an-kpi-icon an-tone-indigo"><ClipboardIcon /></span>
             <div className="an-kpi-body">
               <span className="an-kpi-label">Total Reports</span>
               <div className="an-kpi-value-row">
-                <strong className="an-kpi-value">{loading ? "—" : (current?.total ?? "—")}</strong>
+                <strong className="an-kpi-value">{loading ? "—" : (overview?.intake?.total ?? "—")}</strong>
                 {!loading && <DeltaChip value={totalDelta} unit="%" goodDirection="neutral" />}
               </div>
-              <span className="an-kpi-hint">
-                {current?.truncated
-                  ? `latest ${current.reports.length} of ${current.total} in period`
-                  : "Filed in the selected period"}
-              </span>
+              <span className="an-kpi-hint">Filed in the selected period</span>
             </div>
           </div>
 
@@ -378,12 +390,14 @@ export default function Analytics() {
             <div className="an-kpi-body">
               <span className="an-kpi-label">Avg Resolution Time</span>
               <div className="an-kpi-value-row">
-                <strong className="an-kpi-value">{loading ? "—" : formatDays(resolution.avgDays)}</strong>
+                <strong className="an-kpi-value">{loading ? "—" : formatDays(delivery?.avg_days)}</strong>
                 {!loading && <DeltaChip value={avgDelta} unit="%" goodDirection="down" />}
               </div>
               <span className="an-kpi-hint">
-                {resolution.resolvedCount
-                  ? `across ${resolution.resolvedCount} resolved${prevResolution.avgDays !== null ? ` · prev ${formatDays(prevResolution.avgDays)}` : ""}`
+                {delivery?.resolved
+                  ? `across ${delivery.resolved} resolved${
+                      typeof prevDelivery?.avg_days === "number" ? ` · prev ${formatDays(prevDelivery.avg_days)}` : ""
+                    }`
                   : "No resolved reports in period"}
               </span>
             </div>
@@ -396,19 +410,19 @@ export default function Analytics() {
             <div className="an-kpi-body">
               <span className="an-kpi-label">SLA Compliance</span>
               <div className="an-kpi-value-row">
-                <strong className={`an-kpi-value an-value-${slaTone}`}>{loading ? "—" : formatPct(resolution.slaPct)}</strong>
+                <strong className={`an-kpi-value an-value-${slaTone}`}>{loading ? "—" : formatPct(slaPct)}</strong>
                 {!loading && <DeltaChip value={slaDelta} unit="pp" goodDirection="up" />}
               </div>
               <span className="an-kpi-hint">
-                {resolution.slaTotal
-                  ? `${resolution.slaOnTime} of ${resolution.slaTotal} resolved on time`
-                  : "No SLA-bound resolutions in period"}
+                {sla && (sla.judged || sla.pending)
+                  ? `${sla.on_time} on time · ${sla.late} late · ${sla.breach} open past due · ${sla.pending} pending`
+                  : "No reports fall due in this period"}
               </span>
             </div>
           </div>
 
           <div className="an-kpi an-kpi-severity">
-            <span className="an-kpi-icon an-tone-red"><DiamondIcon /></span>
+            <span className="an-kpi-icon an-tone-red"><DiamondIcon size={15} /></span>
             <div className="an-kpi-body">
               <span className="an-kpi-label">Severity Breakdown</span>
               <div className="an-sev-row">
@@ -429,21 +443,14 @@ export default function Analytics() {
           </div>
         </div>
 
-        {current?.truncated && (
-          <p className="an-note">
-            Showing the latest {current.reports.length} of {current.total} reports filed in this period — totals and
-            breakdowns still reflect the full period.
-          </p>
-        )}
-
         <div className="an-grid">
-          {/* ===== Report volume (with prior-period comparison + spikes) ===== */}
+          {/* ===== Report volume ===== */}
           <section className="an-panel an-wide">
             <PanelHead
               icon={<BarsIcon />}
               tone="indigo"
               title="Report Volume"
-              sub={`Reports per ${granularity === "week" ? "week" : "day"}${hasComparison ? " · dashed line = previous period" : ""}`}
+              sub={`Reports per ${granularity === "week" ? "week" : "day"}`}
               action={<Link to={operationsHref({})} className="an-panel-link">View these reports →</Link>}
             />
             {prevError && <p className="an-note an-note-warn">{prevError}</p>}
@@ -451,64 +458,35 @@ export default function Analytics() {
               <Skeleton height={250} />
             ) : dataError ? (
               <p className="an-empty">{dataError}</p>
-            ) : volumeData.length ? (
-              <div className="an-chart">
-                <ResponsiveContainer width="100%" height={250}>
-                  <ComposedChart data={volumeData} margin={{ top: 10, right: 12, left: -10, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="anVolumeFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#4f46e5" stopOpacity={0.26} />
-                        <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f7" />
-                    <XAxis
-                      dataKey="label"
-                      tick={{ fontSize: 10, fill: "#94a3b8" }}
-                      tickLine={false}
-                      axisLine={{ stroke: "#e2e8f0" }}
-                      interval="preserveStartEnd"
-                      minTickGap={22}
-                    />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#94a3b8" }} tickLine={false} axisLine={false} width={34} />
-                    <Tooltip content={<VolumeTooltip />} cursor={{ stroke: "#cbd5e1" }} />
-                    {hasComparison && (
-                      <Legend iconType="plain-line" wrapperStyle={{ fontSize: 11, color: "#64748b", paddingTop: 4 }} />
-                    )}
-                    <Area
-                      type="monotone"
-                      dataKey="current"
-                      name="This period"
-                      stroke="#4f46e5"
-                      strokeWidth={2.5}
-                      fill="url(#anVolumeFill)"
-                      activeDot={{ r: 4 }}
-                    />
-                    {hasComparison && (
-                      <Line
-                        type="monotone"
-                        dataKey="previous"
-                        name="Previous period"
-                        stroke="#94a3b8"
-                        strokeWidth={2}
-                        strokeDasharray="6 4"
-                        dot={false}
-                        activeDot={{ r: 3 }}
+            ) : currentSeries.length ? (
+              <>
+                <div className="an-volume-summary">
+                  <p className="an-volume-total">{overview?.intake?.total ?? currentSeries.reduce((sum, b) => sum + b.count, 0)} reports received</p>
+                  {volumeDelta !== null && (
+                    <p className={`an-volume-delta ${volumeDelta > 0 ? "up" : volumeDelta < 0 ? "down" : "flat"}`}>
+                      {volumeDelta > 0 ? `↑ +${volumeDelta}` : volumeDelta < 0 ? `↓ ${volumeDelta}` : "→ 0"} compared to
+                      previous period
+                    </p>
+                  )}
+                </div>
+                <div className="an-chart">
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={currentSeries} margin={{ top: 10, right: 12, left: -10, bottom: 0 }}>
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fontSize: 10, fill: "#94a3b8" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "#e2e8f0" }}
+                        interval="preserveStartEnd"
+                        minTickGap={22}
                       />
-                    )}
-                    <Line
-                      type="monotone"
-                      dataKey="spike"
-                      name="Spike"
-                      stroke="#dc2626"
-                      strokeWidth={0}
-                      dot={{ r: 4.5, fill: "#dc2626", strokeWidth: 0 }}
-                      activeDot={{ r: 6 }}
-                      isAnimationActive={false}
-                    />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
+                      <YAxis hide allowDecimals={false} />
+                      <Tooltip content={<VolumeTooltip />} cursor={{ fill: "rgba(15,23,42,.04)" }} />
+                      <Bar dataKey="count" name="Reports" fill="#4f46e5" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </>
             ) : (
               <p className="an-empty">No reports were filed in this period.</p>
             )}
@@ -517,7 +495,7 @@ export default function Analytics() {
           {/* ===== Severity distribution ===== */}
           <section className="an-panel">
             <PanelHead
-              icon={<DiamondIcon />}
+              icon={<DiamondIcon size={15} />}
               tone="red"
               title="Severity Distribution"
               sub="Reports filed in period — click a bar to drill down"
@@ -618,7 +596,7 @@ export default function Analytics() {
               icon={<ActivityIcon />}
               tone="cyan"
               title="Resolution Time Trend"
-              sub="Weekly average of created → resolved"
+              sub={`${granularity === "week" ? "Weekly" : "Daily"} average of created → resolved`}
             />
             {loading ? (
               <Skeleton height={190} />
@@ -657,7 +635,7 @@ export default function Analytics() {
               </div>
             ) : (
               <p className="an-empty">
-                {resolution.resolvedCount
+                {delivery?.resolved
                   ? "Not enough resolved reports to chart a trend yet."
                   : "Resolution trends appear once reports resolve in this period."}
               </p>
@@ -667,10 +645,10 @@ export default function Analytics() {
           {/* ===== Anomalies & spikes ===== */}
           <section className="an-panel">
             <PanelHead
-              icon={<AlertIcon />}
+              icon={<AlertIcon size={16} />}
               tone="amber"
-              title="Anomalies & Spikes"
-              sub="Days beyond 2× the period's typical volume"
+              title="Report Surges"
+              sub="Sudden jumps in report volume"
             />
             {loading ? (
               <Skeleton height={120} />
@@ -678,7 +656,7 @@ export default function Analytics() {
               <ul className="an-spike-list">
                 {spikes.map((spike) => (
                   <li className="an-spike" key={spike.date}>
-                    <span className="an-spike-badge"><AlertIcon /></span>
+                    <span className="an-spike-badge"><AlertIcon size={16} /></span>
                     <div className="an-spike-body">
                       <strong>
                         {fmtDay(spike.date)} — {spike.count} report{spike.count === 1 ? "" : "s"}
@@ -703,70 +681,73 @@ export default function Analytics() {
             )}
           </section>
 
-          {/* ===== Open past SLA ===== */}
-          <section className="an-panel">
-            <PanelHead
-              icon={<ClockIcon />}
-              tone="red"
-              title="Open Past SLA"
-              sub="Live list of open reports past their DO 47 due date"
-              action={
-                <Link to="/dashboard/operations?overdue=true" className="an-panel-link">
-                  View all overdue →
-                </Link>
-              }
-            />
-            {loading ? (
-              <Skeleton height={120} />
-            ) : overdueList.length ? (
-              <>
-                <div className="an-table-wrap">
-                  <table className="an-table">
-                    <thead>
-                      <tr>
-                        <th>REPORT</th>
-                        <th>CATEGORY</th>
-                        <th>SEV</th>
-                        <th>DUE</th>
-                        <th>SLA</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {overdueList.slice(0, 6).map((report) => {
-                        const sla = slaBadge(report);
-                        return (
-                          <tr key={report.report_number}>
-                            <td className="an-report-no" title={report.report_number}>{report.report_number}</td>
-                            <td className="an-cell-truncate" title={report.category || ""}>{report.category}</td>
-                            <td>
-                              <span className={`severity-badge severity-${String(report.severity || "").toLowerCase()}`}>
-                                {report.severity || "—"}
-                              </span>
-                            </td>
-                            <td>{formatDueDate(report.due_at)}</td>
-                            <td>
-                              <span className={`sla-badge sla-${sla.tone}`} title={`Due ${formatDueDate(report.due_at)}`}>
-                                {sla.text}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                {overdueList.length > 6 && (
-                  <p className="an-table-foot">
-                    +{overdueList.length - 6} more overdue in your scope —{" "}
-                    <Link to="/dashboard/operations?overdue=true">view all</Link>
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="an-empty an-empty-good">All open reports are within their DO 47 due dates.</p>
-            )}
-          </section>
-
+          {/* ===== Open past SLA (staff-only: overdue=true is popped for others) ===== */}
+          {isStaff && (
+            <section className="an-panel">
+              <PanelHead
+                icon={<ClockIcon />}
+                tone="red"
+                title="Open Past SLA"
+                sub="Live list of open reports past their DO 47 due date"
+                action={
+                  <Link to="/dashboard/operations?overdue=true" className="an-panel-link">
+                    View all overdue →
+                  </Link>
+                }
+              />
+              {loading ? (
+                <Skeleton height={120} />
+              ) : overdue.error ? (
+                <p className="an-empty">{overdue.error}</p>
+              ) : overdueList.length ? (
+                <>
+                  <div className="an-table-wrap">
+                    <table className="an-table">
+                      <thead>
+                        <tr>
+                          <th>REPORT</th>
+                          <th>CATEGORY</th>
+                          <th>SEV</th>
+                          <th>DUE</th>
+                          <th>SLA</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {overdueList.map((report) => {
+                          const sla = slaBadge(report);
+                          return (
+                            <tr key={report.report_number}>
+                              <td className="an-report-no" title={report.report_number}>{report.report_number}</td>
+                              <td className="an-cell-truncate" title={report.category || ""}>{report.category}</td>
+                              <td>
+                                <span className={`severity-badge severity-${String(report.severity || "").toLowerCase()}`}>
+                                  {report.severity || "—"}
+                                </span>
+                              </td>
+                              <td>{formatDueDate(report.due_at)}</td>
+                              <td>
+                                <span className={`sla-badge sla-${sla.tone}`} title={`Due ${formatDueDate(report.due_at)}`}>
+                                  {sla.text}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {overdue.count > overdueList.length && (
+                    <p className="an-table-foot">
+                      +{overdue.count - overdueList.length} more overdue in your scope —{" "}
+                      <Link to="/dashboard/operations?overdue=true">view all</Link>
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="an-empty an-empty-good">All open reports are within their DO 47 due dates.</p>
+              )}
+            </section>
+          )}
           {/* ===== Slowest resolutions ===== */}
           <section className="an-panel">
             <PanelHead
@@ -794,12 +775,12 @@ export default function Analytics() {
                     </tr>
                   </thead>
                   <tbody>
-                    {slowest.map(({ report, days }) => (
-                      <tr key={report.report_number}>
-                        <td className="an-report-no" title={report.report_number}>{report.report_number}</td>
-                        <td className="an-cell-truncate" title={report.category || ""}>{report.category}</td>
-                        <td>{formatDate(report.resolved_at)}</td>
-                        <td className="an-duration">{formatDays(days)}</td>
+                    {slowest.map((row) => (
+                      <tr key={row.report_number}>
+                        <td className="an-report-no" title={row.report_number}>{row.report_number}</td>
+                        <td className="an-cell-truncate" title={row.category || ""}>{row.category}</td>
+                        <td>{formatDate(row.resolved_at)}</td>
+                        <td className="an-duration">{formatDays(row.days)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -810,51 +791,34 @@ export default function Analytics() {
             )}
           </section>
 
-          {/* ===== DO 47 handler compliance ===== */}
+          {/* ===== Handler workload (team view — counts, no ranking) ===== */}
           <section className="an-panel an-wide">
             <PanelHead
               icon={<ShieldIcon />}
               tone="green"
-              title="DO 47 Handler Compliance"
-              sub={`Per-handler score = SLA on-time (${weights.sla_on_time ?? 60}%) + photolog completeness (${
-                weights.photolog_completeness ?? 25
-              }%) + declared validator (${weights.validation_independence ?? 15}%), ranked highest first. Transfers/referrals and pre-enforcement reports count as activity but are not scored.`}
+              title="Handler Workload"
+              sub={`Reports due ${formatRange(range)} attributed to their current handler — Resolved counts those already closed.`}
             />
-            {!compliance ? (
-              <p className="an-empty">{complianceNote || "Loading compliance scores..."}</p>
-            ) : compliance.handlers.length === 0 ? (
-              <p className="an-empty">
-                No resolved reports have been assigned to handlers yet — scores appear once rectification works are
-                completed.
-              </p>
+            {!workload ? (
+              <p className="an-empty">{workloadError || "Loading workload..."}</p>
+            ) : workload.handlers.length === 0 ? (
+              <p className="an-empty">No assigned reports fall due in this period.</p>
             ) : (
-              <div className="compliance-table-wrap">
-                <table className="compliance-table">
+              <div className="workload-table-wrap">
+                <table className="workload-table">
                   <thead>
                     <tr>
-                      <th>#</th>
                       <th>Handler</th>
-                      <th>Resolved</th>
-                      <th>SLA On-Time</th>
-                      <th>Photolog</th>
-                      <th>Validation</th>
-                      <th>Score</th>
-                      <th>Rating</th>
+                      <th>Reports Handled</th>
+                      <th>Resolved Reports</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {compliance.handlers.map((row, index) => (
+                    {workload.handlers.map((row) => (
                       <tr key={row.user_number}>
-                        <td>{index + 1}</td>
                         <td>{row.handler_name}</td>
-                        <td>{row.resolved_count}</td>
-                        <td>{pct(row.sla_on_time_pct)}</td>
-                        <td>{pct(row.photolog_pct)}</td>
-                        <td>{pct(row.validation_pct)}</td>
-                        <td className="compliance-score">{row.score ?? "—"}</td>
-                        <td>
-                          <span className={`rating-badge rating-${ratingSlug(row.rating)}`}>{row.rating}</span>
-                        </td>
+                        <td>{row.handled}</td>
+                        <td>{row.resolved}</td>
                       </tr>
                     ))}
                   </tbody>

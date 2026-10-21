@@ -29,13 +29,9 @@ export const PERMISSIONS = {
     REPORT_UPDATE_ASSIGNED: "report:update_assigned",
     REPORT_READ_ALL: "report:read_all",
     REPORT_ASSIGN: "report:assign",
-    REPORT_FLAG: "report:flag",
     // Analytics
     ANALYTIC_READ_OWN_METRICS: "analytic:read_own_metrics",
     ANALYTIC_READ_ASSIGNED_METRICS: "analytic:read_assigned_metrics",
-    ANALYTIC_READ_EMPLOYEE_METRICS: "analytic:read_employee_metrics",
-    ANALYTIC_READ_CITIZEN_METRICS: "analytic:read_citizen_metrics",
-    ANALYTIC_READ_HANDLER_PERFORMANCE: "analytic:read_handler_performance",
     ANALYTIC_READ_ALL_METRICS: "analytic:read_all_metrics",
     ANALYTIC_READ_DASHBOARD: "analytic:read_dashboard",
     // Audits

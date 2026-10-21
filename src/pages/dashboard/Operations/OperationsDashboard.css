@@ -12,6 +12,8 @@
   color:var(--color-text-muted);
   margin:.25rem 0 0
 }
+/* .scope-badge lives in assets/styles/globals.css — shared by the
+   Operations table and the Analytics page headers. */
 /* Compact summary strip: 5 key metrics in one slim row. */
 .summary-bar {
   display:flex;
@@ -118,31 +120,8 @@
   accent-color:#dc2626;
   cursor:pointer
 }
-.sla-badge {
-  display:inline-block;
-  padding:.2rem .5rem;
-  border-radius:999px;
-  font-size:.68rem;
-  font-weight:600;
-  white-space:nowrap
-}
-.sla-ok {
-  background:#f1f5f9;
-  color:#475569
-}
-.sla-soon {
-  background:#fef3c7;
-  color:#b45309
-}
-.sla-overdue {
-  background:#fee2e2;
-  color:#b91c1c
-}
-.sla-none {
-  background:#f8fafc;
-  color:#94a3b8;
-  font-weight:400
-}
+/* .sla-badge (+ .sla-ok/.sla-soon/.sla-overdue/.sla-none) moved to
+   globals.css so Analytics can share it without importing this sheet. */
 .filters-section {
   position:sticky;
   top:0;

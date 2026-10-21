@@ -3,11 +3,13 @@ import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout
 import "./AuditTrail.css";
 import { getAuditLogs, getAuditLog, getAuditModuleLookup } from "../../../api/audits";
 import { getRoleLookup } from "../../../api/roles";
+import { DATE_FILTER_PRESETS, resolveRange } from "../../../utils/dates";
 import Pagination from "../../../components/shared/Pagination";
 
 const ROWS_PER_PAGE = 4;
 const ALL_MODULES = "All";
 const ALL_ROLES = "All";
+const ALL_DATES = "all";
 
 const formatDateTime = (value) => {
   if (!value) return "—";
@@ -43,6 +45,89 @@ function FilterIcon() {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
     </svg>
+  );
+}
+
+const payloadLabel = (key) =>
+  key.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+
+const isEmptyPayloadValue = (value) =>
+  value === null || value === undefined || value === "";
+
+const isNestedPayloadContainer = (value) => {
+  if (value === null || typeof value !== "object") return false;
+  if (Array.isArray(value)) {
+    return (
+      value.length > 0 &&
+      value.some((item) => item !== null && typeof item === "object")
+    );
+  }
+  return Object.keys(value).length > 0;
+};
+
+function PayloadValue({ value }) {
+  if (isEmptyPayloadValue(value)) {
+    return <span className="activity-payload-empty">—</span>;
+  }
+  if (typeof value !== "object") {
+    return <span>{String(value)}</span>;
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return <span className="activity-payload-empty">—</span>;
+    }
+    const primitivesOnly = value.every(
+      (item) => item === null || typeof item !== "object"
+    );
+    if (primitivesOnly) {
+      return (
+        <ul className="activity-payload-array">
+          {value.map((item, index) => (
+            <li className="activity-payload-array-item" key={index}>
+              {isEmptyPayloadValue(item) ? (
+                <span className="activity-payload-empty">—</span>
+              ) : (
+                String(item)
+              )}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+    return (
+      <div className="activity-payload-group">
+        {value.map((item, index) => (
+          <div
+            className={`activity-payload-item${
+              isNestedPayloadContainer(item) ? "" : " activity-payload-item--inline"
+            }`}
+            key={index}
+          >
+            <span className="activity-payload-key">Item {index + 1}</span>
+            <PayloadValue value={item} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  const entries = Object.entries(value);
+  if (entries.length === 0) {
+    return <span className="activity-payload-empty">—</span>;
+  }
+  return (
+    <div className="activity-payload-group">
+      {entries.map(([key, child]) => (
+        <div
+          className={`activity-payload-item${
+            isNestedPayloadContainer(child) ? "" : " activity-payload-item--inline"
+          }`}
+          key={key}
+        >
+          <span className="activity-payload-key">{payloadLabel(key)}</span>
+          <PayloadValue value={child} />
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -82,14 +167,8 @@ function ActivityDetailsModal({ log, onClose }) {
   // payload is a free-form JSON object (e.g. status_change from/to, remarks).
   // Null/empty top-level values are noise — skip them.
   const payloadEntries = Object.entries(detail?.payload || {}).filter(
-    ([, value]) => value !== null && value !== undefined && value !== ""
+    ([, value]) => !isEmptyPayloadValue(value)
   );
-  const payloadLabel = (key) =>
-    key
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (char) => char.toUpperCase());
-  const payloadValue = (value) =>
-    typeof value === "object" ? JSON.stringify(value) : String(value);
 
   return (
     <div className="activity-details-overlay" onClick={onClose}>
@@ -173,7 +252,9 @@ function ActivityDetailsModal({ log, onClose }) {
                 {payloadEntries.map(([key, value]) => (
                   <div className="activity-payload-item" key={key}>
                     <dt className="activity-payload-key">{payloadLabel(key)}</dt>
-                    <dd className="activity-payload-value">{payloadValue(value)}</dd>
+                    <dd className="activity-payload-value">
+                      <PayloadValue value={value} />
+                    </dd>
                   </div>
                 ))}
               </dl>
@@ -198,11 +279,13 @@ export default function AuditTrail() {
   const [draftSearch, setDraftSearch] = useState("");
   const [draftModule, setDraftModule] = useState(ALL_MODULES);
   const [draftRole, setDraftRole] = useState(ALL_ROLES);
+  const [draftDateMode, setDraftDateMode] = useState(ALL_DATES);
   const [draftDateFrom, setDraftDateFrom] = useState("");
   const [draftDateTo, setDraftDateTo] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [moduleFilter, setModuleFilter] = useState(ALL_MODULES);
   const [roleFilter, setRoleFilter] = useState(ALL_ROLES);
+  const [dateMode, setDateMode] = useState(ALL_DATES);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -243,12 +326,15 @@ export default function AuditTrail() {
       setLoading(true);
       setError("");
       try {
+        // Resolve the preset at request time so "Today" stays correct across
+        // refetches; "custom" uses the From/to inputs as-is.
+        const { from, to } = resolveRange(dateMode, new Date(), { from: dateFrom, to: dateTo });
         const data = await getAuditLogs({
           q: searchQuery || undefined,
           module: moduleFilter !== ALL_MODULES ? moduleFilter : undefined,
           role_id: roleFilter !== ALL_ROLES ? Number(roleFilter) : undefined,
-          from_date: dateFrom || undefined,
-          to_date: dateTo || undefined,
+          from_date: from || undefined,
+          to_date: to || undefined,
           page: currentPage,
           page_size: ROWS_PER_PAGE,
         });
@@ -277,7 +363,7 @@ export default function AuditTrail() {
     return () => {
       cancelled = true;
     };
-  }, [searchQuery, moduleFilter, roleFilter, dateFrom, dateTo, currentPage, refreshKey]);
+  }, [searchQuery, moduleFilter, roleFilter, dateMode, dateFrom, dateTo, currentPage, refreshKey]);
 
   const safePage = Math.max(1, Math.min(currentPage, totalPages || 1));
   const startRow = count === 0 ? 0 : (safePage - 1) * ROWS_PER_PAGE + 1;
@@ -287,6 +373,7 @@ export default function AuditTrail() {
     setSearchQuery(draftSearch);
     setModuleFilter(draftModule);
     setRoleFilter(draftRole);
+    setDateMode(draftDateMode);
     setDateFrom(draftDateFrom);
     setDateTo(draftDateTo);
     setCurrentPage(1);
@@ -296,11 +383,13 @@ export default function AuditTrail() {
     setDraftSearch("");
     setDraftModule(ALL_MODULES);
     setDraftRole(ALL_ROLES);
+    setDraftDateMode(ALL_DATES);
     setDraftDateFrom("");
     setDraftDateTo("");
     setSearchQuery("");
     setModuleFilter(ALL_MODULES);
     setRoleFilter(ALL_ROLES);
+    setDateMode(ALL_DATES);
     setDateFrom("");
     setDateTo("");
     setCurrentPage(1);
@@ -349,13 +438,21 @@ export default function AuditTrail() {
                 ))}
               </select>
             </div>
-            <div className="filter-field">
-              <label className="filter-label">Date Range</label>
-              <div className="date-range-wrapper">
-                <input type="date" className="filter-date" value={draftDateFrom} onChange={(e) => setDraftDateFrom(e.target.value)} placeholder="mm/dd/yyyy" />
-                <span className="date-range-separator">to</span>
-                <input type="date" className="filter-date" value={draftDateTo} onChange={(e) => setDraftDateTo(e.target.value)} placeholder="mm/dd/yyyy" />
-              </div>
+            <div className="filter-field audit-date-filter">
+              <label className="filter-label">Date</label>
+              <select className="filter-select" value={draftDateMode} onChange={(e) => setDraftDateMode(e.target.value)}>
+                {DATE_FILTER_PRESETS.map((option) => (
+                  <option key={option.key} value={option.key}>{option.label}</option>
+                ))}
+              </select>
+              {draftDateMode === "custom" && (
+                <div className="date-range-wrapper">
+                  <span className="date-range-separator">From</span>
+                  <input type="date" className="filter-date" value={draftDateFrom} onChange={(e) => setDraftDateFrom(e.target.value)} />
+                  <span className="date-range-separator">to</span>
+                  <input type="date" className="filter-date" value={draftDateTo} onChange={(e) => setDraftDateTo(e.target.value)} />
+                </div>
+              )}
             </div>
             <div className="filter-buttons">
               <button className="btn-filter-apply" onClick={handleApplyFilters}>

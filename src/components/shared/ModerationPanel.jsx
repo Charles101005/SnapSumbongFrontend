@@ -2,8 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCitizen } from "../../api/users";
 import { getCitizenWarnings, warnCitizen, banCitizen, unbanCitizen } from "../../api/warnings";
 import { PERMISSIONS } from "../../shared/constants";
-import { MOCK_ALL_ACCESS } from "../../shared/config/env";
-import { useAuth } from "../../context/authContext";
+import { usePermissions } from "../../hooks/usePermissions";
 import { formatDate } from "../../utils/format";
 import "./ModerationPanel.css";
 
@@ -27,10 +26,7 @@ const MODERATION_SUCCESS = {
 // works in any dialog; both endpoints fail soft (403/missing data leaves the
 // count/history empty and hides the gated action buttons).
 export default function ModerationPanel({ userNumber, defaultReportNumber = "", initialAction = null, showCancelButton = true, onChanged }) {
-  const { user: authUser } = useAuth();
-  const permissions = authUser?.permissions || [];
-  // MOCK_ALL_ACCESS short-circuits the permission check (same as Sidebar).
-  const can = (permission) => MOCK_ALL_ACCESS || permissions.includes(permission);
+  const { can } = usePermissions();
   const canWarn = can(PERMISSIONS.USER_WARN);
   const canBan = can(PERMISSIONS.USER_DEACTIVATE_ANY);
   const canUnban = can(PERMISSIONS.USER_ACTIVATE_ANY);

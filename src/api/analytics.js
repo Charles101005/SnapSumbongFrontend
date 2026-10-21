@@ -13,13 +13,36 @@ export const getReportMetrics = async () => {
     }
 };
 
-// GET /analytics/compliance/
-// DO 47-aligned per-handler compliance score (Supervisor+ only — gated on
-// analytic:read_handler_performance).
-// -> { weights: {...}, handlers: [{ handler_name, sla_on_time_pct, ... }] }
-export const getHandlerCompliance = async () => {
+// GET /analytics/overview/?from=&to=
+// Period aggregates in four lenses (scoped like getReportMetrics):
+//   intake   — reports filed in the range (volume, severity, daily series)
+//   delivery — reports resolved in the range (avg time, daily/weekly, slowest)
+//   sla      — reports DUE in the range judged on response time
+//   live     — unscoped as-of-now backlog + overdue
+// Both dates are optional ("" = unbounded = All Time).
+// -> { range, span, intake, delivery, sla, live }
+export const getAnalyticsOverview = async ({ from = "", to = "" } = {}) => {
     try {
-        const response = await api.get("analytics/compliance/");
+        const response = await api.get("analytics/overview/", {
+            params: { from: from || undefined, to: to || undefined },
+        });
+        return response.data;
+    } catch (error) {
+        const data = error.response?.data || {};
+        throw { ...data, status: error.response?.status };
+    }
+};
+
+// GET /analytics/handlers/?from=&to=
+// Per-handler workload over reports whose DEADLINE falls in the range
+// (all-time when unbounded). Every analytics role may read it, scoped
+// server-side like the overview — it describes the team, no scoring.
+// -> { handlers: [{ user_number, handler_name, handled, resolved }] }
+export const getHandlerWorkload = async ({ from = "", to = "" } = {}) => {
+    try {
+        const response = await api.get("analytics/handlers/", {
+            params: { from: from || undefined, to: to || undefined },
+        });
         return response.data;
     } catch (error) {
         const data = error.response?.data || {};

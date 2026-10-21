@@ -6,9 +6,8 @@ import "./RoleManagement.css";
 import RolePermissionsModal from "./RolePermissionsModal";
 import DeactivateRoleModal from "./DeactivateRoleModal";
 import { getRoles, duplicateRole } from "../../../api/roles";
-import { useAuth } from "../../../context/authContext";
 import { PERMISSIONS } from "../../../shared/constants";
-import { MOCK_ALL_ACCESS } from "../../../shared/config/env";
+import { usePermissions } from "../../../hooks/usePermissions";
 
 const ROWS_PER_PAGE = 8;
 const ROLE_COLORS = ["#7c3aed", "#2563eb", "#16a34a", "#d97706", "#dc2626", "#0891b2"];
@@ -91,10 +90,7 @@ function PowerIcon() {
 }
 
 export default function RoleManagement() {
-  const { user } = useAuth();
-  const permissions = user?.permissions || [];
-  // MOCK_ALL_ACCESS short-circuits the permission check (same as Sidebar).
-  const can = (permission) => MOCK_ALL_ACCESS || permissions.includes(permission);
+  const { can } = usePermissions();
   const canDeactivate = can(PERMISSIONS.ROLE_DEACTIVATE_ANY);
 
   const [roles, setRoles] = useState([]);

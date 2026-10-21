@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { getCurrentUser, getProfile } from "../../api/accounts";
 import { useAuth } from "../../context/authContext";
-import { MOCK_ALL_ACCESS } from "../../shared/config/env";
 import { STATUS_VIEWS, useStatusCounts } from "../../hooks/useStatusCounts";
+import { useCanAnalytics } from "../../hooks/useCanAnalytics";
+import { usePermissions } from "../../hooks/usePermissions";
 import "./Sidebar.css";
 
 function RocketIcon() {
@@ -119,6 +120,7 @@ function SettingsIcon() {
 export default function Sidebar() {
   const location = useLocation();
   const { logout } = useAuth();
+  const canAnalytics = useCanAnalytics();
   const [user, setUser] = useState(null);
   const [profilePicture, setProfilePicture] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
@@ -156,12 +158,7 @@ export default function Sidebar() {
   const statusParam = (new URLSearchParams(location.search).get("status") || "").toLowerCase();
   const activeStatus = STATUS_VIEWS.some((view) => view.status === statusParam) ? statusParam : "";
   const isOverviewActive = isActive("/dashboard/operations") && !activeStatus;
-  const permissions = user?.permissions || [];
-  // MOCK_ALL_ACCESS short-circuits the permission check so every staff member
-  // sees every section. Flip the flag in src/shared/config/env.js to restore
-  // role-based visibility driven by user.permissions.
-  const can = (permission) => MOCK_ALL_ACCESS || permissions.includes(permission);
-  const canAnalytics = can("analytic:read_dashboard") || can("analytic:read_all_metrics") || can("analytic:read_assigned_metrics") || can("analytic:read_own_metrics");
+  const { can } = usePermissions();
   const canUsers = can("user:read_all") || can("employee:read_all");
 
   const handleLogout = async () => {
@@ -247,27 +244,30 @@ export default function Sidebar() {
                 to="/dashboard/operations"
                 className={`sidebar-subnav-item ${isOverviewActive ? "active" : ""}`}
               >
-                Reports Overview
+                All Reports
               </Link>
-              <div className="sidebar-subnav-group">
-                <span className="sidebar-subnav-label">Status Views</span>
-                {STATUS_VIEWS.map((view) => (
-                  <Link
-                    key={view.status}
-                    to={{ pathname: "/dashboard/operations", search: `?status=${view.status}` }}
-                    className={`sidebar-subnav-item with-badge ${isActive("/dashboard/operations") && activeStatus === view.status ? "active" : ""}`}
-                  >
-                    <span>{view.label}</span>
-                    <span className="sidebar-count-badge">{statusCountsLoaded ? statusCounts[view.key] : "—"}</span>
-                  </Link>
-                ))}
-              </div>
               <Link
                 to="/dashboard/operations/analytics"
                 className={`sidebar-subnav-item ${isActive("/dashboard/operations/analytics") ? "active" : ""}`}
               >
                 Analytics
               </Link>
+              <div className="sidebar-subnav-group">
+                <span className="sidebar-subnav-label">Status Views</span>
+                {STATUS_VIEWS.map((view) => {
+                  const count = statusCountsLoaded ? statusCounts[view.key] : null;
+                  return (
+                    <Link
+                      key={view.status}
+                      to={{ pathname: "/dashboard/operations", search: `?status=${view.status}` }}
+                      className={`sidebar-subnav-item with-badge ${isActive("/dashboard/operations") && activeStatus === view.status ? "active" : ""}`}
+                    >
+                      <span>{view.label}</span>
+                      <span className={`sidebar-count-badge${count === 0 ? " is-zero" : ""}`}>{statusCountsLoaded ? statusCounts[view.key] : "—"}</span>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>}
           </div>}
 

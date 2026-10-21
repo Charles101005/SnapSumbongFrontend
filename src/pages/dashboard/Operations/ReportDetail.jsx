@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { getReportDetail, getReportHistoryDetail } from "../../../api/reports";
 import { formatDueDate, slaBadge } from "../../../utils/sla";
 import { PERMISSIONS } from "../../../shared/constants";
-import { MOCK_ALL_ACCESS } from "../../../shared/config/env";
-import { useAuth } from "../../../context/authContext";
+import { usePermissions } from "../../../hooks/usePermissions";
 import ReportModerationModal from "./ReportModerationModal";
 import TransferReportModal from "./TransferReportModal";
 import "./ReportDetail.css";
@@ -34,10 +33,7 @@ function DownloadIcon() {
 }
 
 export default function ReportDetail({ reportNumber, onClose, onChanged }) {
-  const { user: authUser } = useAuth();
-  const permissions = authUser?.permissions || [];
-  // MOCK_ALL_ACCESS short-circuits the permission check (same as Sidebar).
-  const can = (permission) => MOCK_ALL_ACCESS || permissions.includes(permission);
+  const { can } = usePermissions();
   const canModerate = can(PERMISSIONS.USER_WARN) || can(PERMISSIONS.USER_DEACTIVATE_ANY);
   const canTransfer = can(PERMISSIONS.REPORT_ASSIGN);
   const [report, setReport] = useState(null);

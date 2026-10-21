@@ -2,12 +2,25 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import Pagination from "../../../components/shared/Pagination";
+import {
+  ActivityIcon,
+  CheckIcon,
+  ClipboardIcon,
+  ClockIcon,
+  EyeIcon,
+  FilterIcon,
+  FlagIcon,
+  GavelIcon,
+  PencilIcon,
+  SearchIcon,
+} from "../../../components/shared/icons";
 import { getReportLookups, getReports } from "../../../api/reports";
 import { REPORT_STATUSES, STATUS_VIEWS } from "../../../hooks/useStatusCounts";
 import { formatDueDate, slaBadge } from "../../../utils/sla";
+import { addDays, monthRange, toISODate } from "../../../utils/dates";
+import { normalizeStatusKey as normalize, prettifyStatus } from "../../../utils/format";
 import { PERMISSIONS } from "../../../shared/constants";
-import { MOCK_ALL_ACCESS } from "../../../shared/config/env";
-import { useAuth } from "../../../context/authContext";
+import { usePermissions } from "../../../hooks/usePermissions";
 import ReportManagementModal from "./ReportManagementModal";
 import ReportModerationModal from "./ReportModerationModal";
 import ReportDetail from "./ReportDetail";
@@ -16,17 +29,9 @@ import "./OperationsDashboard.css";
 const PAGE_SIZE = 10;
 const valueOf = (item) => item?.value || item;
 const labelOf = (item) => item?.label || item;
-const normalize = (value) => String(value || "").toLowerCase().replace(/[\s-]+/g, "_");
 
 // Date filter modes: quick presets plus a custom start/end range.
 const DATE_MODES = { TODAY: "today", LAST_7_DAYS: "last_7_days", THIS_MONTH: "this_month", ALL: "all", CUSTOM: "custom" };
-const toISODate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-// 1st through last day of the month containing `now`, so reports filed later
-// in the month still match once the range is applied.
-const currentMonthRange = (now = new Date()) => ({
-  from: toISODate(new Date(now.getFullYear(), now.getMonth(), 1)),
-  to: toISODate(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
-});
 // Resolve the selected date mode into from/to ISO dates ("" = no bound).
 // Presets are computed at request time so they stay correct across
 // day/month boundaries; custom uses the From/to inputs as-is.
@@ -39,9 +44,9 @@ const resolveDateRange = (mode, fromDate, toDate) => {
     }
     case DATE_MODES.LAST_7_DAYS:
       // Inclusive 7-day window: today and the 6 preceding days.
-      return { from: toISODate(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6)), to: toISODate(now) };
+      return { from: toISODate(addDays(now, -6)), to: toISODate(now) };
     case DATE_MODES.THIS_MONTH:
-      return currentMonthRange(now);
+      return monthRange(now);
     case DATE_MODES.CUSTOM:
       return { from: fromDate || "", to: toDate || "" };
     default:
@@ -49,7 +54,6 @@ const resolveDateRange = (mode, fromDate, toDate) => {
   }
 };
 
-const prettifyStatus = (status) => normalize(status).split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ").replace(/^On Hold$/i, "On-Hold");
 const displayStatus = (status, statuses = []) => {
   const match = statuses.find((s) => valueOf(s) === status || labelOf(s) === status);
   return match ? labelOf(match) : (status ? prettifyStatus(status) : "—");
@@ -57,24 +61,14 @@ const displayStatus = (status, statuses = []) => {
 
 const statusClass = (status) => normalize(status);
 
-function ClipboardIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>; }
-function CheckIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>; }
-function OverdueIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>; }
-function FlagIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V4s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>; }
-function ActivityIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>; }
-function SearchIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>; }
-function FilterIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>; }
-function EyeIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>; }
-function PencilIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>; }
-function GavelIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m14.5 12.5-8 8a2.119 2.119 0 1 1-3-3l8-8"/><path d="m16 6-6 6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/></svg>; }
-
 export default function OperationsDashboard() {
-  const { user: authUser } = useAuth();
-  const permissions = authUser?.permissions || [];
-  // MOCK_ALL_ACCESS short-circuits the permission check (same as Sidebar).
-  const can = (permission) => MOCK_ALL_ACCESS || permissions.includes(permission);
+  const { can, reportScope } = usePermissions();
   // Warn/ban the reporter of a flagged (Invalid) report in place.
   const canModerate = can(PERMISSIONS.USER_WARN) || can(PERMISSIONS.USER_DEACTIVATE_ANY);
+  // Editing status/severity/remarks follows the same permission family the
+  // backend PATCH endpoint enforces (report:update_assigned / update_own).
+  const canEdit =
+    can(PERMISSIONS.REPORT_UPDATE_ASSIGNED) || can(PERMISSIONS.REPORT_UPDATE_OWN);
   // The sidebar Status Views deep-link this table via ?status=…; the URL is
   // also how the Analytics page drills down (?severity=…&overdue=true and
   // ?range=…&from=…&to=…), so URL params mirror the applied deep-linkable
@@ -273,11 +267,37 @@ export default function OperationsDashboard() {
     syncParamsFrom({ ...filters, overdue: !filters.overdue });
   };
 
+  // Heading reflects the rows the API actually returns for this permission
+  // set (ReportService._authorized_reports): all / assigned / own.
+  const scopeLabel =
+    reportScope === "assigned"
+      ? "My Assigned Reports"
+      : reportScope === "own"
+        ? "My Reports"
+        : "All Reports";
+
   return (
-    <DashboardLayout title={isStatusView ? `Operations - ${statusView?.label || urlStatus}` : "Operations - Reports Overview"}>
+    <DashboardLayout title={isStatusView ? `Operations - ${statusView?.label || urlStatus}` : `Operations - ${scopeLabel}`}>
       <div className="section-header">
-        <h2 className="section-title">{isStatusView ? `${statusView?.label || prettifyStatus(urlStatus)} Reports` : "Reports Overview"}</h2>
-        <p className="section-subtitle">{isStatusView ? `Filtered to ${statusView?.label || prettifyStatus(urlStatus)} reports — counts are shown in the sidebar.` : "Manage and monitor citizen reports for community improvement."}</p>
+        <h2 className="section-title">
+          {isStatusView ? `${statusView?.label || prettifyStatus(urlStatus)} Reports` : scopeLabel}
+          {/* Scope badge: mirrors the server-side row scoping — officers only
+              ever receive their assigned rows, so never label that "All". */}
+          <span className={`scope-badge scope-${reportScope}`}>
+            {reportScope === "assigned"
+              ? "Assigned to me"
+              : reportScope === "own"
+                ? "Submitted by me"
+                : "System-wide"}
+          </span>
+        </h2>
+        <p className="section-subtitle">
+          {isStatusView
+            ? `Filtered to ${statusView?.label || prettifyStatus(urlStatus)} reports — counts are shown in the sidebar.`
+            : reportScope === "assigned"
+              ? "Reports assigned to you — update their status and attach resolution evidence."
+              : "Manage and monitor citizen reports for community improvement."}
+        </p>
       </div>
 
       {/* Compact summary strip — shown in Overview and Status Views. Total /
@@ -285,23 +305,23 @@ export default function OperationsDashboard() {
           informational (no single status maps to it). */}
       <div className="summary-bar">
         <button type="button" className="summary-metric" title="Show all reports" onClick={openOverview}>
-          <span className="summary-icon summary-icon-total"><ClipboardIcon /></span>
+          <span className="summary-icon summary-icon-total"><ClipboardIcon size={18} /></span>
           <span className="summary-text"><span className="summary-label">TOTAL REPORTS</span><strong>{totalReports}</strong></span>
         </button>
         <div className="summary-metric summary-metric-static" title="New + Assigned + Under Review + On-Hold + Dispatched + Ongoing">
-          <span className="summary-icon summary-icon-active"><ActivityIcon /></span>
+          <span className="summary-icon summary-icon-active"><ActivityIcon size={18} /></span>
           <span className="summary-text"><span className="summary-label">ACTIVE</span><strong>{active}</strong></span>
         </div>
         <button type="button" className="summary-metric" title="View Resolved reports" onClick={() => openStatusView("resolved")}>
-          <span className="summary-icon summary-icon-resolved"><CheckIcon /></span>
+          <span className="summary-icon summary-icon-resolved"><CheckIcon size={18} /></span>
           <span className="summary-text"><span className="summary-label">RESOLVED</span><strong>{countFor("resolved")}</strong></span>
         </button>
         <button type="button" className="summary-metric" title="View Invalid reports" onClick={() => openStatusView("invalid")}>
-          <span className="summary-icon summary-icon-invalid"><FlagIcon /></span>
+          <span className="summary-icon summary-icon-invalid"><FlagIcon size={18} /></span>
           <span className="summary-text"><span className="summary-label">INVALID</span><strong>{invalid}</strong></span>
         </button>
         <button type="button" className={`summary-metric${filters.overdue ? " summary-metric-toggled" : ""}`} title="Toggle the Overdue only filter" aria-pressed={filters.overdue} onClick={toggleOverdue}>
-          <span className="summary-icon summary-icon-overdue"><OverdueIcon /></span>
+          <span className="summary-icon summary-icon-overdue"><ClockIcon size={18} /></span>
           <span className="summary-text"><span className="summary-label">OVERDUE (SLA)</span><strong>{overdueCount}</strong></span>
         </button>
       </div>
@@ -380,7 +400,7 @@ export default function OperationsDashboard() {
                           <GavelIcon />
                         </button>
                       )
-                    ) : statusKey !== "closed" && (
+                    ) : statusKey !== "closed" && canEdit && (
                       <button
                         type="button"
                         className="action-icon-btn"

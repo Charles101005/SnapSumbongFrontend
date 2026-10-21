@@ -1,0 +1,53 @@
+.kpi-card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.kpi-top {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.35rem;
+}
+.kpi-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.kpi-tone-blue { background: #eaf2ff; color: #4a84e8; }
+.kpi-tone-indigo { background: #eef2ff; color: #4f46e5; }
+.kpi-tone-purple { background: #f3e8ff; color: #7e22ce; }
+.kpi-tone-cyan { background: #cffafe; color: #0e7490; }
+.kpi-tone-green { background: #e7f8ef; color: #37b978; }
+.kpi-tone-red { background: #fee2e2; color: #dc2626; }
+.kpi-hint {
+  font-size: 0.6rem;
+  color: var(--color-text-placeholder);
+  line-height: 1.3;
+}
+.kpi-label {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+.kpi-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-dark);
+  line-height: 1.2;
+}
+.kpi-card.kpi-card-accent {
+  border-color: #fecaca;
+  background: #fffbfb;
+}
+.kpi-card-accent .kpi-value {
+  color: #dc2626;
+}

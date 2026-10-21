@@ -1,158 +1,49 @@
-import { getReports } from "../api/reports";
 import { addDays, daySpan, toISODate } from "./dates";
+import { round1 } from "./format";
 
-// The reports endpoint caps page_size at 50 (backend max_page_size). Each
-// Analytics window fetches at most MAX_PAGES pages so one range change can
-// never turn into an unbounded request storm; totals still come from the
-// authoritative `count` even when the rows are truncated.
-const PAGE_SIZE = 50;
-const MAX_PAGES = 20;
+const isoDay = (iso) => new Date(`${iso}T00:00:00`);
 
-const CLOSED_PHASE = ["resolved", "closed", "invalid"];
-
-// The list API returns status as a display label ("Under Review"); the app's
-// filters and badge classes use the raw value (under_review).
-export const normalizeStatus = (status) =>
-  String(status || "").toLowerCase().replace(/[\s-]+/g, "_");
-
-// Fetch every report row for an inclusive { from, to } range.
-// -> { reports, total, truncated }
-export const fetchAllReports = async ({ from = "", to = "" } = {}) => {
-  const reports = [];
-  let page = 1;
-  let total = 0;
-  let totalPages = 1;
-
-  while (page <= MAX_PAGES) {
-    const data = await getReports({
-      from_date: from || undefined,
-      to_date: to || undefined,
-      exclude_closed: false,
-      page,
-      page_size: PAGE_SIZE,
-    });
-    total = Number(data.count || 0);
-    totalPages = Math.max(1, Number(data.total_pages || 1));
-    reports.push(...(data.results || []));
-    if (page >= totalPages) break;
-    page += 1;
-  }
-
-  return { reports, total, truncated: page < totalPages };
-};
-
-// Resolution duration in days (created_at -> resolved_at). Null when the
-// report is unresolved or the timestamps are unusable/negative.
-export const durationDays = (report) => {
-  if (!report?.created_at || !report?.resolved_at) return null;
-  const created = new Date(report.created_at);
-  const resolved = new Date(report.resolved_at);
-  if (Number.isNaN(created.getTime()) || Number.isNaN(resolved.getTime())) return null;
-  const days = (resolved - created) / 86400000;
-  return days >= 0 ? days : null;
-};
-
-const round1 = (value) => Math.round(value * 10) / 10;
-
-// Average resolution duration + DO 47 SLA on-time rate over resolved reports.
-// SLA = resolved_at <= due_at, measured only on reports that carry a due date.
-// -> { resolvedCount, avgDays, slaPct, slaOnTime, slaTotal }
-export const resolutionStats = (reports) => {
-  const resolved = reports.filter((r) => r.resolved_at && r.created_at);
-  const durations = resolved.map(durationDays).filter((d) => d !== null);
-  const slaBound = resolved.filter((r) => r.due_at);
-  const onTime = slaBound.filter((r) => new Date(r.resolved_at) <= new Date(r.due_at));
-
-  return {
-    resolvedCount: resolved.length,
-    avgDays: durations.length ? round1(durations.reduce((sum, d) => sum + d, 0) / durations.length) : null,
-    slaPct: slaBound.length ? Math.round((onTime.length / slaBound.length) * 100) : null,
-    slaOnTime: onTime.length,
-    slaTotal: slaBound.length,
-  };
-};
-
-// -> { P1: n, ..., P5: n } (missing severities count as 0)
-export const severityCounts = (reports) => {
-  const counts = { P1: 0, P2: 0, P3: 0, P4: 0, P5: 0 };
-  for (const report of reports) {
-    const key = String(report.severity || "").toUpperCase();
-    if (key in counts) counts[key] += 1;
-  }
-  return counts;
-};
-
-// -> { [raw status]: count } (display labels mapped back to raw values)
-export const statusCounts = (reports) => {
-  const counts = {};
-  for (const report of reports) {
-    const key = normalizeStatus(report.status);
-    counts[key] = (counts[key] || 0) + 1;
-  }
-  return counts;
-};
-
-// Inclusive series bounds: the requested range, or the min/max created_at in
-// the data when the range is unbounded ("All Time").
-export const seriesBounds = (range, reports) => {
-  if (range?.from && range?.to) return { from: range.from, to: range.to };
-  const times = reports
-    .map((r) => (r.created_at ? new Date(r.created_at).getTime() : NaN))
-    .filter((t) => !Number.isNaN(t));
-  if (!times.length) return { from: "", to: "" };
-  return {
-    from: toISODate(new Date(Math.min(...times))),
-    to: toISODate(new Date(Math.max(...times))),
-  };
-};
+const shortDate = (iso) =>
+  isoDay(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 // Daily buckets are readable up to ~6 weeks; beyond that the chart folds into
 // 7-day chunks anchored at the range start.
 export const granularityFor = (bounds) => {
-  const span = bounds.from && bounds.to ? daySpan(bounds.from, bounds.to) : null;
+  const span = bounds?.from && bounds?.to ? daySpan(bounds.from, bounds.to) : null;
   return span && span > 42 ? "week" : "day";
 };
 
-const shortDate = (iso) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+// Zero-filled [{ date, label, count }] series over `bounds` from the server's
+// per-day intake counts (GET /analytics/overview/ -> intake.daily). Day
+// granularity indexes one bucket per day; week granularity floors each date
+// into its 7-day chunk so mid-week counts land in the right bar.
+export const zeroFillDaily = (daily = [], bounds, granularity = "day") => {
+  if (!bounds?.from || !bounds?.to) return [];
+  const step = granularity === "week" ? 7 : 1;
+  const end = isoDay(bounds.to);
+  let cursor = isoDay(bounds.from);
+  if (Number.isNaN(cursor.getTime()) || Number.isNaN(end.getTime()) || cursor > end) return [];
 
-// Zero-filled [{ date, label, count }] buckets over `bounds`, counting each
-// report by its local created_at date.
-export const bucketSeries = (reports, bounds, granularity = "day") => {
-  if (!bounds.from || !bounds.to) return [];
   const buckets = [];
-  const indexByDate = new Map();
-
-  let cursor = new Date(`${bounds.from}T00:00:00`);
-  const end = new Date(`${bounds.to}T00:00:00`);
-  if (Number.isNaN(cursor.getTime()) || Number.isNaN(end.getTime())) return [];
-
   while (cursor <= end) {
     const date = toISODate(cursor);
-    const bucket = { date, label: shortDate(date), count: 0 };
-    indexByDate.set(date, buckets.length);
-    buckets.push(bucket);
-    cursor = addDays(cursor, granularity === "week" ? 7 : 1);
+    buckets.push({ date, label: shortDate(date), count: 0 });
+    cursor = addDays(cursor, step);
   }
 
-  for (const report of reports) {
-    if (!report.created_at) continue;
-    const when = new Date(report.created_at);
-    if (Number.isNaN(when.getTime())) continue;
-    const date = toISODate(when);
-    let bucket = buckets[indexByDate.get(date)];
-    if (!bucket) {
-      // Created outside the zero-filled window (clock skew / open ranges):
-      // snap it to the nearest chunk start so it still counts.
-      if (date < bounds.from) bucket = buckets[0];
-      else bucket = buckets[buckets.length - 1];
-    }
-    if (bucket) bucket.count += 1;
+  for (const point of daily) {
+    const count = Number(point?.count || 0);
+    if (!point?.date || count <= 0) continue;
+    const span = daySpan(bounds.from, point.date);
+    if (span === null) continue;
+    // Dates outside the window (clock skew) clamp to the edge bucket.
+    const index = Math.min(buckets.length - 1, Math.max(0, Math.floor((span - 1) / step)));
+    buckets[index].count += count;
   }
 
   if (granularity === "week") {
     return buckets.map((bucket) => {
-      const weekEnd = addDays(new Date(`${bucket.date}T00:00:00`), 6);
+      const weekEnd = addDays(isoDay(bucket.date), 6);
       const clamped = weekEnd > end ? end : weekEnd;
       return { ...bucket, label: `${shortDate(bucket.date)} – ${shortDate(toISODate(clamped))}` };
     });
@@ -177,49 +68,6 @@ export const detectSpikes = (buckets) => {
     .map((b) => ({ ...b, ratio: round1(b.count / mean) }))
     .sort((a, b) => b.ratio - a.ratio)
     .slice(0, 4);
-};
-
-// Open reports past their DO 47 due date, most overdue first.
-export const openOverdue = (reports) =>
-  reports
-    .filter((r) => r.is_overdue && !CLOSED_PHASE.includes(normalizeStatus(r.status)))
-    .sort((a, b) => new Date(a.due_at || 0) - new Date(b.due_at || 0));
-
-// Longest created_at -> resolved_at durations in the period.
-export const slowestResolved = (reports, limit = 5) =>
-  reports
-    .map((report) => ({ report, days: durationDays(report) }))
-    .filter((entry) => entry.days !== null)
-    .sort((a, b) => b.days - a.days)
-    .slice(0, limit);
-
-// Weekly average resolution duration for reports resolved in the period.
-// -> [{ date, label, avgDays, resolved }]
-export const resolutionTrend = (reports, bounds) => {
-  if (!bounds.from || !bounds.to) return [];
-  const anchor = new Date(`${bounds.from}T00:00:00`);
-  const groups = new Map();
-
-  for (const report of reports) {
-    const days = durationDays(report);
-    if (days === null) continue;
-    const resolved = new Date(report.resolved_at);
-    const weekStart = addDays(anchor, Math.floor((new Date(resolved.getFullYear(), resolved.getMonth(), resolved.getDate()) - anchor) / 86400000 / 7) * 7);
-    const key = toISODate(weekStart);
-    const group = groups.get(key) || { sum: 0, count: 0 };
-    group.sum += days;
-    group.count += 1;
-    groups.set(key, group);
-  }
-
-  return [...groups.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, group]) => ({
-      date,
-      label: shortDate(date),
-      avgDays: round1(group.sum / group.count),
-      resolved: group.count,
-    }));
 };
 
 // Period-over-period delta as a percentage. Null when either side is missing

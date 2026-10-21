@@ -28,3 +28,23 @@ export const formatDate = (iso) => {
     if (Number.isNaN(date.getTime())) return "—";
     return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 };
+
+// The list API returns status as a display label ("Under Review"); the app's
+// filters and badge classes use the raw value (under_review).
+export const normalizeStatusKey = (value) =>
+    String(value || "").toLowerCase().replace(/[\s-]+/g, "_");
+
+// "under_review" -> "Under Review" (with the product's "On-Hold" spelling).
+export const prettifyStatus = (value) =>
+    normalizeStatusKey(value)
+        .split("_")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ")
+        .replace(/^On Hold$/i, "On-Hold");
+
+// Integer percentage of a part out of a whole (0 when the whole is empty).
+export const pctOf = (part, whole) =>
+    Number(whole) > 0 ? Math.round((Number(part) / Number(whole)) * 100) : 0;
+
+// One-decimal rounding used by averages/ratios (5.34 -> 5.3).
+export const round1 = (value) => Math.round(value * 10) / 10;
