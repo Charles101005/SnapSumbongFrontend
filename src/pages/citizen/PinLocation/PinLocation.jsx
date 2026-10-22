@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef } from "react";
+import L from "leaflet";
 import {
   MapContainer,
   TileLayer,
@@ -8,6 +9,7 @@ import {
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { hazardMarkerIcon, reverseGeocode } from "../../../utils/leafletHelpers";
+import { isWithinPhilippines, PH_LEAFLET_BOUNDS } from "../../../utils/philippineBounds";
 import MapAutoResize from "../../../components/shared/MapAutoResize";
 import "./PinLocation.css";
 
@@ -32,6 +34,32 @@ function ClickToPlaceMarker({ onPick }) {
   return null;
 }
 
+// Caps how far the user can zoom out: the deepest allowed zoom is the one
+// where the whole Philippine bounding box still fits the current container.
+// Recomputed on resize so it holds on both phones and wide desktops.
+function LimitZoomToPhilippines() {
+  const map = useMap();
+
+  React.useEffect(() => {
+    const phBounds = L.latLngBounds(PH_LEAFLET_BOUNDS);
+
+    const updateMinZoom = () => {
+      const size = map.getSize();
+      if (size.x === 0 || size.y === 0) return;
+      const zoom = map.getBoundsZoom(phBounds, true, L.point(24, 24));
+      map.setMinZoom(zoom);
+    };
+
+    updateMinZoom();
+    map.on("resize", updateMinZoom);
+    return () => {
+      map.off("resize", updateMinZoom);
+    };
+  }, [map]);
+
+  return null;
+}
+
 export default function PinLocationPage({ initialLocation, onConfirm, onBack }) {
   const initialCoords = useMemo(
     () =>
@@ -53,6 +81,11 @@ export default function PinLocationPage({ initialLocation, onConfirm, onBack }) 
   const mapRef = useRef(null);
 
   const applyCoords = useCallback(async (lat, lng) => {
+    if (!isWithinPhilippines(lat, lng)) {
+      setLocateError("Please pin a location within the Philippines.");
+      return;
+    }
+    setLocateError("");
     setCoords([lat, lng]);
     setIsResolvingAddress(true);
     const resolved = await reverseGeocode(lat, lng);
@@ -88,6 +121,13 @@ export default function PinLocationPage({ initialLocation, onConfirm, onBack }) 
   const handleMarkerDragEnd = (e) => {
     const marker = e.target;
     const { lat, lng } = marker.getLatLng();
+    if (!isWithinPhilippines(lat, lng)) {
+      // Leaflet already moved the marker visually, so snap it back to the
+      // last valid position and surface the error.
+      marker.setLatLng(coords);
+      setLocateError("Please pin a location within the Philippines.");
+      return;
+    }
     applyCoords(lat, lng);
   };
 
@@ -101,6 +141,11 @@ export default function PinLocationPage({ initialLocation, onConfirm, onBack }) 
     // backend rejects with a 400).
     const roundedLat = Number(coords[0].toFixed(6));
     const roundedLng = Number(coords[1].toFixed(6));
+
+    if (!isWithinPhilippines(roundedLat, roundedLng)) {
+      setLocateError("Please pin a location within the Philippines.");
+      return;
+    }
 
     onConfirm({
       coords: [roundedLat, roundedLng],
@@ -126,7 +171,10 @@ export default function PinLocationPage({ initialLocation, onConfirm, onBack }) 
             zoom={16}
             style={{ width: "100%", height: "100%" }}
             ref={mapRef}
+            maxBounds={PH_LEAFLET_BOUNDS}
+            maxBoundsViscosity={1.0}
           >
+            <LimitZoomToPhilippines />
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

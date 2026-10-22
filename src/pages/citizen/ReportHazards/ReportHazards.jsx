@@ -9,7 +9,8 @@ import UploadPhoto from "../UploadPhoto/UploadPhoto";
 import CategorySelection, { getIconFor } from "../CategorySelection/CategorySelection";
 import CategoryInfoButton from "../../../components/CategoryInfoButton/CategoryInfoButton";
 import { getHazardCategories, createHazardReport, uploadHazardImageFiles } from "../../../api/reports";
-import { hazardMarkerIcon, reverseGeocode } from "../../../utils/leafletHelpers";
+import { hazardMarkerIcon } from "../../../utils/leafletHelpers";
+import { isWithinPhilippines } from "../../../utils/philippineBounds";
 import "./ReportHazards.css";
 
 const DEFAULT_LOCATION = {
@@ -52,9 +53,6 @@ export default function HazardReportForm() {
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-
-  // Auto-detect (GPS) State
-  const [isAutoDetecting, setIsAutoDetecting] = useState(false);
 
   // Dynamic Full Name derived from state
   const fullName = `${user.firstName} ${user.lastName}`.trim();
@@ -136,38 +134,6 @@ export default function HazardReportForm() {
     setCurrentView("category-selection");
   };
 
-  // --- Auto-detect Handler (real GPS via browser geolocation) ---
-  const handleAutoDetect = () => {
-    if (!("geolocation" in navigator)) {
-      setSubmitError("Geolocation isn't supported on this device. Try Manual Pin instead.");
-      return;
-    }
-
-    setSubmitError("");
-    setIsAutoDetecting(true);
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const latitude = Number(position.coords.latitude.toFixed(6));
-        const longitude = Number(position.coords.longitude.toFixed(6));
-        const address = await reverseGeocode(latitude, longitude);
-
-        setLocationData({
-          coords: [latitude, longitude],
-          latitude,
-          longitude,
-          address: address || locationData.address,
-        });
-        setIsAutoDetecting(false);
-      },
-      () => {
-        setSubmitError("Couldn't get your location. Please allow location access or use Manual Pin.");
-        setIsAutoDetecting(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  };
-
   // --- Form Actions ---
   const handleCancel = () => {
     if (window.confirm("Discard this hazard report?")) {
@@ -197,6 +163,10 @@ export default function HazardReportForm() {
     }
     if (!locationData.address || locationData.address.trim().length < 10) {
       setSubmitError("Please pin a location with a valid address.");
+      return;
+    }
+    if (!isWithinPhilippines(locationData.latitude, locationData.longitude)) {
+      setSubmitError("Please pin a location within the Philippines.");
       return;
     }
 
@@ -285,30 +255,6 @@ export default function HazardReportForm() {
                       <circle cx="12" cy="9" r="2.5" />
                     </svg>
                     1. GPS Location Tagging
-                  </div>
-                  <div className="map-btn-group">
-                    <button
-                      type="button"
-                      className="pill-btn active"
-                      onClick={handleAutoDetect}
-                      disabled={isAutoDetecting}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="3" />
-                        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-                      </svg>
-                      {isAutoDetecting ? "Detecting..." : "Auto-detect"}
-                    </button>
-                    <button
-                      type="button"
-                      className="pill-btn"
-                      onClick={() => setCurrentView("pin-location")}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 17v5M9 3h6l1 6-4 3-4-3 1-6Z" />
-                      </svg>
-                      Manual Pin
-                    </button>
                   </div>
                 </div>
 

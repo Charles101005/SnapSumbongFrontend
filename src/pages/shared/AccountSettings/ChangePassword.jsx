@@ -20,12 +20,24 @@ export default function ChangePassword({ onBack }) {
   const validate = () => {
     const newErrors = {};
     if (!currentPassword) newErrors.currentPassword = "Current password is required.";
-    const passwordError = validatePassword(newPassword);
-    if (passwordError) newErrors.newPassword = passwordError;
-    if (!confirmPassword) newErrors.confirmPassword = "Please confirm your new password.";
+    if (!newPassword) {
+      newErrors.newPassword = "New password is required.";
+    } else {
+      const passwordError = validatePassword(newPassword);
+      if (passwordError) newErrors.newPassword = passwordError;
+    }
+    if (!confirmPassword) newErrors.confirmPassword = "Confirm new password is required.";
     else if (newPassword !== confirmPassword) newErrors.confirmPassword = "New passwords do not match.";
     return newErrors;
   };
+
+  const clearError = (...fields) =>
+    setErrors((prev) => {
+      if (!fields.some((field) => prev[field])) return prev;
+      const next = { ...prev };
+      fields.forEach((field) => delete next[field]);
+      return next;
+    });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -95,7 +107,10 @@ export default function ChangePassword({ onBack }) {
                 type={showCurrentPassword ? "text" : "password"}
                 placeholder="Enter current password"
                 value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
+                onChange={(e) => {
+                  setCurrentPassword(e.target.value);
+                  clearError("currentPassword");
+                }}
                 className={errors.currentPassword ? "input-error" : ""}
               />
               <button
@@ -129,7 +144,10 @@ export default function ChangePassword({ onBack }) {
                 type={showNewPassword ? "text" : "password"}
                 placeholder="Minimum 8 characters"
                 value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
+                onChange={(e) => {
+                  setNewPassword(e.target.value);
+                  clearError("newPassword", "confirmPassword");
+                }}
                 className={errors.newPassword ? "input-error" : ""}
               />
               <button
@@ -166,7 +184,10 @@ export default function ChangePassword({ onBack }) {
                 type={showConfirmPassword ? "text" : "password"}
                 placeholder="Repeat new password"
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  clearError("confirmPassword");
+                }}
                 className={errors.confirmPassword ? "input-error" : ""}
               />
               <button
