@@ -7,6 +7,7 @@ import './MyReport.css';
 import { getReports, getReportDetail, getHazardCategories, confirmReportResolution } from '../../../api/reports';
 import { getReportMetrics } from '../../../api/analytics';
 import { hazardMarkerIcon } from '../../../utils/leafletHelpers';
+import { notAfterToday, toISODate } from '../../../utils/dates';
 import { formatDueDate, slaBadge } from '../../../utils/sla';
 
 const ROWS_PER_PAGE = 5; // Matches the backend's SmallListPagination page size.
@@ -630,7 +631,7 @@ export default function MyReport() {
   return (
     <div className="reports-list-container">
       <div className="page-header">
-        <h1>All Reports</h1>
+        <h1>My Reports</h1>
         <p>Track and manage your submitted hazard reports.</p>
       </div>
 
@@ -719,7 +720,10 @@ export default function MyReport() {
           <input
             type="date"
             value={tempDate}
-            onChange={(e) => setTempDate(e.target.value)}
+            max={toISODate(new Date())}
+            onChange={(e) => {
+              if (notAfterToday(e.target.value)) setTempDate(e.target.value);
+            }}
           />
         </div>
 

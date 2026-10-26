@@ -11,6 +11,7 @@ export default function SearchableSelect({
   options = [],
   placeholder = "",
   disabled = false,
+  clearable = false,
   inputClassName = "",
   emptyMessage = "No matching entries",
 }) {
@@ -89,6 +90,16 @@ export default function SearchableSelect({
     setOpen(false);
   };
 
+  // Optional clear affordance — lets the caller's value be reset to "" (used
+  // by the optional address fields in Account Settings).
+  const handleClear = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    closeMenu();
+    setDraft("");
+    onChange("");
+  };
+
   const handleKeyDown = (event) => {
     if (disabled) return;
 
@@ -131,9 +142,11 @@ export default function SearchableSelect({
     if (event.key === "Tab") closeMenu();
   };
 
+  const showClear = clearable && Boolean(value) && !disabled;
+
   return (
     <div className="ss-root" ref={rootRef}>
-      <div className="ss-wrap">
+      <div className={`ss-wrap${showClear ? " ss-wrap-clearable" : ""}`}>
         <input
           id={id}
           ref={inputRef}
@@ -154,6 +167,11 @@ export default function SearchableSelect({
           onFocus={handleFocus}
           onKeyDown={handleKeyDown}
         />
+        {showClear && (
+          <button type="button" className="ss-clear" aria-label="Clear selection" onClick={handleClear} tabIndex={-1}>
+            &times;
+          </button>
+        )}
         {!disabled && (
           <span className="ss-caret" aria-hidden="true">
             &#9662;

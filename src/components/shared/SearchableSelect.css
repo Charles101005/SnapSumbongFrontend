@@ -29,6 +29,31 @@
   pointer-events: none;
 }
 
+/* Optional clear button (clearable + value) — sits just left of the caret. */
+.ss-clear {
+  position: absolute;
+  right: 1.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.15rem;
+  cursor: pointer;
+}
+
+.ss-clear:hover {
+  color: var(--color-text-dark);
+}
+
+/* Keep the value text from running under the clear button. Declared after
+   .ss-wrap .ss-input so the higher-position rule wins on equal specificity. */
+.ss-wrap-clearable .ss-input {
+  padding-right: 3.25rem;
+}
+
 .ss-menu {
   position: absolute;
   z-index: 40;

@@ -33,7 +33,7 @@ import { usePermissions } from "../../../hooks/usePermissions";
 import { useAuth } from "../../../context/authContext";
 import { formatDate, round1 } from "../../../utils/format";
 import { formatDueDate, slaBadge } from "../../../utils/sla";
-import { RANGE_PRESETS, addDays, formatRange, monthRange, previousPeriod, resolveRange, toISODate } from "../../../utils/dates";
+import { RANGE_PRESETS, addDays, formatRange, notAfterToday, previousPeriod, resolveRange, toISODate } from "../../../utils/dates";
 import {
   detectSpikes,
   formatDays,
@@ -144,6 +144,20 @@ function TrendTooltip({ active, payload, label }) {
   );
 }
 
+function WorkloadTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload || {};
+  const total = (row.resolved || 0) + (row.open || 0);
+  return (
+    <div className="an-tooltip">
+      <strong>{row.handler_name || label}</strong>
+      <span>
+        {row.resolved} resolved · {row.open} open · {total} handled
+      </span>
+    </div>
+  );
+}
+
 export default function Analytics() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -151,10 +165,11 @@ export default function Analytics() {
   // same way as report reads — the badge tells them which set they're seeing.
   const { analyticsScope } = usePermissions();
   const isStaff = Boolean(user?.is_staff);
-  const [preset, setPreset] = useState("this_month");
-  // Custom Range bounds — prefilled to This Month (1st → today) so picking
-  // "Custom Range" keeps a meaningful window instead of dropping to All Time.
-  const [customFrom, setCustomFrom] = useState(() => monthRange().from);
+  const [preset, setPreset] = useState("last_30_days");
+  // Custom Range bounds — prefilled to the default rolling 30-day window so
+  // picking "Custom Range" keeps a meaningful window instead of dropping to
+  // All Time.
+  const [customFrom, setCustomFrom] = useState(() => toISODate(addDays(new Date(), -29)));
   const [customTo, setCustomTo] = useState(() => toISODate(new Date()));
   const [reloadKey, setReloadKey] = useState(0);
   const [overview, setOverview] = useState(null);
@@ -291,6 +306,15 @@ export default function Analytics() {
   const slaPct = sla?.on_time_pct ?? null;
   const prevSlaPct = prevSla?.on_time_pct ?? null;
 
+  // Workload roster (alphabetical server-side) plus the stack split the
+  // "Reports per Handler" chart draws: resolved vs what is still open.
+  const workloadRows = workload?.handlers || [];
+  const workloadChart = workloadRows.map((row) => ({
+    handler_name: row.handler_name,
+    resolved: row.resolved || 0,
+    open: Math.max(0, (row.handled || 0) - (row.resolved || 0)),
+  }));
+
   const volumeDelta =
     overview && prevOverview && !prevError
       ? (overview.intake.total ?? 0) - (prevOverview.intake.total ?? 0)
@@ -354,9 +378,23 @@ export default function Analytics() {
             {preset === "custom" && (
               <div className="an-range-custom">
                 <span>From</span>
-                <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+                <input
+                  type="date"
+                  value={customFrom}
+                  max={toISODate(new Date())}
+                  onChange={(e) => {
+                    if (notAfterToday(e.target.value)) setCustomFrom(e.target.value);
+                  }}
+                />
                 <span>to</span>
-                <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+                <input
+                  type="date"
+                  value={customTo}
+                  max={toISODate(new Date())}
+                  onChange={(e) => {
+                    if (notAfterToday(e.target.value)) setCustomTo(e.target.value);
+                  }}
+                />
               </div>
             )}
             <button type="button" className="an-refresh" onClick={() => setReloadKey((key) => key + 1)}>
@@ -688,7 +726,7 @@ export default function Analytics() {
                 icon={<ClockIcon />}
                 tone="red"
                 title="Open Past SLA"
-                sub="Live list of open reports past their DO 47 due date"
+                sub="Live list of open reports past their due dates"
                 action={
                   <Link to="/dashboard/operations?overdue=true" className="an-panel-link">
                     View all overdue →
@@ -801,28 +839,59 @@ export default function Analytics() {
             />
             {!workload ? (
               <p className="an-empty">{workloadError || "Loading workload..."}</p>
-            ) : workload.handlers.length === 0 ? (
+            ) : workloadRows.length === 0 ? (
               <p className="an-empty">No assigned reports fall due in this period.</p>
             ) : (
-              <div className="workload-table-wrap">
-                <table className="workload-table">
-                  <thead>
-                    <tr>
-                      <th>Handler</th>
-                      <th>Reports Handled</th>
-                      <th>Resolved Reports</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {workload.handlers.map((row) => (
-                      <tr key={row.user_number}>
-                        <td>{row.handler_name}</td>
-                        <td>{row.handled}</td>
-                        <td>{row.resolved}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="workload-split">
+                <div className="workload-chart-col">
+                  <div className="wl-legend">
+                    <span className="wl-legend-item"><i className="wl-dot wl-dot-resolved" />Resolved</span>
+                    <span className="wl-legend-item"><i className="wl-dot wl-dot-open" />Still open</span>
+                  </div>
+                  <div className="workload-chart-wrap">
+                    <ResponsiveContainer width="100%" height={Math.max(160, workloadChart.length * 34)}>
+                      <BarChart data={workloadChart} layout="vertical" margin={{ top: 4, right: 16, left: 4, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eef2f7" />
+                        <XAxis type="number" hide allowDecimals={false} />
+                        <YAxis
+                          type="category"
+                          dataKey="handler_name"
+                          width={110}
+                          tick={{ fontSize: 10.5, fill: "#64748b" }}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <Tooltip content={<WorkloadTooltip />} cursor={{ fill: "rgba(15,23,42,.04)" }} />
+                        <Bar dataKey="resolved" name="Resolved" stackId="load" fill="#15803d" barSize={16} />
+                        <Bar dataKey="open" name="Still open" stackId="load" fill="#e2e8f0" barSize={16} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+                <div className="workload-table-col">
+                  <div className="workload-table-wrap">
+                    <table className="workload-table">
+                      <thead>
+                        <tr>
+                          <th>Handler</th>
+                          <th>Handled</th>
+                          <th>Resolved</th>
+                          <th>Resolved %</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {workloadRows.map((row) => (
+                          <tr key={row.user_number}>
+                            <td>{row.handler_name}</td>
+                            <td>{row.handled}</td>
+                            <td>{row.resolved}</td>
+                            <td>{row.handled ? `${round1((row.resolved / row.handled) * 100)}%` : "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             )}
           </section>

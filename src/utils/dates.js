@@ -7,6 +7,12 @@ const pad = (n) => String(n).padStart(2, "0");
 export const toISODate = (date) =>
   `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 
+// Date filters can't look ahead — reports don't exist yet. The input `max`
+// attribute only blocks the calendar picker, not manually typed values, so
+// change handlers accept only empty or not-after-today values (the controlled
+// input then snaps back to its previous date on rejection).
+export const notAfterToday = (iso) => !iso || iso <= toISODate(new Date());
+
 export const addDays = (date, days) => {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
@@ -27,11 +33,14 @@ export const daySpan = (from, to) => {
   return Math.max(1, Math.round((end - start) / 86400000) + 1);
 };
 
+// Analytics period picker (default = first entry). A rolling 30-day window
+// leads because it is always complete regardless of the day of the month;
+// "last_7_days" is intentionally not offered here (too sparse to chart) —
+// resolveRange still understands it, and Custom Range covers it.
 export const RANGE_PRESETS = [
+  { key: "last_30_days", label: "Last 30 Days" },
   { key: "this_month", label: "This Month" },
   { key: "last_month", label: "Last Month" },
-  { key: "last_7_days", label: "Last 7 Days" },
-  { key: "last_30_days", label: "Last 30 Days" },
   { key: "all", label: "All Time" },
   { key: "custom", label: "Custom Range" },
 ];

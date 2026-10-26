@@ -2,6 +2,8 @@ import { useState, useRef } from "react";
 import "./PersonalDetails.css";
 import { updateProfile, uploadProfileImage } from "../../../api/accounts";
 import { mapApiErrors } from "../../../utils/apiErrors";
+import SearchableSelect from "../../../components/shared/SearchableSelect";
+import { usePsgcAddress } from "../../../hooks/usePsgcAddress";
 
 export default function PersonalDetails({ profile, onSaved, onBack }) {
   const [formData, setFormData] = useState({
@@ -10,6 +12,36 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
     middleName: profile?.middle_name || "",
     email: profile?.email || "",
     contactNumber: profile?.contact_number || "",
+  });
+
+  // Address — optional for citizens; empty values are simply not sent (or
+  // sent as "" to clear, which the endpoint treats as null).
+  const [streetAddress, setStreetAddress] = useState(profile?.street_address || "");
+  const [region, setRegion] = useState(profile?.region_code || "");
+  const [province, setProvince] = useState(profile?.province_code || "");
+  const [city, setCity] = useState(profile?.city_code || "");
+  const [barangay, setBarangay] = useState(profile?.barangay_code || "");
+
+  const {
+    regionOptions,
+    provinceOptions,
+    cityOptions,
+    barangayOptions,
+    canSelectProvince,
+    canSelectCity,
+    canSelectBarangay,
+    handleRegionChange,
+    handleProvinceChange,
+    handleCityChange,
+  } = usePsgcAddress({
+    region,
+    province,
+    city,
+    barangay,
+    setRegion,
+    setProvince,
+    setCity,
+    setBarangay,
   });
 
   const [profilePicture, setProfilePicture] = useState(profile?.profile_picture || "");
@@ -60,6 +92,7 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
     if (contactChanged && !/^\d{11}$/.test(formData.contactNumber)) {
       newErrors.contactNumber = "Phone number must be 11 digits.";
     }
+
     return newErrors;
   };
 
@@ -80,7 +113,14 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
     if (formData.contactNumber && formData.contactNumber !== (profile?.contact_number || "")) {
       payload.contact_number = formData.contactNumber;
     }
-    if (profilePicture !== profile?.profile_picture) payload.profile_picture = profilePicture;
+    if (profilePicture !== (profile?.profile_picture || "")) payload.profile_picture = profilePicture;
+
+    // Blanks are sent as "" on purpose — the endpoint clears the stored value.
+    if (streetAddress !== (profile?.street_address || "")) payload.street_address = streetAddress;
+    if (region !== (profile?.region_code || "")) payload.region_code = region;
+    if (province !== (profile?.province_code || "")) payload.province_code = province;
+    if (city !== (profile?.city_code || "")) payload.city_code = city;
+    if (barangay !== (profile?.barangay_code || "")) payload.barangay_code = barangay;
 
     if (Object.keys(payload).length === 0) {
       onBack();
@@ -100,6 +140,11 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
             middle_name: "middleName",
             email: "email",
             contact_number: "contactNumber",
+            street_address: "streetAddress",
+            region_code: "region",
+            province_code: "province",
+            city_code: "city",
+            barangay_code: "barangay",
           },
         })
       );
@@ -282,6 +327,107 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
               {errors.contactNumber && <p className="error-text">{errors.contactNumber}</p>}
             </div>
           </div>
+
+          <hr className="divider" />
+
+          {/* Address — optional for citizens; nothing here is required. */}
+          <section className="address-section">
+            <div className="address-heading">
+              <h2 className="section-title">Address</h2>
+              <p className="section-subtitle">
+                Optional — leave any field blank if you'd rather not share it.
+              </p>
+            </div>
+
+            <div className="address-grid">
+              <div className="form-group">
+                <label htmlFor="region">Region</label>
+                <SearchableSelect
+                  id="region"
+                  value={region}
+                  onChange={(value) => handleRegionChange({ target: { value } })}
+                  options={regionOptions}
+                  placeholder="Search region"
+                  clearable
+                  inputClassName="address-ss-input"
+                />
+                {errors.region && <p className="error-text">{errors.region}</p>}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="province">Province</label>
+                <SearchableSelect
+                  id="province"
+                  value={province}
+                  onChange={(value) => handleProvinceChange({ target: { value } })}
+                  options={provinceOptions}
+                  placeholder="Search province"
+                  disabled={!canSelectProvince}
+                  clearable
+                  inputClassName="address-ss-input"
+                />
+                {errors.province && <p className="error-text">{errors.province}</p>}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="city">City/Municipality</label>
+                <SearchableSelect
+                  id="city"
+                  value={city}
+                  onChange={(value) => handleCityChange({ target: { value } })}
+                  options={cityOptions}
+                  placeholder="Search city/municipality"
+                  disabled={!canSelectCity}
+                  clearable
+                  inputClassName="address-ss-input"
+                />
+                {errors.city && <p className="error-text">{errors.city}</p>}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="barangay">Barangay</label>
+                <SearchableSelect
+                  id="barangay"
+                  value={barangay}
+                  onChange={setBarangay}
+                  options={barangayOptions}
+                  placeholder="Search barangay"
+                  disabled={!canSelectBarangay}
+                  clearable
+                  inputClassName="address-ss-input"
+                />
+                {errors.barangay && <p className="error-text">{errors.barangay}</p>}
+              </div>
+
+              <div className="form-group address-full">
+                <label htmlFor="streetAddress">Street Address</label>
+                <div className="input-with-icon">
+                  <svg
+                    className="input-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                  <input
+                    type="text"
+                    id="streetAddress"
+                    name="streetAddress"
+                    placeholder="House no., street"
+                    value={streetAddress}
+                    onChange={(e) => setStreetAddress(e.target.value)}
+                    className={errors.streetAddress ? "input-error" : ""}
+                  />
+                </div>
+                {errors.streetAddress && <p className="error-text">{errors.streetAddress}</p>}
+              </div>
+            </div>
+          </section>
 
           {errors.form && <p className="error-text">{errors.form}</p>}
 

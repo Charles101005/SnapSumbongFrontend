@@ -111,6 +111,26 @@ const getBarangayOptions = (city) => {
   return merged.sort((a, b) => a.label.localeCompare(b.label));
 };
 
+// Maps stored PSGC codes to display labels for read-only views (e.g. the
+// Account Settings summary). Empty codes come back as "" so the caller can
+// show its own "Not set" placeholder; unknown codes fall back to the
+// prettified raw value, matching the option lists' fallback behaviour.
+export const resolveAddressLabels = ({ region, province, city, barangay } = {}) => {
+  const { regionOptions, provinceOptionsByRegion } = getTree();
+
+  const labelOf = (options, value) =>
+    !value ? "" : options.find((option) => option.value === value)?.label || prettify(value);
+
+  const provinceOptions = (region && provinceOptionsByRegion.get(region)) || [];
+
+  return {
+    region: labelOf(regionOptions, region),
+    province: labelOf(provinceOptions, province),
+    city: labelOf(getCityOptions(province), city),
+    barangay: labelOf(getBarangayOptions(city), barangay),
+  };
+};
+
 export function usePsgcAddress({
   region,
   province,
