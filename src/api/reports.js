@@ -127,10 +127,14 @@ export const getReportHistoryDetail = async (reportNumber) => {
 };
 
 // PATCH /reports/:report_number/
-// The backend accepts status, severity, remarks and resolution_images.
+// The backend accepts status, severity, category_id, remarks and
+// resolution_images.
 // resolution_images is the DO 47 photolog: [{ image_url, photo_type }]
 // where photo_type is "DURING" or "AFTER" — at least one of each is
 // required when transitioning to Resolved.
+// category_id corrects the citizen's hazard category: only accepted while
+// the report is Under Review, requires a remark in the same payload, and
+// recalculates due_at from the report's created_at.
 export const updateReport = async (reportNumber, payload) => {
     try {
         const response = await api.patch(

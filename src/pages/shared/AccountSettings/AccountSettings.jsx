@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import PersonalDetails from "./PersonalDetails";
 import ChangePassword from "./ChangePassword";
 import DeactivateAccount from "./DeactivateAccount";
 import { getProfile, updateProfile } from "../../../api/accounts";
+import { resolveAddressLabels } from "../../../hooks/usePsgcAddress";
+import { formatDate } from "../../../utils/format";
 import "./AccountSettings.css";
 
 // `user`/`onUpdateUser` come from CitizenLayout via outlet context — they're
@@ -25,6 +27,10 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
   const [notifyUpdating, setNotifyUpdating] = useState(false);
   const [notifyError, setNotifyError] = useState("");
 
+  // Success confirmation shown after Personal Details saves — required for
+  // the staff portal, kept for citizens too so both portals behave alike.
+  const [savedBanner, setSavedBanner] = useState("");
+
   const loadProfile = useCallback(async () => {
     setProfileLoading(true);
     setProfileError("");
@@ -46,6 +52,7 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
   // profile in here, and syncs the sidebar's cached name via onUpdateUser.
   const handleProfileSaved = (updatedProfile) => {
     setProfile(updatedProfile);
+    setSavedBanner("Profile updated successfully.");
     if (onUpdateUser) {
       onUpdateUser({
         firstName: updatedProfile.first_name,
@@ -109,6 +116,15 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
 
   const fullName = `${profile.first_name} ${profile.last_name}`.trim();
 
+  const address = resolveAddressLabels({
+    region: profile.region_code,
+    province: profile.province_code,
+    city: profile.city_code,
+    barangay: profile.barangay_code,
+  });
+
+  const addressValue = (label) => label || "Not set";
+
   return (
     <div className="account-settings-container">
       {/* Header */}
@@ -118,6 +134,20 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
           Manage your identity, security, and notification preferences.
         </p>
       </div>
+
+      {savedBanner && (
+        <div className="settings-banner settings-banner-success" role="status">
+          <span>{savedBanner}</span>
+          <button
+            type="button"
+            className="settings-banner-close"
+            aria-label="Dismiss message"
+            onClick={() => setSavedBanner("")}
+          >
+            &times;
+          </button>
+        </div>
+      )}
 
       <div className="settings-cards-list">
         {/* 1. Personal Information */}
@@ -169,6 +199,36 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
               <div className="info-field">
                 <span className="field-label">PHONE NUMBER</span>
                 <span className="field-value">{profile.contact_number || "Not set"}</span>
+              </div>
+
+              <div className="info-field">
+                <span className="field-label">JOINED DATE</span>
+                <span className="field-value">{formatDate(profile.created_at)}</span>
+              </div>
+
+              <div className="info-field">
+                <span className="field-label">REGION</span>
+                <span className="field-value">{addressValue(address.region)}</span>
+              </div>
+
+              <div className="info-field">
+                <span className="field-label">PROVINCE</span>
+                <span className="field-value">{addressValue(address.province)}</span>
+              </div>
+
+              <div className="info-field">
+                <span className="field-label">CITY/MUNICIPALITY</span>
+                <span className="field-value">{addressValue(address.city)}</span>
+              </div>
+
+              <div className="info-field">
+                <span className="field-label">BARANGAY</span>
+                <span className="field-value">{addressValue(address.barangay)}</span>
+              </div>
+
+              <div className="info-field info-field-span">
+                <span className="field-label">STREET ADDRESS</span>
+                <span className="field-value">{profile.street_address || "Not set"}</span>
               </div>
 
               <div className="info-field edit-action-field">

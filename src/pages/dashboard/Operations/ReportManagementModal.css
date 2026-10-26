@@ -130,6 +130,51 @@
   box-shadow: var(--shadow-focus);
 }
 
+/* Hazard category correction — editable only while the report is Under
+   Review. A boxed select (long category names don't fit the pill style);
+   the locked state reads as a muted static value with a rule note. */
+.mgmt-field--category {
+  margin-top: 1.1rem;
+  max-width: 440px;
+}
+
+.mgmt-category-select {
+  appearance: none;
+  width: 100%;
+  padding: 0.5rem 1.9rem 0.5rem 0.75rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  background-color: #fff;
+  color: var(--color-text-dark);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+  background-size: 11px;
+}
+
+.mgmt-category-select:focus {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.mgmt-category-select[aria-invalid="true"] {
+  border-color: #dc2626;
+}
+
+.mgmt-category-readonly {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed var(--color-border-light);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg-page);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 .mgmt-image-col {
   display: flex;
   flex-direction: column;

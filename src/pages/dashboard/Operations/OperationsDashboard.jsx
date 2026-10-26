@@ -17,7 +17,7 @@ import {
 import { getReportLookups, getReports } from "../../../api/reports";
 import { REPORT_STATUSES, STATUS_VIEWS } from "../../../hooks/useStatusCounts";
 import { formatDueDate, slaBadge } from "../../../utils/sla";
-import { addDays, monthRange, toISODate } from "../../../utils/dates";
+import { addDays, monthRange, notAfterToday, toISODate } from "../../../utils/dates";
 import { normalizeStatusKey as normalize, prettifyStatus } from "../../../utils/format";
 import { PERMISSIONS } from "../../../shared/constants";
 import { usePermissions } from "../../../hooks/usePermissions";
@@ -72,7 +72,8 @@ export default function OperationsDashboard() {
   // The sidebar Status Views deep-link this table via ?status=…; the URL is
   // also how the Analytics page drills down (?severity=…&overdue=true and
   // ?range=…&from=…&to=…), so URL params mirror the applied deep-linkable
-  // filters. Category/search stay local state.
+  // filters. Category/search stay page-local; status only reads from the URL
+  // (a sidebar Status View sets it) and is never written back to it.
   const [searchParams, setSearchParams] = useSearchParams();
   const rawStatus = (searchParams.get("status") || "").trim().toLowerCase();
   const urlStatus = REPORT_STATUSES.includes(rawStatus) ? rawStatus.toUpperCase() : "";
@@ -125,9 +126,12 @@ export default function OperationsDashboard() {
       if (urlSeverity !== prevSeverity) next.severity = urlSeverity;
       if ((urlOverdue ? "1" : "0") !== prevOverdue) next.overdue = urlOverdue;
       if (dateChanged) {
+        // Deep-links are untrusted input: drop anything after today so a
+        // shared URL can't seed the filters with future dates.
+        const today = toISODate(new Date());
         next.dateMode = urlDateMode;
-        next.fromDate = urlFrom;
-        next.toDate = urlTo;
+        next.fromDate = urlFrom > today ? "" : urlFrom;
+        next.toDate = urlTo > today ? "" : urlTo;
       }
       return Object.keys(next).every((key) => next[key] === current[key]) ? current : next;
     };
@@ -224,11 +228,10 @@ export default function OperationsDashboard() {
   const updateDraft = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
   // Mirror the deep-linkable filters into the URL so sidebar links, Analytics
   // drill-downs and browser back/forward all read from one source of truth.
-  // Category/search stay page-local and are never written to the URL.
+  // Category/status/search stay page-local and are never written to the URL.
   const syncParamsFrom = (source) => setSearchParams((prev) => {
     const next = new URLSearchParams(prev);
     const put = (key, value) => { if (value) next.set(key, String(value)); else next.delete(key); };
-    put("status", source.status ? String(source.status).toLowerCase() : "");
     put("severity", source.severity || "");
     if (source.overdue) next.set("overdue", "true");
     else next.delete("overdue");
@@ -239,8 +242,11 @@ export default function OperationsDashboard() {
     put("to", custom ? source.toDate || "" : "");
     return next;
   }, { replace: true });
-  // Status/severity/overdue/date are URL-driven; Apply Filters commits the
-  // draft (including the local category/search fields) and mirrors the rest.
+  // Severity/overdue/date are URL-driven; Apply Filters commits the draft
+  // (including the page-local category/status/search fields) and mirrors the
+  // rest. Status is deliberately never written here: any ?status= would flip
+  // the page into a Status View, which the sidebar/summary-bar own — so the
+  // Status dropdown stays a local overview-only filter.
   const applyFilters = () => { setPage(1); setFilters(draft); syncParamsFrom(draft); };
   const reset = () => {
     // Status Views keep their locked status on reset — clearing it would
@@ -255,12 +261,18 @@ export default function OperationsDashboard() {
     next.set("status", String(status).toLowerCase());
     return next;
   });
-  // Total chip: leave the Status View but keep the other filters applied.
-  const openOverview = () => setSearchParams((prev) => {
-    const next = new URLSearchParams(prev);
-    next.delete("status");
-    return next;
-  }, { replace: true });
+  // Total chip: leave the Status View and clear the local Status dropdown so
+  // "all" really means all — the other filters stay applied.
+  const openOverview = () => {
+    setPage(1);
+    setFilters((current) => (current.status ? { ...current, status: "" } : current));
+    setDraft((current) => (current.status ? { ...current, status: "" } : current));
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("status");
+      return next;
+    }, { replace: true });
+  };
   // Overdue chip: toggling writes ?overdue=… and the deep-link effect applies
   // it — a drill-down action like the other chips, not a pending draft edit.
   const toggleOverdue = () => {
@@ -326,11 +338,16 @@ export default function OperationsDashboard() {
         </button>
       </div>
 
-      {/* Sticky filter row — stays pinned while the table scrolls. Status is
-          driven by the URL only (sidebar + summary-bar chips), so there is no
-          Status dropdown here. */}
+      {/* Sticky filter row — stays pinned while the table scrolls. On Status
+          Views the status comes from the URL only (sidebar + summary-bar
+          chips) and the Status dropdown is hidden; the overview shows it as a
+          normal page-local filter alongside Category. */}
       <div className="filters-section">
         <div className="filters-row">
+          <div className="filter-group filter-search"><label>Search</label><div className="search-wrap"><SearchIcon size={16}/><input placeholder="Search by id, category, or location" value={draft.search} onChange={(e) => updateDraft("search", e.target.value)} onKeyDown={(e) => e.key === "Enter" && applyFilters()} /></div></div>
+          {!isStatusView && (
+            <div className="filter-group"><label>Status</label><select value={draft.status} onChange={(e) => updateDraft("status", e.target.value)}><option value="">All Statuses</option>{statuses.map((s) => <option key={valueOf(s)} value={valueOf(s)}>{labelOf(s)}</option>)}</select></div>
+          )}
           <div className="filter-group"><label>Category</label><select value={draft.category} onChange={(e) => updateDraft("category", e.target.value)}><option value="">All Categories</option>{categories.map((c) => <option key={c.hazard_id} value={c.hazard_id}>{c.hazard_name}</option>)}</select></div>
           <div className="filter-group"><label>Severity</label><select value={draft.severity} onChange={(e) => updateDraft("severity", e.target.value)}><option value="">All Severities</option>{severities.map((s) => <option key={valueOf(s)} value={valueOf(s)}>{labelOf(s)}</option>)}</select></div>
           <div className="filter-group date-filter">
@@ -343,10 +360,28 @@ export default function OperationsDashboard() {
               <option value={DATE_MODES.CUSTOM}>Custom Range</option>
             </select>
             {draft.dateMode === DATE_MODES.CUSTOM && (
-              <div className="date-range"><span>From</span><input type="date" value={draft.fromDate} onChange={(e) => updateDraft("fromDate", e.target.value)} /><span>to</span><input type="date" value={draft.toDate} onChange={(e) => updateDraft("toDate", e.target.value)} /></div>
+              <div className="date-range">
+                <span>From</span>
+                <input
+                  type="date"
+                  value={draft.fromDate}
+                  max={toISODate(new Date())}
+                  onChange={(e) => {
+                    if (notAfterToday(e.target.value)) updateDraft("fromDate", e.target.value);
+                  }}
+                />
+                <span>to</span>
+                <input
+                  type="date"
+                  value={draft.toDate}
+                  max={toISODate(new Date())}
+                  onChange={(e) => {
+                    if (notAfterToday(e.target.value)) updateDraft("toDate", e.target.value);
+                  }}
+                />
+              </div>
             )}
           </div>
-          <div className="filter-group filter-search"><label>Search</label><div className="search-wrap"><SearchIcon/><input placeholder="Search" value={draft.search} onChange={(e) => updateDraft("search", e.target.value)} onKeyDown={(e) => e.key === "Enter" && applyFilters()} /></div></div>
           <div className="filter-actions">
             <label className="overdue-toggle" title="Show only open reports past their DO 47 response time">
               <input type="checkbox" checked={draft.overdue} onChange={(e) => updateDraft("overdue", e.target.checked)} />

@@ -63,7 +63,7 @@ export default function DeactivateRoleModal({ role, onClose, onDeactivated }) {
             reactivate a role.
           </p>
           <ul className="drm-consequences">
-            <li>All users must be reassigned to another role first — the API rejects deactivation while users are still assigned.</li>
+            <li>All users must be reassigned to another role first before you can deactivate this role.</li>
             <li>The role's name and permissions become read-only.</li>
             <li>The role stays visible in Role Management when filtering by "Deactivated".</li>
           </ul>

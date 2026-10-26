@@ -558,8 +558,18 @@
 }
 
 /* ===== Handler workload table ===== */
+/* Chart and table share one card: chart left, exact counts right. Both
+   scrolls are capped so the two columns end at the same height. */
+.workload-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 1.15rem;
+  align-items: start;
+}
+
 .workload-table-wrap {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: 24rem;
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -568,18 +578,21 @@
 .workload-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--text-sm, 0.85rem);
+  font-size: 0.72rem;
 }
 
 .workload-table th,
 .workload-table td {
-  padding: 0.7rem 0.9rem;
+  padding: 0.62rem 0.65rem;
   text-align: left;
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
 }
 
 .workload-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   background: var(--color-bg-page, #f8fafc);
   color: var(--color-text-muted);
   font-weight: 600;
@@ -588,17 +601,60 @@
   letter-spacing: 0.04em;
 }
 
+.workload-table tbody tr:hover {
+  background: #fafcff;
+}
+
 .workload-table tbody tr:last-child td {
   border-bottom: none;
 }
 
-/* Count columns anchor to the right edge; Handler absorbs the rest. */
+/* Count columns anchor to the right edge; Handler absorbs the rest.
+   Narrow widths so all four columns fit the half-width card. */
 .workload-table th:nth-child(2),
 .workload-table td:nth-child(2),
 .workload-table th:nth-child(3),
-.workload-table td:nth-child(3) {
-  width: 11rem;
+.workload-table td:nth-child(3),
+.workload-table th:nth-child(4),
+.workload-table td:nth-child(4) {
+  width: 6rem;
   text-align: right;
+}
+
+/* ===== Reports per Handler chart ===== */
+/* Same scroll cap as the table so both columns end at the same height. */
+.workload-chart-wrap {
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.wl-legend {
+  display: flex;
+  gap: 1rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+}
+
+.wl-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.wl-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+
+.wl-dot-resolved {
+  background: #15803d;
+}
+
+.wl-dot-open {
+  background: #e2e8f0;
+  border: 1px solid var(--color-border);
 }
 
 /* ===== Responsive ===== */
@@ -623,6 +679,10 @@
 
   .an-wide {
     grid-column: auto;
+  }
+
+  .workload-split {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

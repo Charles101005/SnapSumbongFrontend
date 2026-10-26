@@ -3,7 +3,7 @@ import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout
 import "./AuditTrail.css";
 import { getAuditLogs, getAuditLog, getAuditModuleLookup } from "../../../api/audits";
 import { getRoleLookup } from "../../../api/roles";
-import { DATE_FILTER_PRESETS, resolveRange } from "../../../utils/dates";
+import { DATE_FILTER_PRESETS, notAfterToday, resolveRange, toISODate } from "../../../utils/dates";
 import Pagination from "../../../components/shared/Pagination";
 
 const ROWS_PER_PAGE = 4;
@@ -448,9 +448,25 @@ export default function AuditTrail() {
               {draftDateMode === "custom" && (
                 <div className="date-range-wrapper">
                   <span className="date-range-separator">From</span>
-                  <input type="date" className="filter-date" value={draftDateFrom} onChange={(e) => setDraftDateFrom(e.target.value)} />
+                  <input
+                    type="date"
+                    className="filter-date"
+                    value={draftDateFrom}
+                    max={toISODate(new Date())}
+                    onChange={(e) => {
+                      if (notAfterToday(e.target.value)) setDraftDateFrom(e.target.value);
+                    }}
+                  />
                   <span className="date-range-separator">to</span>
-                  <input type="date" className="filter-date" value={draftDateTo} onChange={(e) => setDraftDateTo(e.target.value)} />
+                  <input
+                    type="date"
+                    className="filter-date"
+                    value={draftDateTo}
+                    max={toISODate(new Date())}
+                    onChange={(e) => {
+                      if (notAfterToday(e.target.value)) setDraftDateTo(e.target.value);
+                    }}
+                  />
                 </div>
               )}
             </div>

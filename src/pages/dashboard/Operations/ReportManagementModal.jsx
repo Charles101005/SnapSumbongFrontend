@@ -97,6 +97,33 @@ const statusValue = (item) => item?.value || item;
 const statusLabel = (item) => item?.label || item;
 const statusToValue = (status) => String(status || "").toUpperCase().replace(/[^A-Z]+/g, "_").replace(/^_|_$/g, "");
 const normalizeStatusKey = (label) => String(label || "").toLowerCase().replace(/[\s-]+/g, "_");
+// The current category as a select value (string hazard_id): prefers the
+// raw category_id, falls back to reverse-mapping the display name against
+// the lookup list when the backend predates category_id in the detail payload.
+const resolveCategoryId = (reportData, categoryList) => {
+  if (!reportData) return "";
+  if (reportData.category_id !== undefined && reportData.category_id !== null) {
+    return String(reportData.category_id);
+  }
+  const byName = (categoryList || []).find((item) => item.hazard_name === reportData.category);
+  return byName ? String(byName.hazard_id) : "";
+};
+// Preview of the recalculated DO 47 deadline for a picked category — strict
+// rule: due = created_at + response_time_days, which may already be in the
+// past (the report flips Overdue on save). Called from event handlers only,
+// never during render (Date.now is impure). Null when data is unavailable
+// or the new deadline is still ahead.
+const computeSlaPreview = (reportData, pickedId, categoryList) => {
+  if (!reportData?.created_at) return null;
+  const option = (categoryList || []).find(
+    (item) => String(item.hazard_id) === String(pickedId)
+  );
+  const days = Number(option?.response_time_days);
+  if (!Number.isFinite(days)) return null;
+  const due = new Date(new Date(reportData.created_at).getTime() + days * 86400000);
+  if (Number.isNaN(due.getTime()) || due.getTime() >= Date.now()) return null;
+  return { days, due };
+};
 const getCoordinates = (report) => {
   if (report?.latitude === null || report?.latitude === undefined || report?.latitude === "" ||
       report?.longitude === null || report?.longitude === undefined || report?.longitude === "") return null;
@@ -118,6 +145,10 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   const [severity, setSeverity] = useState("");
   const [status, setStatus] = useState("");
   const [remarks, setRemarks] = useState("");
+  // Corrected hazard category — the hazard_id of the picked option as a
+  // string (select values are strings). Only submitted when it differs from
+  // the report's current category.
+  const [category, setCategory] = useState("");
   // DO 47 §2: required name of the technical personnel who validated the
   // completed works — sent as validated_by_name when resolving.
   const [validatorName, setValidatorName] = useState("");
@@ -136,6 +167,10 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   // banner, mirroring the backend's domain-error messages.
   const [severityError, setSeverityError] = useState("");
   const [statusError, setStatusError] = useState("");
+  const [categoryError, setCategoryError] = useState("");
+  // SLA consequence of the currently-picked category (null = deadline still
+  // ahead or data unavailable) — recomputed in the category onChange handler.
+  const [categorySlaPreview, setCategorySlaPreview] = useState(null);
   const [photosError, setPhotosError] = useState("");
   const [validatorError, setValidatorError] = useState("");
   const [remarksError, setRemarksError] = useState("");
@@ -153,14 +188,18 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
     setError("");
     setSeverityError("");
     setStatusError("");
+    setCategoryError("");
     setPhotosError("");
     setValidatorError("");
     setRemarksError("");
+    setCategory("");
+    setCategorySlaPreview(null);
     setLoadingDetail(Boolean(reportNumber));
   }
 
   const statuses = lookups?.statuses?.length ? lookups.statuses : FALLBACK_STATUSES;
   const severities = lookups?.severities?.length ? lookups.severities : FALLBACK_SEVERITIES;
+  const categories = lookups?.categories || [];
 
   const duringPreviewsRef = useRef([]);
   const afterPreviewsRef = useRef([]);
@@ -209,6 +248,10 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         );
         setStatus(matchingStatus?.value || statusToValue(data.status));
         setRemarks(data.remarks || "");
+        // Preselect the current category (category_id, or name-mapped
+        // against the lookup list when the payload predates category_id).
+        setCategory(resolveCategoryId(data, lookups?.categories));
+        setCategorySlaPreview(null);
         setValidatorName("");
         setDuringFiles([]);
         setAfterFiles([]);
@@ -217,6 +260,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         setError("");
         setSeverityError("");
         setStatusError("");
+        setCategoryError("");
         setPhotosError("");
         setValidatorError("");
         setRemarksError("");
@@ -262,6 +306,15 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
     // Allow re-selecting the same file after a discard.
     event.target.value = "";
   };
+
+  // The backend only accepts a category correction while the report sits in
+  // Under Review — the verification stage where a misclassified citizen
+  // submission gets caught. The gate reads the report's CURRENT status (what
+  // the server validates against before applying any transition), not the
+  // dropdown's pending choice.
+  const originalCategoryId = resolveCategoryId(report, categories);
+  const categoryEditable = statusToValue(report?.status) === "UNDER_REVIEW";
+  const categoryChanged = Boolean(category) && category !== originalCategoryId;
 
   const handleSave = async () => {
     if (!report?.report_number) return;
@@ -322,6 +375,16 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         return;
       }
 
+      // A category correction is a remark-driven fix: the officer must state
+      // why the citizen's pick is being overridden (mirrors the backend's
+      // MandatoryCategoryRemarksError) — shown above the Remarks field.
+      if (categoryChanged && !remarks.trim()) {
+        setError("");
+        setRemarksError("A detailed remark is required when changing the hazard category.");
+        setSaving(false);
+        return;
+      }
+
       // Severity is the triage verdict made during verification — it is
       // picked while the report sits in Under Review and must exist before
       // the report advances to On-Hold or Dispatched (flagging Invalid
@@ -363,9 +426,15 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
       if (severity && severity !== (report.severity || "")) {
         payload.severity = severity;
       }
+      // Category-only saves are legal (no status change), but always carry
+      // the remark explaining the correction — the backend requires it.
+      if (categoryChanged) {
+        payload.category_id = Number(category);
+        if (remarks) payload.remarks = remarks;
+      }
 
       if (Object.keys(payload).length === 0) {
-        setError("No changes to save — update the status, severity, or remarks first.");
+        setError("No changes to save — update the category, status, severity, or remarks first.");
         setSaving(false);
         return;
       }
@@ -376,7 +445,14 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
       await loadDetail(report.report_number);
       onSaved?.();
     } catch (err) {
-      setError(err?.detail || err?.message || "Unable to save report updates.");
+      // The category gate can race (report advanced since the modal opened) —
+      // surface that under the category field instead of the top banner.
+      if (err?.error_code === "CATEGORY_CHANGE_NOT_PERMITTED") {
+        setCategoryError(err.detail || "The hazard category can only be changed while the report is Under Review.");
+        setError("");
+      } else {
+        setError(err?.detail || err?.message || "Unable to save report updates.");
+      }
     } finally {
       setSaving(false);
     }
@@ -483,6 +559,64 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                   </div>
                 </div>
 
+                <div className="mgmt-field mgmt-field--category">
+                  <span className="mgmt-label">Hazard Category</span>
+                  {categoryError && <FieldAlert message={categoryError} />}
+                  {categoryEditable ? (
+                    <>
+                      <select
+                        className="mgmt-category-select"
+                        value={category}
+                        onChange={(e) => {
+                          setCategory(e.target.value);
+                          setCategorySlaPreview(computeSlaPreview(report, e.target.value, categories));
+                          setCategoryError("");
+                          setError("");
+                          setSuccess("");
+                        }}
+                        aria-invalid={Boolean(categoryError)}
+                      >
+                        {!category && (
+                          <option value="" disabled>Select category...</option>
+                        )}
+                        {categories.map((item) => (
+                          <option key={item.hazard_id} value={String(item.hazard_id)}>
+                            {item.hazard_name}
+                          </option>
+                        ))}
+                      </select>
+                      {categoryChanged && !remarks.trim() && (
+                        <p className="mgmt-validation-hint">
+                          A remark is required — explain why the citizen's category
+                          is being corrected (see Remarks below).
+                        </p>
+                      )}
+                      {categoryChanged && categorySlaPreview && (
+                        <p className="mgmt-validation-hint">
+                          New deadline: {formatDate(categorySlaPreview.due)} — already
+                          past. This report will be marked Overdue as soon as you save.
+                        </p>
+                      )}
+                      {!categoryChanged && (
+                        <p className="mgmt-info-hint">
+                          Corrects the citizen's pick — the SLA due date is recalculated
+                          from the report date, and the change is recorded in the audit trail.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <span className="mgmt-category-readonly">
+                        {report.category || "—"}
+                      </span>
+                      <p className="mgmt-info-hint">
+                        The hazard category can only be changed while the report
+                        is Under Review.
+                      </p>
+                    </>
+                  )}
+                </div>
+
                 <div className="mgmt-controls-row">
                   <div className="mgmt-field">
                     <span className="mgmt-label">Severity</span>
@@ -527,6 +661,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                         setStatus(e.target.value);
                         setSeverityError("");
                         setStatusError("");
+                        setCategoryError("");
                         setPhotosError("");
                         setValidatorError("");
                         setRemarksError("");

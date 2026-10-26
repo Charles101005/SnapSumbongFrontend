@@ -20,7 +20,7 @@ import { useCanAudit } from "../../../hooks/useCanAudit";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { PERMISSIONS } from "../../../shared/constants";
 import { formatDate, formatLastActive, normalizeStatusKey, prettifyStatus } from "../../../utils/format";
-import { DATE_FILTER_PRESETS, formatRange, resolveRange } from "../../../utils/dates";
+import { DATE_FILTER_PRESETS, formatRange, notAfterToday, resolveRange, toISODate } from "../../../utils/dates";
 import "./DashboardHome.css";
 
 export default function DashboardHome() {
@@ -161,6 +161,26 @@ export default function DashboardHome() {
   const reportsLabel = reportScope === "assigned" ? "Assigned to Me" : "Total Reports";
   const reportsHint = reportScope === "assigned" ? "Your current queue" : "All submissions";
 
+  // KPI tiles as data so the grid always knows how many cards it renders
+  // (Total Users is permission-gated, so roles see 6 or 5 cards).
+  const kpiCards = [
+    ...(canViewUsers
+      ? [{
+          key: "users",
+          icon: <UsersIcon />,
+          tone: "blue",
+          hint: isBounded ? "All time · Staff + Citizens" : "Staff + Citizens",
+          label: "Total Users",
+          value: display(totalUsers),
+        }]
+      : []),
+    { key: "reports", icon: <ClipboardIcon />, tone: "indigo", hint: reportsHint, label: reportsLabel, value: display(total) },
+    { key: "under-review", icon: <EyeIcon />, tone: "purple", hint: "Awaiting assessment", label: "Under Review", value: display(underReview) },
+    { key: "dispatched", icon: <DispatchIcon />, tone: "cyan", hint: "Teams deployed", label: "Dispatched", value: display(dispatched) },
+    { key: "resolved", icon: <CheckIcon />, tone: "green", hint: "Closed & verified", label: "Resolved", value: display(resolved) },
+    { key: "critical", icon: <AlertIcon />, tone: "red", hint: "Open P1 — P2", label: "Critical Alerts", value: display(criticalCount), accent: true },
+  ];
+
   return (
     <DashboardLayout title={dashboardTitle}>
       <div className="dash-home">
@@ -179,24 +199,33 @@ export default function DashboardHome() {
             {dateMode === "custom" && (
               <div className="dh-date-range">
                 <span>From</span>
-                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                <input
+                  type="date"
+                  value={dateFrom}
+                  max={toISODate(new Date())}
+                  onChange={(e) => {
+                    if (notAfterToday(e.target.value)) setDateFrom(e.target.value);
+                  }}
+                />
                 <span>to</span>
-                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                <input
+                  type="date"
+                  value={dateTo}
+                  max={toISODate(new Date())}
+                  onChange={(e) => {
+                    if (notAfterToday(e.target.value)) setDateTo(e.target.value);
+                  }}
+                />
               </div>
             )}
           </div>
           <span className="dh-range-note">{formatRange(activeRange)}</span>
         </div>
 
-        <div className="dh-kpi-grid">
-          {canViewUsers && (
-            <KpiCard icon={<UsersIcon />} tone="blue" hint={isBounded ? "All time · Staff + Citizens" : "Staff + Citizens"} label="Total Users" value={display(totalUsers)} />
-          )}
-          <KpiCard icon={<ClipboardIcon />} tone="indigo" hint={reportsHint} label={reportsLabel} value={display(total)} />
-          <KpiCard icon={<EyeIcon />} tone="purple" hint="Awaiting assessment" label="Under Review" value={display(underReview)} />
-          <KpiCard icon={<DispatchIcon />} tone="cyan" hint="Teams deployed" label="Dispatched" value={display(dispatched)} />
-          <KpiCard icon={<CheckIcon />} tone="green" hint="Closed & verified" label="Resolved" value={display(resolved)} />
-          <KpiCard icon={<AlertIcon />} tone="red" hint="Open P1 — P2" label="Critical Alerts" value={display(criticalCount)} accent />
+        <div className="dh-kpi-grid" data-count={kpiCards.length}>
+          {kpiCards.map(({ key, ...card }) => (
+            <KpiCard key={key} {...card} />
+          ))}
         </div>
 
         <div className="dh-bottom-grid">
