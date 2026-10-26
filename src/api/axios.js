@@ -3,7 +3,7 @@ import { getAccessToken, setAccessToken, clearAccessToken } from "./authToken";
 import { getCsrfToken } from "./csrf";
 
 const api = axios.create({
-  baseURL: "http://127.0.0.1:8000/",
+  baseURL: import.meta.env.VITE_BASE_API_URL,
   withCredentials: true,
 });
 
