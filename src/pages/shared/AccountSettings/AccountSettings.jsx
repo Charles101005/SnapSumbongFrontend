@@ -27,10 +27,6 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
   const [notifyUpdating, setNotifyUpdating] = useState(false);
   const [notifyError, setNotifyError] = useState("");
 
-  // Success confirmation shown after Personal Details saves — required for
-  // the staff portal, kept for citizens too so both portals behave alike.
-  const [savedBanner, setSavedBanner] = useState("");
-
   const loadProfile = useCallback(async () => {
     setProfileLoading(true);
     setProfileError("");
@@ -48,11 +44,11 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
     loadProfile();
   }, [loadProfile]);
 
-  // Called by PersonalDetails after a successful save — merges the fresh
-  // profile in here, and syncs the sidebar's cached name via onUpdateUser.
+  // Called by PersonalDetails after the user dismisses the save-success
+  // popup — merges the fresh profile in here, and syncs the sidebar's
+  // cached name via onUpdateUser.
   const handleProfileSaved = (updatedProfile) => {
     setProfile(updatedProfile);
-    setSavedBanner("Profile updated successfully.");
     if (onUpdateUser) {
       onUpdateUser({
         firstName: updatedProfile.first_name,
@@ -134,20 +130,6 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
           Manage your identity, security, and notification preferences.
         </p>
       </div>
-
-      {savedBanner && (
-        <div className="settings-banner settings-banner-success" role="status">
-          <span>{savedBanner}</span>
-          <button
-            type="button"
-            className="settings-banner-close"
-            aria-label="Dismiss message"
-            onClick={() => setSavedBanner("")}
-          >
-            &times;
-          </button>
-        </div>
-      )}
 
       <div className="settings-cards-list">
         {/* 1. Personal Information */}

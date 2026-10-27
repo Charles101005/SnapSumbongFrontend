@@ -52,6 +52,10 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState({});
 
+  // Set after a successful save; the success popup stays up until OK is
+  // clicked, which is when onSaved finally runs (merge + navigate back).
+  const [savedProfile, setSavedProfile] = useState(null);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -130,7 +134,7 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
     setIsSaving(true);
     try {
       await updateProfile(payload);
-      onSaved({ ...profile, ...payload });
+      setSavedProfile({ ...profile, ...payload });
     } catch (err) {
       setErrors(
         mapApiErrors(err, {
@@ -441,6 +445,34 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
           </div>
         </form>
       </div>
+
+      {/* Success popup — centered so it's visible regardless of scroll;
+          dismissed only via the OK button. */}
+      {savedProfile && (
+        <div className="pd-success-popup-overlay">
+          <div
+            className="pd-success-popup-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Profile updated"
+          >
+            <div className="pd-success-check-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <p>Profile updated successfully.</p>
+            <button
+              type="button"
+              className="pd-success-ok-btn"
+              autoFocus
+              onClick={() => onSaved(savedProfile)}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

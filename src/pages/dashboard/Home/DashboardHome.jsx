@@ -41,10 +41,11 @@ export default function DashboardHome() {
   const [totalUsers, setTotalUsers] = useState(null);
   const [errors, setErrors] = useState({});
   // Date scope for every report-derived widget (KPI cards, Recent Reports,
-  // Critical Alerts, Recent Activity). Local state — nothing deep-links into
-  // the home dashboard. Total Users has no date filter in the users API and
-  // stays all-time (its hint says so while a range is active).
-  const [dateMode, setDateMode] = useState("all");
+  // Critical Alerts, Recent Activity). Defaults to Today; local state —
+  // nothing deep-links into the home dashboard. Total Users has no date
+  // filter in the users API and stays all-time (its hint says so while a
+  // range is active).
+  const [dateMode, setDateMode] = useState("today");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 

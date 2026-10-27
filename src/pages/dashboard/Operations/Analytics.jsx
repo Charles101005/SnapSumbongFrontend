@@ -78,6 +78,21 @@ const shortDay = (iso) =>
 // Server weekly buckets carry a Monday week_start; label the full span.
 const weekLabel = (iso) => `${shortDay(iso)} – ${shortDay(toISODate(addDays(new Date(`${iso}T00:00:00`), 6)))}`;
 
+// Inclusive FROM/TO bounds: the From day starts at 00:00:00.000 (>=) and the
+// To day runs through 23:59:59.999 (<=), so both endpoint days count in full.
+const rangeStart = (iso) => (iso ? new Date(`${iso}T00:00:00.000`) : null);
+const rangeEnd = (iso) => (iso ? new Date(`${iso}T23:59:59.999`) : null);
+
+// Inclusive containment test for a YYYY-MM-DD day or a full ISO timestamp
+// against those bounds (null bound = unbounded on that side).
+const withinRange = (value, start, end) => {
+  if (!value) return false;
+  const stamp = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00.000` : value;
+  const ts = new Date(stamp);
+  if (Number.isNaN(ts.getTime())) return false;
+  return (!start || ts >= start) && (!end || ts <= end);
+};
+
 // One page of the live Open Past SLA list (staff-only filter server-side).
 const OVERDUE_LIMIT = 6;
 
@@ -256,9 +271,19 @@ export default function Analytics() {
     return { from: "", to: "" };
   }, [range, overview]);
   const granularity = useMemo(() => granularityFor(bounds), [bounds]);
+  // Server intake days trimmed to the inclusive FROM/TO window (From 00:00:00
+  // → To 23:59:59.999) so stray out-of-window days are dropped instead of
+  // being clamped into the edge bars by zeroFillDaily.
+  const intakeDaily = useMemo(() => {
+    const daily = overview?.intake?.daily || [];
+    if (!range.from || !range.to) return daily;
+    const start = rangeStart(range.from);
+    const end = rangeEnd(range.to);
+    return daily.filter((point) => withinRange(point?.date, start, end));
+  }, [overview, range]);
   const currentSeries = useMemo(
-    () => zeroFillDaily(overview?.intake?.daily, bounds, granularity),
-    [overview, bounds, granularity]
+    () => zeroFillDaily(intakeDaily, bounds, granularity),
+    [intakeDaily, bounds, granularity]
   );
   const spikes = useMemo(() => detectSpikes(currentSeries), [currentSeries]);
 
@@ -269,7 +294,15 @@ export default function Analytics() {
   const prevDelivery = prevOverview?.delivery;
   const prevSla = prevOverview?.sla;
   const overdueList = overdue.rows;
-  const slowest = delivery?.slowest || [];
+  // Resolved-in-period rows re-checked against the same inclusive bounds so a
+  // resolved_at that falls outside From 00:00:00 – To 23:59:59.999 never shows.
+  const slowest = useMemo(() => {
+    const rows = delivery?.slowest || [];
+    if (!rows.length || !range.from || !range.to) return rows;
+    const start = rangeStart(range.from);
+    const end = rangeEnd(range.to);
+    return rows.filter((row) => withinRange(row?.resolved_at, start, end));
+  }, [delivery, range]);
   // Same granularity as the volume chart: short ranges chart daily points
   // (weekly buckets would collapse to a single dot), long ones go weekly.
   const trend = useMemo(() => {
@@ -383,7 +416,12 @@ export default function Analytics() {
                   value={customFrom}
                   max={toISODate(new Date())}
                   onChange={(e) => {
-                    if (notAfterToday(e.target.value)) setCustomFrom(e.target.value);
+                    const value = e.target.value;
+                    if (!notAfterToday(value)) return;
+                    setCustomFrom(value);
+                    // A From past the To moves the To with it so the window
+                    // stays a valid inclusive From → To range.
+                    if (value && customTo && value > customTo) setCustomTo(value);
                   }}
                 />
                 <span>to</span>
@@ -392,7 +430,10 @@ export default function Analytics() {
                   value={customTo}
                   max={toISODate(new Date())}
                   onChange={(e) => {
-                    if (notAfterToday(e.target.value)) setCustomTo(e.target.value);
+                    const value = e.target.value;
+                    if (!notAfterToday(value)) return;
+                    setCustomTo(value);
+                    if (value && customFrom && value < customFrom) setCustomFrom(value);
                   }}
                 />
               </div>

@@ -353,39 +353,6 @@
   }
 }
 
-/* Success confirmation shown after Personal Details saves (staff requirement) */
-.settings-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.settings-banner-success {
-  background: #f0fdf4;
-  color: #15803d;
-  border: 1px solid #bbf7d0;
-}
-
-.settings-banner-close {
-  border: none;
-  background: transparent;
-  color: inherit;
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 2px;
-}
-
-.settings-banner-close:hover {
-  opacity: 0.7;
-}
-
 /* Full-width info field (street address) inside the 2-column grid */
 .info-field-span {
   grid-column: 1 / -1;

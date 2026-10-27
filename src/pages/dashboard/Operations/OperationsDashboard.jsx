@@ -82,11 +82,13 @@ export default function OperationsDashboard() {
   const urlOverdue = (searchParams.get("overdue") || "").trim() === "true";
   const DATE_RANGE_VALUES = Object.values(DATE_MODES);
   const rawRange = (searchParams.get("range") || "").trim();
-  const urlRange = rawRange && rawRange !== DATE_MODES.ALL && DATE_RANGE_VALUES.includes(rawRange) ? rawRange : "";
+  const urlRange = rawRange && DATE_RANGE_VALUES.includes(rawRange) ? rawRange : "";
   const validDate = (value) => (/^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "");
   const urlFrom = validDate((searchParams.get("from") || "").trim());
   const urlTo = validDate((searchParams.get("to") || "").trim());
-  const urlDateMode = urlRange || (urlFrom || urlTo ? DATE_MODES.CUSTOM : DATE_MODES.ALL);
+  // Default period is Today (the clean URL has no range param); an explicit
+  // ?range=… or bare ?from=/?to= deep-link overrides it.
+  const urlDateMode = urlRange || (urlFrom || urlTo ? DATE_MODES.CUSTOM : DATE_MODES.TODAY);
   // Status Views (?status=…) pre-filter the table via the URL. The compact
   // summary bar stays visible in both modes; only the page header adapts.
   const isStatusView = Boolean(urlStatus);
@@ -235,7 +237,9 @@ export default function OperationsDashboard() {
     put("severity", source.severity || "");
     if (source.overdue) next.set("overdue", "true");
     else next.delete("overdue");
-    if (source.dateMode && source.dateMode !== DATE_MODES.ALL) put("range", source.dateMode);
+    // Today is the default period, so it needs no param; every other mode
+    // (including an explicit All Time) is written back for shareable URLs.
+    if (source.dateMode && source.dateMode !== DATE_MODES.TODAY) put("range", source.dateMode);
     else next.delete("range");
     const custom = source.dateMode === DATE_MODES.CUSTOM;
     put("from", custom ? source.fromDate || "" : "");
@@ -251,7 +255,7 @@ export default function OperationsDashboard() {
   const reset = () => {
     // Status Views keep their locked status on reset — clearing it would
     // silently kick the user back to the Overview.
-    const empty = { category: "", severity: "", status: isStatusView ? urlStatus : "", search: "", dateMode: DATE_MODES.ALL, fromDate: "", toDate: "", overdue: false };
+    const empty = { category: "", severity: "", status: isStatusView ? urlStatus : "", search: "", dateMode: DATE_MODES.TODAY, fromDate: "", toDate: "", overdue: false };
     setPage(1); setDraft(empty); setFilters(empty);
     syncParamsFrom(empty);
   };
