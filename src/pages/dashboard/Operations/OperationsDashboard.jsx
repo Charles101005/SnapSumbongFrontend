@@ -154,7 +154,7 @@ export default function OperationsDashboard() {
         severity: filters.severity || undefined,
         from_date: fromDate || undefined,
         to_date: toDate || undefined,
-        // DO 47 SLA: show only open reports past their due date.
+        // SLA: show only open reports past their due date.
         overdue: filters.overdue || undefined,
         // Reports Overview lists every report regardless of status (including
         // Resolved/Closed/Invalid), so exclude_closed is always off here.
@@ -181,7 +181,7 @@ export default function OperationsDashboard() {
 
   // The overview cards use the API's current status buckets. Fetch a count
   // per real status because the reports endpoint returns exact counts.
-  // The overdue count (DO 47 SLA) comes from the same endpoint's filter.
+  // The overdue count (SLA) comes from the same endpoint's filter.
   const loadStatusStats = async (statusList) => {
     if (!statusList.length) return;
     try {
@@ -387,7 +387,7 @@ export default function OperationsDashboard() {
             )}
           </div>
           <div className="filter-actions">
-            <label className="overdue-toggle" title="Show only open reports past their DO 47 response time">
+            <label className="overdue-toggle" title="Show only open reports past their response time">
               <input type="checkbox" checked={draft.overdue} onChange={(e) => updateDraft("overdue", e.target.checked)} />
               Overdue only
             </label>

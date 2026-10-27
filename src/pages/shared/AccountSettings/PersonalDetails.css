@@ -288,6 +288,52 @@
   }
 }
 
+/* Email section — read-only display + Change Email (verified flow) */
+.email-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.email-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.email-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.email-row .input-with-icon {
+  flex: 1;
+}
+
+.email-readonly {
+  background-color: #f8fafc;
+  color: #334155;
+  cursor: default;
+}
+
+.email-readonly:focus {
+  outline: none;
+  border-color: #e2e8f0;
+  box-shadow: none;
+}
+
+@media (max-width: 720px) {
+  .email-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .email-row .btn-light-blue {
+    align-self: flex-start;
+  }
+}
+
 /* Actions */
 .form-actions {
   display: flex;

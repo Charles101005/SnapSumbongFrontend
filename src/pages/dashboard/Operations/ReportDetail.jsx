@@ -159,8 +159,8 @@ export default function ReportDetail({ reportNumber, onClose, onChanged }) {
               </div>
               <DetailField label="Date Reported" value={formatDateTime(report.created_at)} />
               <DetailField label="Assigned To" value={report.assigned_to?.name || "—"} />
-              <DetailField label="Validated By (DO 47)" value={report.validated_by_name || "—"} />
-              <DetailField label="SLA Due Date (DO 47)" value={formatDueDate(report.due_at)} />
+              <DetailField label="Validated By " value={report.validated_by_name || "—"} />
+              <DetailField label="SLA Due Date" value={formatDueDate(report.due_at)} />
               <div className="detail-field">
                 <label className="detail-field-label">SLA State</label>
                 <div className="detail-field-value">
@@ -182,9 +182,9 @@ export default function ReportDetail({ reportNumber, onClose, onChanged }) {
             )}
 
             <section className="report-detail-section">
-              <h3 className="detail-field-label">Attached Media (DO 47 Photolog)</h3>
+              <h3 className="detail-field-label">Attached Media (Photolog)</h3>
               {(() => {
-                // Backend detail responses group photos by DO 47 photolog
+                // Backend detail responses group photos by photolog
                 // phase; fall back to the flat before-only list for older rows.
                 const photos = report.photos || { before: report.image_urls || [], during: [], after: [] };
                 const groups = [

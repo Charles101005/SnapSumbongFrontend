@@ -96,7 +96,7 @@ export const createHazardReport = async (payload) => {
 // GET /reports/
 // Staff filters: q, category_id, status, exclude_closed, overdue, severity,
 // from_date, to_date, page and page_size. `overdue=true` (staff-only) returns
-// open reports past their DO 47 response-time due date.
+// open reports past their response-time due date.
 export const getReports = async (params = {}) => {
     try {
         const response = await api.get("reports/", { params });
@@ -129,7 +129,7 @@ export const getReportHistoryDetail = async (reportNumber) => {
 // PATCH /reports/:report_number/
 // The backend accepts status, severity, category_id, remarks and
 // resolution_images.
-// resolution_images is the DO 47 photolog: [{ image_url, photo_type }]
+// resolution_images is the photolog: [{ image_url, photo_type }]
 // where photo_type is "DURING" or "AFTER" — at least one of each is
 // required when transitioning to Resolved.
 // category_id corrects the citizen's hazard category: only accepted while

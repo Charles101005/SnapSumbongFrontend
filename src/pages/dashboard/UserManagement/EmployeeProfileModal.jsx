@@ -33,7 +33,9 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
   const [isActive, setIsActive] = useState(true);
   const [createdAt, setCreatedAt] = useState("");
   const [roleOptions, setRoleOptions] = useState([]);
-  const [error, setError] = useState("");
+  // Per-field errors plus optional form-wide `form` key — same shape
+  // mapApiErrors returns so server and client messages share one state.
+  const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
@@ -141,6 +143,51 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
     if (!file) return;
     setPhotoFile(file);
     setPhotoUrl(URL.createObjectURL(file));
+    setSuccess("");
+  };
+
+  // Drop a single field's error when the user edits it; leave errors.form
+  // (network / SELF_UPDATE_DENIED / etc.) until the next save attempt.
+  const clearFieldError = (key) => {
+    setErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  // Standard onChange for plain inputs/selects: set value, clear that
+  // field's error, and dismiss any success banner.
+  const onFieldChange = (key, setter) => (event) => {
+    setter(event.target.value);
+    clearFieldError(key);
+    setSuccess("");
+  };
+
+  // Same for SearchableSelect-style onChange(value).
+  const onFieldChangeValue = (key, setter) => (value) => {
+    setter(value);
+    clearFieldError(key);
+    setSuccess("");
+  };
+
+  // Address cascade: changing region/province/city resets the dependents
+  // via usePsgcAddress, so their stale errors must go too.
+  const onAddressChange = (keys, handler) => (value) => {
+    handler({ target: { value } });
+    setErrors((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      keys.forEach((key) => {
+        if (next[key]) {
+          delete next[key];
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+    setSuccess("");
   };
 
   const handleSave = async (event) => {
@@ -155,65 +202,50 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
     const trimmedPhone = phoneNumber.trim();
     const trimmedStreet = streetAddress.trim();
 
-    if (!trimmedFirst) {
-      setError("First name is required.");
-      setSuccess("");
-      return;
-    }
-    if (!trimmedLast) {
-      setError("Last name is required.");
-      setSuccess("");
-      return;
-    }
-    if (!birthdate) {
-      setError("Birthdate is required.");
-      setSuccess("");
-      return;
-    }
-    if (!gender) {
-      setError("Gender is required.");
-      setSuccess("");
-      return;
-    }
+    // Collect every client-side problem so the user sees them all at once.
+    const newErrors = {};
+    if (!trimmedFirst) newErrors.firstName = "First name is required.";
+    if (!trimmedLast) newErrors.lastName = "Last name is required.";
+    if (!birthdate) newErrors.birthdate = "Birthdate is required.";
+    if (!gender) newErrors.gender = "Gender is required.";
     if (!trimmedEmail) {
-      setError("Email address is required.");
-      setSuccess("");
-      return;
-    }
-    if (!EMAIL_PATTERN.test(trimmedEmail)) {
-      setError("Enter a valid email address.");
-      setSuccess("");
-      return;
+      newErrors.email = "Email address is required.";
+    } else if (!EMAIL_PATTERN.test(trimmedEmail)) {
+      newErrors.email = "Enter a valid email address.";
     }
     if (trimmedPhone && !/^\d{11}$/.test(trimmedPhone)) {
-      setError("Phone number must be 11 digits.");
-      setSuccess("");
-      return;
+      newErrors.phoneNumber = "Phone number must be 11 digits.";
     }
-    if (!region) {
-      setError("Region is required.");
-      setSuccess("");
-      return;
-    }
-    if (!barangay) {
-      setError("Barangay is required.");
-      setSuccess("");
-      return;
-    }
-    if (!roleId) {
-      setError("Role is required.");
-      setSuccess("");
-      return;
-    }
+    if (!region) newErrors.region = "Region is required.";
+    if (!barangay) newErrors.barangay = "Barangay is required.";
+    if (!roleId) newErrors.roleId = "Role is required.";
 
-    setError("");
+    setErrors(newErrors);
     setSuccess("");
+    if (Object.keys(newErrors).length > 0) return;
+
     setSaving(true);
     try {
+      // Photo upload is a separate step so a Cloudinary/signature failure
+      // never reaches PATCH and gets a photo-specific message.
       let nextPhotoUrl = photoUrl;
       if (photoFile) {
-        nextPhotoUrl = await uploadProfileImage(photoFile);
+        try {
+          nextPhotoUrl = await uploadProfileImage(photoFile);
+        } catch (uploadErr) {
+          setErrors({
+            form:
+              (typeof uploadErr?.detail === "string" && uploadErr.detail) ||
+              "Couldn't upload that photo. Please try a different image.",
+          });
+          return;
+        }
+        // Keep the CDN URL in state even if the PATCH below fails so a
+        // retry does not re-upload (and orphan another Cloudinary asset).
+        setPhotoFile(null);
+        setPhotoUrl(nextPhotoUrl);
       }
+
       await updateEmployee(userNumber, {
         first_name: trimmedFirst,
         last_name: trimmedLast,
@@ -231,21 +263,36 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
         is_active: isActive,
         ...(nextPhotoUrl ? { profile_picture: nextPhotoUrl } : {}),
       });
-      setPhotoFile(null);
-      setPhotoUrl(nextPhotoUrl);
+      setErrors({});
       setSuccess("Employee details saved successfully.");
       onSaved?.();
     } catch (err) {
       // Domain errors ({ detail, error_code }) surface their detail message;
-      // SELF_UPDATE_DENIED / ROLE_NOT_FOUND / USER_NOT_FOUND land on the form banner.
-      const mapped = mapApiErrors(err, {
-        codes: {
-          SELF_UPDATE_DENIED: "form",
-          ROLE_NOT_FOUND: "form",
-          USER_NOT_FOUND: "form",
-        },
-      });
-      setError(mapped.form || "Failed to save employee. Please try again.");
+      // DRF field errors land under the matching input; everything else on
+      // the form banner (SELF_UPDATE_DENIED / ROLE_NOT_FOUND / USER_NOT_FOUND).
+      setErrors(
+        mapApiErrors(err, {
+          fields: {
+            first_name: "firstName",
+            last_name: "lastName",
+            middle_name: "middleName",
+            birth_date: "birthdate",
+            gender: "gender",
+            email: "email",
+            contact_number: "phoneNumber",
+            region_code: "region",
+            province_code: "province",
+            city_code: "city",
+            barangay_code: "barangay",
+            role_id: "roleId",
+          },
+          codes: {
+            SELF_UPDATE_DENIED: "form",
+            ROLE_NOT_FOUND: "form",
+            USER_NOT_FOUND: "form",
+          },
+        })
+      );
     } finally {
       setSaving(false);
     }
@@ -300,7 +347,7 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
     <>
       {modalShell(
         <>
-          {error && <div className="epm-banner epm-banner-error">{error}</div>}
+          {errors.form && <div className="epm-banner epm-banner-error">{errors.form}</div>}
           {success && <div className="epm-banner epm-banner-success">{success}</div>}
 
           <form className="epm-form" onSubmit={handleSave} noValidate>
@@ -323,13 +370,14 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
                 </label>
                 <input
                   id="epm-first-name"
-                  className="epm-input"
+                  className={`epm-input${errors.firstName ? " input-error" : ""}`}
                   type="text"
                   value={firstName}
-                  onChange={(event) => setFirstName(event.target.value)}
+                  onChange={onFieldChange("firstName", setFirstName)}
                   readOnly={isView}
                   disabled={isView}
                 />
+                {errors.firstName && <p className="error-text">{errors.firstName}</p>}
               </div>
 
               <div className="epm-field">
@@ -338,26 +386,28 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
                 </label>
                 <input
                   id="epm-last-name"
-                  className="epm-input"
+                  className={`epm-input${errors.lastName ? " input-error" : ""}`}
                   type="text"
                   value={lastName}
-                  onChange={(event) => setLastName(event.target.value)}
+                  onChange={onFieldChange("lastName", setLastName)}
                   readOnly={isView}
                   disabled={isView}
                 />
+                {errors.lastName && <p className="error-text">{errors.lastName}</p>}
               </div>
 
               <div className="epm-field">
                 <label className="epm-label" htmlFor="epm-middle-name">Middle Name</label>
                 <input
                   id="epm-middle-name"
-                  className="epm-input"
+                  className={`epm-input${errors.middleName ? " input-error" : ""}`}
                   type="text"
                   value={middleName}
-                  onChange={(event) => setMiddleName(event.target.value)}
+                  onChange={onFieldChange("middleName", setMiddleName)}
                   readOnly={isView}
                   disabled={isView}
                 />
+                {errors.middleName && <p className="error-text">{errors.middleName}</p>}
               </div>
 
               <div className="epm-field">
@@ -366,13 +416,14 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
                 </label>
                 <input
                   id="epm-birthdate"
-                  className="epm-input"
+                  className={`epm-input${errors.birthdate ? " input-error" : ""}`}
                   type="date"
                   value={birthdate}
-                  onChange={(event) => setBirthdate(event.target.value)}
+                  onChange={onFieldChange("birthdate", setBirthdate)}
                   readOnly={isView}
                   disabled={isView}
                 />
+                {errors.birthdate && <p className="error-text">{errors.birthdate}</p>}
               </div>
 
               <div className="epm-field">
@@ -381,9 +432,9 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
                 </label>
                 <select
                   id="epm-gender"
-                  className="epm-input epm-select"
+                  className={`epm-input epm-select${errors.gender ? " input-error" : ""}`}
                   value={gender}
-                  onChange={(event) => setGender(event.target.value)}
+                  onChange={onFieldChange("gender", setGender)}
                   disabled={isView}
                 >
                   <option value="">Select gender</option>
@@ -391,6 +442,7 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
+                {errors.gender && <p className="error-text">{errors.gender}</p>}
               </div>
 
               <div className="epm-field">
@@ -399,28 +451,30 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
                 </label>
                 <input
                   id="epm-email"
-                  className="epm-input"
+                  className={`epm-input${errors.email ? " input-error" : ""}`}
                   type="email"
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={onFieldChange("email", setEmail)}
                   readOnly={isView}
                   disabled={isView}
                 />
+                {errors.email && <p className="error-text">{errors.email}</p>}
               </div>
 
               <div className="epm-field">
                 <label className="epm-label" htmlFor="epm-phone">Phone Number</label>
                 <input
                   id="epm-phone"
-                  className="epm-input"
+                  className={`epm-input${errors.phoneNumber ? " input-error" : ""}`}
                   type="tel"
                   placeholder="09XXXXXXXXX"
                   maxLength={11}
                   value={phoneNumber}
-                  onChange={(event) => setPhoneNumber(event.target.value)}
+                  onChange={onFieldChange("phoneNumber", setPhoneNumber)}
                   readOnly={isView}
                   disabled={isView}
                 />
+                {errors.phoneNumber && <p className="error-text">{errors.phoneNumber}</p>}
               </div>
 
               <div className="epm-field">
@@ -445,12 +499,13 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
                 <SearchableSelect
                   id="epm-region"
                   value={region}
-                  onChange={(value) => handleRegionChange({ target: { value } })}
+                  onChange={onAddressChange(["region", "province", "city", "barangay"], handleRegionChange)}
                   options={regionOptions}
                   placeholder="Search region"
                   disabled={isView}
-                  inputClassName="epm-input"
+                  inputClassName={`epm-input${errors.region ? " input-error" : ""}`}
                 />
+                {errors.region && <p className="error-text">{errors.region}</p>}
               </div>
 
               <div className="epm-field">
@@ -458,12 +513,13 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
                 <SearchableSelect
                   id="epm-province"
                   value={province}
-                  onChange={(value) => handleProvinceChange({ target: { value } })}
+                  onChange={onAddressChange(["province", "city", "barangay"], handleProvinceChange)}
                   options={provinceOptions}
                   placeholder="Search province"
                   disabled={isView || !canSelectProvince}
-                  inputClassName="epm-input"
+                  inputClassName={`epm-input${errors.province ? " input-error" : ""}`}
                 />
+                {errors.province && <p className="error-text">{errors.province}</p>}
               </div>
 
               <div className="epm-field">
@@ -471,12 +527,13 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
                 <SearchableSelect
                   id="epm-city"
                   value={city}
-                  onChange={(value) => handleCityChange({ target: { value } })}
+                  onChange={onAddressChange(["city", "barangay"], handleCityChange)}
                   options={cityOptions}
                   placeholder="Search city/municipality"
                   disabled={isView || !canSelectCity}
-                  inputClassName="epm-input"
+                  inputClassName={`epm-input${errors.city ? " input-error" : ""}`}
                 />
+                {errors.city && <p className="error-text">{errors.city}</p>}
               </div>
 
               <div className="epm-field">
@@ -486,26 +543,28 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
                 <SearchableSelect
                   id="epm-barangay"
                   value={barangay}
-                  onChange={setBarangay}
+                  onChange={onFieldChangeValue("barangay", setBarangay)}
                   options={barangayOptions}
                   placeholder="Search barangay"
                   disabled={isView || !canSelectBarangay}
-                  inputClassName="epm-input"
+                  inputClassName={`epm-input${errors.barangay ? " input-error" : ""}`}
                 />
+                {errors.barangay && <p className="error-text">{errors.barangay}</p>}
               </div>
 
               <div className="epm-field">
                 <label className="epm-label" htmlFor="epm-street">Street Address</label>
                 <input
                   id="epm-street"
-                  className="epm-input"
+                  className={`epm-input${errors.streetAddress ? " input-error" : ""}`}
                   type="text"
                   placeholder="House no., street"
                   value={streetAddress}
-                  onChange={(event) => setStreetAddress(event.target.value)}
+                  onChange={onFieldChange("streetAddress", setStreetAddress)}
                   readOnly={isView}
                   disabled={isView}
                 />
+                {errors.streetAddress && <p className="error-text">{errors.streetAddress}</p>}
               </div>
 
               <div className="epm-field">
@@ -519,15 +578,16 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
                 </label>
                 <select
                   id="epm-role"
-                  className="epm-input epm-select"
+                  className={`epm-input epm-select${errors.roleId ? " input-error" : ""}`}
                   value={roleId}
-                  onChange={(event) => setRoleId(event.target.value)}
+                  onChange={onFieldChange("roleId", setRoleId)}
                   disabled={isView}
                 >
                   {roleOptions.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
+                {errors.roleId && <p className="error-text">{errors.roleId}</p>}
               </div>
 
               <div className="epm-field">
@@ -538,7 +598,10 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
                   id="epm-status"
                   className="epm-input epm-select"
                   value={isActive ? "ACTIVE" : "DEACTIVATED"}
-                  onChange={(event) => setIsActive(event.target.value === "ACTIVE")}
+                  onChange={(event) => {
+                    setIsActive(event.target.value === "ACTIVE");
+                    setSuccess("");
+                  }}
                   disabled={isView}
                 >
                   <option value="ACTIVE">Active</option>

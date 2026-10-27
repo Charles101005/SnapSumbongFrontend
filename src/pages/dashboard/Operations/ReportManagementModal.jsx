@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 import MapAutoResize from "../../../components/shared/MapAutoResize";
 import { hazardMarkerIcon } from "../../../utils/leafletHelpers";
 import { getReportDetail, updateReport, uploadResolutionImages } from "../../../api/reports";
+import { severityFromSla, slaDaysForReport } from "../../../utils/sla";
 import "./ReportManagementModal.css";
 
 const FALLBACK_STATUSES = ["New", "Assigned", "Under Review", "On-Hold", "Dispatched", "Ongoing", "Resolved", "Closed", "Invalid"];
@@ -15,6 +16,11 @@ const INVALID_VISIBLE_AFTER = ["UNDER_REVIEW", "ON_HOLD", "DISPATCHED", "RESOLVE
 // offer nothing else — not even if next_expected_statuses is missing and
 // the full-list fallback kicks in.
 const ASSIGNED_NEXT_STATUSES = ["UNDER_REVIEW"];
+// Statuses where an empty severity pre-fills with the SLA-derived verdict:
+// the report has passed (or is passing) real/fake validation at Under Review.
+// Invalid stays exempt — a moderation verdict never earns a triage verdict,
+// and NEW/ASSIGNED reports stay unverdicted until they reach Under Review.
+const SEVERITY_PRE_FILL_AFTER = ["UNDER_REVIEW", "ON_HOLD", "DISPATCHED", "ONGOING", "RESOLVED", "CLOSED"];
 const MAX_RESOLUTION_PHOTOS = 5; // Matches the backend's STORAGE_CONFIG['MAX_SIGNATURE_COUNT'] (combined DURING + AFTER).
 
 const STATUS_COLORS = {
@@ -108,7 +114,7 @@ const resolveCategoryId = (reportData, categoryList) => {
   const byName = (categoryList || []).find((item) => item.hazard_name === reportData.category);
   return byName ? String(byName.hazard_id) : "";
 };
-// Preview of the recalculated DO 47 deadline for a picked category — strict
+// Preview of the recalculated response time deadline for a picked category — strict
 // rule: due = created_at + response_time_days, which may already be in the
 // past (the report flips Overdue on save). Called from event handlers only,
 // never during render (Date.now is impure). Null when data is unavailable
@@ -149,10 +155,10 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   // string (select values are strings). Only submitted when it differs from
   // the report's current category.
   const [category, setCategory] = useState("");
-  // DO 47 §2: required name of the technical personnel who validated the
+  // Response time deadline: required name of the technical personnel who validated the
   // completed works — sent as validated_by_name when resolving.
   const [validatorName, setValidatorName] = useState("");
-  // DO 47 photolog: separate DURING (works in progress) and AFTER (completed)
+  // Response time deadline: separate DURING (works in progress) and AFTER (completed)
   // photo sets — both are required before a report can be marked Resolved.
   const [duringFiles, setDuringFiles] = useState([]);
   const [afterFiles, setAfterFiles] = useState([]);
@@ -201,6 +207,15 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   const severities = lookups?.severities?.length ? lookups.severities : FALLBACK_SEVERITIES;
   const categories = lookups?.categories || [];
 
+  // Severity derived from the picked category's response-time SLA —
+  // recomputed whenever the report or the picked category changes so a
+  // category correction re-derives it. null = SLA days unresolvable
+  // (legacy payloads), which falls back to the manual pick below.
+  const derivedSeverity = useMemo(() => {
+    const days = slaDaysForReport(report, category, lookups?.categories);
+    return days === null ? null : { days, severity: severityFromSla(days) };
+  }, [report, category, lookups?.categories]);
+
   const duringPreviewsRef = useRef([]);
   const afterPreviewsRef = useRef([]);
   useEffect(() => { duringPreviewsRef.current = duringPreviews; }, [duringPreviews]);
@@ -242,7 +257,17 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
       .then((data) => {
         if (requestId !== loadRequestRef.current) return;
         setReport(data);
-        setSeverity(data.severity || "");
+        // Pre-fill an empty severity with the SLA-derived verdict once the
+        // report has reached Under Review (real/fake validation). Existing
+        // severities are kept as-is; New/Assigned stay empty.
+        const loadCategoryId = resolveCategoryId(data, lookups?.categories);
+        const loadDays = slaDaysForReport(data, loadCategoryId, lookups?.categories);
+        const loadDerived = loadDays === null ? "" : severityFromSla(loadDays) || "";
+        setSeverity(
+          data.severity ||
+            (SEVERITY_PRE_FILL_AFTER.includes(statusToValue(data.status)) ? loadDerived : "") ||
+            ""
+        );
         const matchingStatus = (lookups?.statuses || []).find(
           (item) => (item.label || item) === data.status || (item.value || item) === data.status
         );
@@ -250,7 +275,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         setRemarks(data.remarks || "");
         // Preselect the current category (category_id, or name-mapped
         // against the lookup list when the payload predates category_id).
-        setCategory(resolveCategoryId(data, lookups?.categories));
+        setCategory(loadCategoryId);
         setCategorySlaPreview(null);
         setValidatorName("");
         setDuringFiles([]);
@@ -330,7 +355,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
       const statusChanged = status && status !== currentStatusValue;
       const resolving = statusChanged && status === "RESOLVED";
 
-      // DO 47 photolog: resolving requires at least one DURING and one AFTER
+      // photolog: resolving requires at least one DURING and one AFTER
       // photo — mirror the backend's domain errors inline at the photolog.
       if (resolving && (!duringFiles.length || !afterFiles.length)) {
         setError("");
@@ -345,11 +370,11 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         return;
       }
 
-      // DO 47 §2: resolving requires the declared name of the technical
+      // Response time deadline: resolving requires the declared name of the technical
       // personnel who validated the completed works (ValidatorNameRequiredError).
       if (resolving && !validatorName.trim()) {
         setError("");
-        setValidatorError("The name of the DO 47 validator is required when transitioning to resolved status.");
+        setValidatorError("The name of the validator is required when transitioning to resolved status.");
         setSaving(false);
         return;
       }
@@ -395,7 +420,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         ["ON_HOLD", "DISPATCHED"].includes(status);
       if (leavingReview && !(severity || report?.severity)) {
         setError("");
-        setSeverityError("Set the severity (P1-P5) before moving this report out of Under Review.");
+        setSeverityError("Severity couldn't be derived from the response time — set P1-P5 before moving this report out of Under Review.");
         setSaving(false);
         return;
       }
@@ -423,7 +448,10 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
       if (statusChanged && resolutionImages) {
         payload.resolution_images = resolutionImages;
       }
-      if (severity && severity !== (report.severity || "")) {
+      // The derived verdict rides along with any save — but never onto an
+      // Invalid transition: a moderation verdict must not stamp a triage
+      // one onto a fake/troll report (the backend exempts Invalid anyway).
+      if (severity && severity !== (report.severity || "") && status !== "INVALID") {
         payload.severity = severity;
       }
       // Category-only saves are legal (no status change), but always carry
@@ -493,7 +521,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   const severityColor = SEVERITY_COLORS[String(severity).toLowerCase()] || NEUTRAL_COLOR;
   const reportCoordinates = getCoordinates(report);
 
-  // The DO 47 photolog (DURING + AFTER) and the validator name are only
+  // The photolog (DURING + AFTER) and the validator name are only
   // legal when the update transitions the report into Resolved — the
   // backend rejects resolution images on any other status change (e.g.
   // On-Hold transfers, staff force-closes).
@@ -568,8 +596,19 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                         className="mgmt-category-select"
                         value={category}
                         onChange={(e) => {
+                          const nextDays = slaDaysForReport(report, e.target.value, categories);
+                          const nextDerived = nextDays === null ? null : severityFromSla(nextDays);
                           setCategory(e.target.value);
                           setCategorySlaPreview(computeSlaPreview(report, e.target.value, categories));
+                          // A category correction changes the response time,
+                          // so the derived severity follows the new SLA —
+                          // unless the officer deliberately overrode it.
+                          setSeverity((current) => {
+                            if (!current) return nextDerived || "";
+                            if (derivedSeverity && current === derivedSeverity.severity) return nextDerived || current;
+                            return current;
+                          });
+                          setSeverityError("");
                           setCategoryError("");
                           setError("");
                           setSuccess("");
@@ -635,6 +674,18 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                         <option key={statusValue(item)} value={statusValue(item)}>{statusLabel(item)}</option>
                       ))}
                     </select>
+                    {derivedSeverity && severity && severity === derivedSeverity.severity && (
+                      <p className="mgmt-info-hint">
+                        Auto-derived from the {derivedSeverity.days}-day response time — adjust
+                        only if field judgment differs.
+                      </p>
+                    )}
+                    {derivedSeverity && severity && severity !== derivedSeverity.severity && (
+                      <p className="mgmt-info-hint">
+                        Manual override — the SLA-derived severity would be{" "}
+                        {derivedSeverity.severity} ({derivedSeverity.days}-day response time).
+                      </p>
+                    )}
                     {statusToValue(report.status) === "ASSIGNED" && !(severity || report?.severity) && (
                       <p className="mgmt-info-hint">
                         Optional here — severity is decided during Under Review.
@@ -642,9 +693,11 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                     )}
                     {statusToValue(report.status) === "UNDER_REVIEW" &&
                       ["ON_HOLD", "DISPATCHED"].includes(status) &&
-                      !(severity || report?.severity) && (
+                      !severity &&
+                      !derivedSeverity && (
                       <p className="mgmt-validation-hint">
-                        Under Review requires a severity — select P1-P5 before moving to the next status.
+                        Severity couldn't be derived from the response time — select P1-P5
+                        before moving to the next status.
                       </p>
                     )}
                   </div>
@@ -659,6 +712,15 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                         // Every save rule depends on the chosen status —
                         // switching it clears all inline feedback.
                         setStatus(e.target.value);
+                        // Reaching Under Review (or a later stage) pre-fills
+                        // an empty severity with the SLA-derived verdict.
+                        if (
+                          SEVERITY_PRE_FILL_AFTER.includes(statusToValue(e.target.value)) &&
+                          !severity &&
+                          derivedSeverity
+                        ) {
+                          setSeverity(derivedSeverity.severity);
+                        }
                         setSeverityError("");
                         setStatusError("");
                         setCategoryError("");
@@ -677,7 +739,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                     {status === "CLOSED" && statusToValue(report.status) !== "CLOSED" && (
                       <p className="mgmt-validation-hint">
                         Closing requires a remark — state the reason (e.g., not under
-                        DO 47 jurisdiction, referred to another office). If the works
+                        SnapSumbong department jurisdiction, referred to another office). If the works
                         were done, leave it Resolved so the reporter can confirm.
                       </p>
                     )}
@@ -832,7 +894,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
 
             {isResolvingTransition && (
               <div className="mgmt-section">
-                <span className="mgmt-label">DO 47 Validator Name *</span>
+                <span className="mgmt-label"> Validator Name *</span>
                 {validatorError && <FieldAlert message={validatorError} />}
                 <input
                   className="mgmt-input"
@@ -844,7 +906,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                 />
                 <p className="mgmt-validation-hint">
                   Required when marking a report Resolved — record who validated
-                  the rectification works (DO 47 §2).
+                  the rectification works.
                 </p>
               </div>
             )}

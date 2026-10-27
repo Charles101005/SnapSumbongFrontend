@@ -61,6 +61,22 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
     setCurrentView("settings");
   };
 
+  // Called by PersonalDetails after the Change Email flow verifies — the
+  // user stays on the form (unsaved edits there are preserved), so this
+  // only merges the fresh email into the profile and the sidebar cache.
+  const handleEmailChanged = (newEmail) => {
+    setProfile((prev) => ({ ...prev, email: newEmail }));
+    if (onUpdateUser) {
+      onUpdateUser({
+        firstName: profile.first_name,
+        middleName: profile.middle_name,
+        lastName: profile.last_name,
+        email: newEmail,
+        profilePicture: profile.profile_picture || "",
+      });
+    }
+  };
+
   const handleToggleNotifications = async (checked) => {
     const previous = profile.is_notified;
     setProfile((prev) => ({ ...prev, is_notified: checked }));
@@ -79,8 +95,10 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
   if (currentView === "personal-details") {
     return (
       <PersonalDetails
+        variant={variant}
         profile={profile}
         onSaved={handleProfileSaved}
+        onEmailChanged={handleEmailChanged}
         onBack={() => setCurrentView("settings")}
       />
     );

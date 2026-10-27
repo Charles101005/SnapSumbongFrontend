@@ -163,7 +163,7 @@
   .status-invalid { background: #ffe4e6; color: #9f1239; }
   .status-unknown { background: #f1f5f9; color: #475569; }
 
-/* DO 47 SLA badge (detail view) */
+/* SLA badge (detail view) */
 .report-sla-badge {
   display: inline-block;
   padding: .2rem .55rem;
@@ -193,7 +193,7 @@
   white-space: pre-wrap;
 }
 
-/* DO 47 photolog phase groups (Before / During / After) */
+/* photolog phase groups (Before / During / After) */
 .photolog-group {
   margin-bottom: 0.75rem;
 }

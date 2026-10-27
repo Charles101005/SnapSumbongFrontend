@@ -428,7 +428,7 @@
   cursor: zoom-in;
 }
 
-/* DO 47 photolog: side-by-side DURING / AFTER dropzones */
+/*  photolog: side-by-side DURING / AFTER dropzones */
 .mgmt-photolog-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -584,7 +584,7 @@
   box-shadow: var(--shadow-focus);
 }
 
-/* Single-line text input (e.g. the DO 47 validator name on resolve). */
+/* Single-line text input (e.g. the validator name on resolve). */
 .mgmt-input {
   display: block;
   width: 100%;
@@ -811,7 +811,7 @@
   color: var(--color-text-dark);
 }
 
-/* DO 47 inline notices: status-transition requirements (validator name on
+/* inline notices: status-transition requirements (validator name on
    resolve, mandatory remark on staff force-close). */
 .mgmt-validation-hint {
   margin-top: 0.4rem;

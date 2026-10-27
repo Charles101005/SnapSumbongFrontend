@@ -378,7 +378,12 @@ export default function CitizenProfileModal({ userNumber, mode = "view", onClose
                   id="cp-status"
                   className="cp-input cp-select"
                   value={isActive ? "ACTIVE" : "DEACTIVATED"}
-                  onChange={(event) => setIsActive(event.target.value === "ACTIVE")}
+                  onChange={(event) => {
+                    setIsActive(event.target.value === "ACTIVE");
+                    // Dismiss stale save banners as soon as the user edits.
+                    setError("");
+                    setSuccess("");
+                  }}
                   disabled={isView}
                 >
                   <option value="ACTIVE">Active</option>

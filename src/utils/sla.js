@@ -23,6 +23,44 @@ export const formatDueDate = (dueAt) => {
     return due.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 };
 
+// Severity derived from a category's response-time SLA. Buckets follow the
+// seeded response times (3, 7, 10, 15, 30 days):
+//   <=3 days -> P1, 4-7 -> P2, 8-14 -> P3, 15-29 -> P4, >=30 -> P5
+// Returns null when the days value is unusable (caller falls back to a
+// manual severity pick).
+export const severityFromSla = (days) => {
+    if (days === null || days === undefined || days === "") return null;
+    const value = Number(days);
+    if (!Number.isFinite(value)) return null;
+    if (value <= 3) return "P1";
+    if (value <= 7) return "P2";
+    if (value <= 14) return "P3";
+    if (value <= 29) return "P4";
+    return "P5";
+};
+
+// Whole response-time days for a report: prefers the picked category's
+// `response_time_days` (respects an unsaved category correction), falling
+// back to `due_at - created_at` when the lookup cannot resolve the category.
+// Null when neither source is available.
+export const slaDaysForReport = (report, pickedCategoryId, categories) => {
+    const option = (categories || []).find(
+        (item) => String(item.hazard_id) === String(pickedCategoryId)
+    );
+    if (option?.response_time_days !== null && option?.response_time_days !== undefined && option?.response_time_days !== "") {
+        const days = Number(option.response_time_days);
+        if (Number.isFinite(days)) return days;
+    }
+    if (report?.created_at && report?.due_at) {
+        const due = new Date(report.due_at).getTime();
+        const created = new Date(report.created_at).getTime();
+        if (Number.isFinite(due) && Number.isFinite(created)) {
+            return Math.round((due - created) / 86400000);
+        }
+    }
+    return null;
+};
+
 // Human label for a report's SLA state:
 //   { tone: 'ok'|'soon'|'overdue'|'none', text: string }
 export const slaBadge = (report) => {

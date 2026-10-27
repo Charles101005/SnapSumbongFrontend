@@ -4,13 +4,19 @@ import { updateProfile, uploadProfileImage } from "../../../api/accounts";
 import { mapApiErrors } from "../../../utils/apiErrors";
 import SearchableSelect from "../../../components/shared/SearchableSelect";
 import { usePsgcAddress } from "../../../hooks/usePsgcAddress";
+import EmailChangeModal from "./EmailChangeModal";
 
-export default function PersonalDetails({ profile, onSaved, onBack }) {
+export default function PersonalDetails({
+  profile,
+  onSaved,
+  onEmailChanged,
+  onBack,
+  variant = "citizen",
+}) {
   const [formData, setFormData] = useState({
     lastName: profile?.last_name || "",
     firstName: profile?.first_name || "",
     middleName: profile?.middle_name || "",
-    email: profile?.email || "",
     contactNumber: profile?.contact_number || "",
   });
 
@@ -56,6 +62,12 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
   // clicked, which is when onSaved finally runs (merge + navigate back).
   const [savedProfile, setSavedProfile] = useState(null);
 
+  // Email lives in its own verified flow (Change Email modal) — never in
+  // the Save Changes payload, which the endpoint rejects outright.
+  const [currentEmail, setCurrentEmail] = useState(profile?.email || "");
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailSuccess, setEmailSuccess] = useState(false);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -86,8 +98,6 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
     const newErrors = {};
     if (!formData.lastName) newErrors.lastName = "Last name is required.";
     if (!formData.firstName) newErrors.firstName = "First name is required.";
-    if (!formData.email) newErrors.email = "Email is required.";
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Enter a valid email address.";
 
     // Only validated when actually changing — mirrors the payload condition
     // below so a legacy stored value can't block edits to other fields.
@@ -107,13 +117,12 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
     if (Object.keys(validationErrors).length > 0) return;
 
     // Only send fields that actually changed, matching the endpoint's
-    // partial-update contract and avoiding needless re-validation (e.g. the
-    // email-uniqueness check) on fields the person didn't touch.
+    // partial-update contract. Email is excluded on purpose — it goes
+    // through the verified Change Email flow instead.
     const payload = {};
     if (formData.lastName !== profile?.last_name) payload.last_name = formData.lastName;
     if (formData.firstName !== profile?.first_name) payload.first_name = formData.firstName;
     if (formData.middleName !== (profile?.middle_name || "")) payload.middle_name = formData.middleName;
-    if (formData.email !== profile?.email) payload.email = formData.email;
     if (formData.contactNumber && formData.contactNumber !== (profile?.contact_number || "")) {
       payload.contact_number = formData.contactNumber;
     }
@@ -142,7 +151,6 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
             last_name: "lastName",
             first_name: "firstName",
             middle_name: "middleName",
-            email: "email",
             contact_number: "contactNumber",
             street_address: "streetAddress",
             region_code: "region",
@@ -155,6 +163,16 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Called by the Change Email modal after the OTP verifies. Updates the
+  // displayed address locally, syncs the parent (profile + sidebar) without
+  // navigating away — unsaved edits to the other fields stay intact.
+  const handleEmailVerified = (newEmail) => {
+    setCurrentEmail(newEmail);
+    setEmailModalOpen(false);
+    setEmailSuccess(true);
+    if (onEmailChanged) onEmailChanged(newEmail);
   };
 
   return (
@@ -293,25 +311,6 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
             </div>
 
             <div className="form-group">
-              <label htmlFor="email">Email Address</label>
-              <div className="input-with-icon">
-                <svg className="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                  <polyline points="22,6 12,13 2,6" />
-                </svg>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className={errors.email ? "input-error" : ""}
-                />
-              </div>
-              {errors.email && <p className="error-text">{errors.email}</p>}
-            </div>
-
-            <div className="form-group">
               <label htmlFor="contactNumber">Phone Number</label>
               <div className="input-with-icon">
                 <svg className="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -334,13 +333,17 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
 
           <hr className="divider" />
 
-          {/* Address — optional for citizens; nothing here is required. */}
+          {/* Address — optional for citizens (nothing here is required);
+              staff addresses are pre-filled by the admin at account
+              creation, so that portal gets no hint subtitle. */}
           <section className="address-section">
             <div className="address-heading">
               <h2 className="section-title">Address</h2>
-              <p className="section-subtitle">
-                Optional — leave any field blank if you'd rather not share it.
-              </p>
+              {variant !== "staff" && (
+                <p className="section-subtitle">
+                  Optional — leave any field blank if you'd rather not share it.
+                </p>
+              )}
             </div>
 
             <div className="address-grid">
@@ -433,6 +436,44 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
             </div>
           </section>
 
+          <hr className="divider" />
+
+          {/* Email — verified separately via Change Email; never saved
+              by the Save Changes button (the endpoint rejects it). */}
+          <section className="email-section">
+            <div className="email-heading">
+              <h2 className="section-title">Email Address</h2>
+              <p className="section-subtitle">
+                Changing your email requires a verification code sent to the
+                new address.
+              </p>
+            </div>
+            <div className="email-row">
+              <div className="input-with-icon">
+                <svg className="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+                <input
+                  type="email"
+                  id="email"
+                  value={currentEmail}
+                  readOnly
+                  className="email-readonly"
+                  aria-label="Current email address"
+                />
+              </div>
+              <button
+                type="button"
+                className="btn-light-blue"
+                onClick={() => setEmailModalOpen(true)}
+                disabled={isSaving || isUploadingPhoto}
+              >
+                Change Email
+              </button>
+            </div>
+          </section>
+
           {errors.form && <p className="error-text">{errors.form}</p>}
 
           <div className="form-actions">
@@ -446,33 +487,44 @@ export default function PersonalDetails({ profile, onSaved, onBack }) {
         </form>
       </div>
 
-      {/* Success popup — centered so it's visible regardless of scroll;
+      {/* Success popups — centered so they're visible regardless of scroll;
           dismissed only via the OK button. */}
       {savedProfile && (
-        <div className="pd-success-popup-overlay">
-          <div
-            className="pd-success-popup-card"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Profile updated"
-          >
-            <div className="pd-success-check-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-            <p>Profile updated successfully.</p>
-            <button
-              type="button"
-              className="pd-success-ok-btn"
-              autoFocus
-              onClick={() => onSaved(savedProfile)}
-            >
-              OK
-            </button>
-          </div>
-        </div>
+        <SuccessPopup
+          message="Profile updated successfully."
+          onOk={() => onSaved(savedProfile)}
+        />
       )}
+      {emailSuccess && (
+        <SuccessPopup message="Email updated successfully." onOk={() => setEmailSuccess(false)} />
+      )}
+
+      <EmailChangeModal
+        key={emailModalOpen ? "ecm-open" : "ecm-closed"}
+        isOpen={emailModalOpen}
+        currentEmail={currentEmail}
+        onClose={() => setEmailModalOpen(false)}
+        onVerified={handleEmailVerified}
+      />
+    </div>
+  );
+}
+
+// Centered success popup — green check card, OK-only dismissal.
+function SuccessPopup({ message, onOk }) {
+  return (
+    <div className="pd-success-popup-overlay">
+      <div className="pd-success-popup-card" role="dialog" aria-modal="true" aria-label={message}>
+        <div className="pd-success-check-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+        <p>{message}</p>
+        <button type="button" className="pd-success-ok-btn" autoFocus onClick={onOk}>
+          OK
+        </button>
+      </div>
     </div>
   );
 }

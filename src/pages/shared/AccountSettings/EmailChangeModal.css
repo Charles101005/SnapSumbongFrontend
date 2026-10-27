@@ -1,0 +1,261 @@
+/* ================================
+   EMAIL CHANGE MODAL (Personal Details)
+   Two-step dialog: new email → 4-digit OTP.
+   Errors are inline inside the modal.
+   ================================ */
+
+.ecm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 4000;
+  animation: ecmOverlayFadeIn 0.3s ease;
+}
+
+.ecm-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px 28px;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+  animation: ecmCardFadeIn 0.35s ease;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.ecm-icon-badge {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #1d70f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+}
+
+.ecm-icon-badge svg {
+  width: 26px;
+  height: 26px;
+}
+
+.ecm-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.ecm-form {
+  margin-top: 14px;
+  text-align: left;
+}
+
+.ecm-subtitle {
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.ecm-subtitle strong {
+  color: #0f172a;
+  word-break: break-all;
+}
+
+.ecm-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+.ecm-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.ecm-input:focus {
+  outline: none;
+  border-color: transparent;
+  box-shadow: 0 0 0 2px #60a5fa;
+  background: #fff;
+}
+
+.ecm-input-error {
+  border-color: #ef4444 !important;
+}
+
+.ecm-error-text {
+  color: #ef4444;
+  font-size: 0.8rem;
+  margin: 0.4rem 0 0;
+  text-align: center;
+}
+
+.ecm-otp-error {
+  margin-bottom: 4px;
+}
+
+.ecm-info {
+  color: #15803d;
+  font-size: 0.8rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 0 0 4px;
+  text-align: center;
+}
+
+/* OTP boxes */
+.ecm-otp-inputs {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 18px 0 12px;
+}
+
+.ecm-otp-box {
+  width: 48px;
+  height: 56px;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #0f172a;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.ecm-otp-box:focus {
+  outline: none;
+  border-color: transparent;
+  box-shadow: 0 0 0 2px #60a5fa;
+}
+
+/* Buttons */
+.ecm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.ecm-btn-cancel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 0.5rem 1.125rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.ecm-btn-cancel:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.ecm-btn-primary {
+  background: #1d70f5;
+  border: none;
+  color: #ffffff;
+  padding: 0.5rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.ecm-btn-primary:hover:not(:disabled) {
+  background: #155dfc;
+}
+
+.ecm-btn-cancel:disabled,
+.ecm-btn-primary:disabled,
+.ecm-link-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ecm-btn-block {
+  display: block;
+  width: 100%;
+  padding: 0.6rem 1.25rem;
+  text-align: center;
+}
+
+.ecm-resend-text {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 14px 0 0;
+}
+
+.ecm-link-btn {
+  border: none;
+  background: transparent;
+  color: #1d70f5;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.ecm-link-btn:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+@keyframes ecmOverlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ecmCardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ecm-overlay,
+  .ecm-card {
+    animation: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .ecm-card {
+    padding: 24px 18px;
+  }
+
+  .ecm-otp-box {
+    width: 44px;
+    height: 52px;
+  }
+}

@@ -266,7 +266,7 @@ export default function MyReport() {
     setRefreshTick((tick) => tick + 1);
   };
 
-  // DO 47 citizen step: confirm the completed works to close the report.
+  // citizen step: confirm the completed works to close the report.
   const handleConfirmResolution = async () => {
     if (!selectedReportRow || confirmSubmitting) return;
     setConfirmSubmitting(true);
@@ -581,7 +581,7 @@ export default function MyReport() {
                   <p>
                     {selectedReportDetail.confirmed_at
                       ? `You confirmed the resolution on ${formatDate(selectedReportDetail.confirmed_at)}. Thank you for helping keep your community safe!`
-                      : 'The LGU closed this report — for example, it may not be under DO 47 jurisdiction or was referred to another office.'}
+                      : 'The LGU closed this report — for example, it may not be under jurisdiction of the SnapSumbong department or was referred to another office.'}
                   </p>
                 </div>
               )}

@@ -823,7 +823,7 @@ export default function Analytics() {
                   )}
                 </>
               ) : (
-                <p className="an-empty an-empty-good">All open reports are within their DO 47 due dates.</p>
+                <p className="an-empty an-empty-good">All open reports are within their due dates.</p>
               )}
             </section>
           )}

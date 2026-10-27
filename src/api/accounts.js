@@ -32,13 +32,58 @@ export const getProfile = async () => {
 };
 
 // PATCH /accounts/profile/ — partial update; send only the fields you want to change.
-// payload: any subset of { last_name, first_name, middle_name, email, contact_number,
+// payload: any subset of { last_name, first_name, middle_name, contact_number,
 //   is_notified, profile_picture, street_address, region_code, province_code,
 //   city_code, barangay_code } — address fields are optional; send "" to clear one.
-// Email changes are rejected here (they need the email-change flow).
+// Email is NOT accepted here — use the email-change endpoints below.
 export const updateProfile = async (payload) => {
     try {
         const response = await api.patch("accounts/profile/", payload);
+        return response.data;
+    } catch (error) {
+        if (error.response?.data) throw error.response.data;
+        throw networkError();
+    }
+};
+
+// POST /accounts/profile/email-change/request/ — starts the verified email
+// change: emails a 4-digit OTP to the NEW address.
+// payload: { new_email } -> { email, expires_at }
+export const requestEmailChange = async (newEmail) => {
+    try {
+        const response = await api.post("accounts/profile/email-change/request/", {
+            new_email: newEmail,
+        });
+        return response.data;
+    } catch (error) {
+        if (error.response?.data) throw error.response.data;
+        throw networkError();
+    }
+};
+
+// POST /accounts/profile/email-change/verify/ — confirms the code and
+// applies the change. `email` is the NEW address the code was sent to.
+// payload: { email, otp } -> { email }
+export const verifyEmailChange = async (email, otp) => {
+    try {
+        const response = await api.post("accounts/profile/email-change/verify/", {
+            email,
+            otp,
+        });
+        return response.data;
+    } catch (error) {
+        if (error.response?.data) throw error.response.data;
+        throw networkError();
+    }
+};
+
+// POST /accounts/profile/email-change/resend/ — re-sends the OTP.
+// payload: { email } -> { email, expires_at }
+export const resendEmailChange = async (email) => {
+    try {
+        const response = await api.post("accounts/profile/email-change/resend/", {
+            email,
+        });
         return response.data;
     } catch (error) {
         if (error.response?.data) throw error.response.data;
