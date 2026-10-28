@@ -131,10 +131,7 @@ export default function CitizenLayout() {
         <div className="sidebar-top">
           <div className="brand">
             <div className="brand-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-7.58 8-13a8 8 0 1 0-16 0c0 5.42 8 13 8 13Z" />
-                <circle cx="12" cy="9" r="2.5" />
-              </svg>
+              <img src="/SnapSumbongLogo.png" alt="SnapSumbong" className="brand-logo-img" />
             </div>
             <span>SnapSumbong</span>
           </div>
@@ -149,6 +146,10 @@ export default function CitizenLayout() {
               Home
             </NavLink>
 
+            <div className="nav-divider" aria-hidden="true" />
+
+            <span className="nav-section-label">REPORTING</span>
+
             {/* My Reports Option */}
             <NavLink to="/my-reports" className={navItemClass} onClick={closeSidebar}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -161,15 +162,16 @@ export default function CitizenLayout() {
               My Reports
             </NavLink>
 
-            {/* Report Hazard Option */}
+            {/* Report Road Hazard Option */}
             <NavLink to="/report-hazards" className={navItemClass} onClick={closeSidebar}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
                 <line x1="12" y1="8" x2="12" y2="16"></line>
                 <line x1="8" y1="12" x2="16" y2="12"></line>
               </svg>
-              Report Hazard
+              Report Road Hazard
             </NavLink>
+
           </nav>
         </div>
 
@@ -204,7 +206,7 @@ export default function CitizenLayout() {
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
-              {loggingOut ? "Logging out..." : "Log out"}
+              {loggingOut ? "Logging out..." : "Log Out"}
             </button>
             {logoutError && <span className="user-logout-error" role="alert">{logoutError}</span>}
           </div>

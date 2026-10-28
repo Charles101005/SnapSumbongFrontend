@@ -252,7 +252,8 @@ export default function PinLocationPage({ initialLocation, onConfirm, onBack }) 
         <button
           type="button"
           className="btn-edit-address"
-          onClick={() => setIsEditingAddress(!isEditingAddress)}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setIsEditingAddress((editing) => !editing)}
         >
           {isEditingAddress ? "Done" : "Edit Address"}
         </button>
