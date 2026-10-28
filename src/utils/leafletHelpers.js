@@ -1,4 +1,5 @@
 import L from "leaflet";
+import { isWithinPhilippines } from "./philippineBounds";
 
 export const hazardMarkerIcon = new L.Icon({
   iconUrl: new URL("leaflet/dist/images/marker-icon.png", import.meta.url).href,
@@ -20,5 +21,43 @@ export async function reverseGeocode(lat, lng) {
     return data?.display_name || null;
   } catch {
     return null;
+  }
+}
+
+// Forward geocode: turns typed text into Philippine place suggestions.
+// countrycodes=ph is a hard server-side filter, and each result is
+// re-checked client-side with isWithinPhilippines() as a safety net.
+export async function searchPlaces(query, { signal } = {}) {
+  try {
+    const params = new URLSearchParams({
+      format: "jsonv2",
+      q: query,
+      countrycodes: "ph",
+      limit: "5",
+      addressdetails: "1",
+    });
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?${params}`,
+      { signal }
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+    if (!Array.isArray(data)) return [];
+    return data
+      .map((place) => ({
+        id: place.place_id,
+        label: place.display_name,
+        lat: Number(place.lat),
+        lon: Number(place.lon),
+      }))
+      .filter(
+        (place) =>
+          Number.isFinite(place.lat) &&
+          Number.isFinite(place.lon) &&
+          isWithinPhilippines(place.lat, place.lon)
+      );
+  } catch (error) {
+    if (error?.name === "AbortError") throw error;
+    return [];
   }
 }

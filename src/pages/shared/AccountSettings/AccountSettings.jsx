@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import PersonalDetails from "./PersonalDetails";
 import ChangePassword from "./ChangePassword";
 import DeactivateAccount from "./DeactivateAccount";
 import { getProfile, updateProfile } from "../../../api/accounts";
 import { resolveAddressLabels } from "../../../hooks/usePsgcAddress";
 import { formatDate } from "../../../utils/format";
+import Toast from "../../../components/shared/Toast";
 import "./AccountSettings.css";
 
 // `user`/`onUpdateUser` come from CitizenLayout via outlet context — they're
@@ -27,26 +28,35 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
   const [notifyUpdating, setNotifyUpdating] = useState(false);
   const [notifyError, setNotifyError] = useState("");
 
-  const loadProfile = useCallback(async () => {
-    setProfileLoading(true);
-    setProfileError("");
-    try {
-      const data = await getProfile();
-      setProfile(data);
-    } catch {
-      setProfileError("Couldn't load your account details. Please refresh the page.");
-    } finally {
-      setProfileLoading(false);
-    }
+  // Success flash shown as a toast once a sub-view returns to settings.
+  const [flash, setFlash] = useState("");
+
+  // Initial load — state updates happen in the async callbacks, with a
+  // cancellation guard so a fast unmount doesn't set state.
+  useEffect(() => {
+    let cancelled = false;
+    getProfile()
+      .then((data) => {
+        if (cancelled) return;
+        setProfile(data);
+        setProfileError("");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setProfileError("Couldn't load your account details. Please refresh the page.");
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setProfileLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  useEffect(() => {
-    loadProfile();
-  }, [loadProfile]);
-
-  // Called by PersonalDetails after the user dismisses the save-success
-  // popup — merges the fresh profile in here, and syncs the sidebar's
-  // cached name via onUpdateUser.
+  // Called by PersonalDetails after a successful save — merges the fresh
+  // profile in here, syncs the sidebar's cached name via onUpdateUser, and
+  // returns to the settings view with a success toast.
   const handleProfileSaved = (updatedProfile) => {
     setProfile(updatedProfile);
     if (onUpdateUser) {
@@ -59,6 +69,13 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
       });
     }
     setCurrentView("settings");
+    setFlash("Profile updated successfully.");
+  };
+
+  // Called by ChangePassword after the password change succeeds.
+  const handlePasswordSaved = () => {
+    setCurrentView("settings");
+    setFlash("Password updated. Other sessions have been signed out.");
   };
 
   // Called by PersonalDetails after the Change Email flow verifies — the
@@ -84,6 +101,7 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
     setNotifyError("");
     try {
       await updateProfile({ is_notified: checked });
+      setFlash("Preference saved.");
     } catch {
       setProfile((prev) => ({ ...prev, is_notified: previous }));
       setNotifyError("Couldn't update your notification preference. Please try again.");
@@ -105,7 +123,17 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
   }
 
   if (currentView === "change-password") {
-    return <ChangePassword onBack={() => setCurrentView("settings")} />;
+    return (
+      <ChangePassword
+        onBack={() => setCurrentView("settings")}
+        onSaved={handlePasswordSaved}
+        identity={{
+          email: profile?.email,
+          firstName: profile?.first_name,
+          lastName: profile?.last_name,
+        }}
+      />
+    );
   }
 
   if (currentView === "deactivate") {
@@ -114,8 +142,26 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
 
   if (profileLoading) {
     return (
-      <div className="account-settings-container">
-        <p className="settings-loading-state">Loading your account...</p>
+      <div className="account-settings-container" role="status" aria-live="polite">
+        <span className="sr-only">Loading your account…</span>
+        <div className="settings-header">
+          <div className="skeleton sk-title" />
+          <div className="skeleton sk-subtitle" />
+        </div>
+        <div className="settings-cards-list" aria-hidden="true">
+          {[0, 1, 2].map((index) => (
+            <div className="settings-card skeleton-card" key={index}>
+              <div className="card-header">
+                <div className="skeleton sk-icon" />
+                <div className="skeleton sk-heading" />
+              </div>
+              <div className="card-body skeleton-body">
+                <div className="skeleton sk-line" />
+                <div className="skeleton sk-line sk-line-short" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -137,7 +183,10 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
     barangay: profile.barangay_code,
   });
 
-  const addressValue = (label) => label || "Not set";
+  const addressValue = (label) => label || <span className="field-value-empty">Not set</span>;
+
+  // Muted so incomplete fields stand out against filled ones.
+  const optionalValue = (value) => value || <span className="field-value-empty">Not set</span>;
 
   return (
     <div className="account-settings-container">
@@ -198,7 +247,7 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
 
               <div className="info-field">
                 <span className="field-label">PHONE NUMBER</span>
-                <span className="field-value">{profile.contact_number || "Not set"}</span>
+                <span className="field-value">{optionalValue(profile.contact_number)}</span>
               </div>
 
               <div className="info-field">
@@ -228,7 +277,7 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
 
               <div className="info-field info-field-span">
                 <span className="field-label">STREET ADDRESS</span>
-                <span className="field-value">{profile.street_address || "Not set"}</span>
+                <span className="field-value">{optionalValue(profile.street_address)}</span>
               </div>
 
               <div className="info-field edit-action-field">
@@ -369,6 +418,8 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
           </section>
         )}
       </div>
+
+      <Toast message={flash} onDismiss={() => setFlash("")} />
     </div>
   );
 }

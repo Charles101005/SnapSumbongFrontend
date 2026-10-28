@@ -14,6 +14,7 @@ export default function SearchableSelect({
   clearable = false,
   inputClassName = "",
   emptyMessage = "No matching entries",
+  ...inputProps
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -166,6 +167,7 @@ export default function SearchableSelect({
           onChange={handleChange}
           onFocus={handleFocus}
           onKeyDown={handleKeyDown}
+          {...inputProps}
         />
         {showClear && (
           <button type="button" className="ss-clear" aria-label="Clear selection" onClick={handleClear} tabIndex={-1}>

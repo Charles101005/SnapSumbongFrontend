@@ -1,10 +1,40 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import "./PersonalDetails.css";
 import { updateProfile, uploadProfileImage } from "../../../api/accounts";
 import { mapApiErrors } from "../../../utils/apiErrors";
 import SearchableSelect from "../../../components/shared/SearchableSelect";
 import { usePsgcAddress } from "../../../hooks/usePsgcAddress";
 import EmailChangeModal from "./EmailChangeModal";
+import Toast from "../../../components/shared/Toast";
+import ConfirmDialog from "../../../components/shared/ConfirmDialog";
+
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+// Order fields are focused in after a failed submit, so the first invalid
+// input always comes into view.
+const FIELD_FOCUS_ORDER = [
+  "lastName",
+  "firstName",
+  "middleName",
+  "contactNumber",
+  "streetAddress",
+  "region",
+  "province",
+  "city",
+  "barangay",
+];
+
+// Focus + scroll to a field by its input id. Comboboxes (SearchableSelect)
+// only scroll — focusing them would pop their dropdown open as a side effect.
+function focusField(key) {
+  const element = document.getElementById(key);
+  if (!element) return;
+  if (element.getAttribute("role") !== "combobox") {
+    element.focus({ preventScroll: true });
+  }
+  element.scrollIntoView({ block: "center", behavior: "smooth" });
+}
 
 export default function PersonalDetails({
   profile,
@@ -50,116 +80,199 @@ export default function PersonalDetails({
     setBarangay,
   });
 
+  // Photo — the picked file is staged locally and only uploaded when the
+  // user saves, so selecting (or discarding) one never touches the server.
   const [profilePicture, setProfilePicture] = useState(profile?.profile_picture || "");
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [stagedPhotoFile, setStagedPhotoFile] = useState(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState("");
   const [photoError, setPhotoError] = useState("");
   const fileInputRef = useRef(null);
 
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState({});
-
-  // Set after a successful save; the success popup stays up until OK is
-  // clicked, which is when onSaved finally runs (merge + navigate back).
-  const [savedProfile, setSavedProfile] = useState(null);
+  const [notice, setNotice] = useState("");
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   // Email lives in its own verified flow (Change Email modal) — never in
   // the Save Changes payload, which the endpoint rejects outright.
   const [currentEmail, setCurrentEmail] = useState(profile?.email || "");
   const [emailModalOpen, setEmailModalOpen] = useState(false);
-  const [emailSuccess, setEmailSuccess] = useState(false);
+
+  // Release the staged preview's object URL when it's replaced or unmounted.
+  useEffect(() => {
+    if (!photoPreviewUrl) return undefined;
+    return () => URL.revokeObjectURL(photoPreviewUrl);
+  }, [photoPreviewUrl]);
+
+  const clearError = (...fields) =>
+    setErrors((prev) => {
+      if (!fields.some((field) => prev[field])) return prev;
+      const next = { ...prev };
+      fields.forEach((field) => delete next[field]);
+      return next;
+    });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    // Phone accepts digits only — pasted separators are stripped inline.
+    const next = name === "contactNumber" ? value.replace(/\D/g, "").slice(0, 11) : value;
+    setFormData((prev) => ({ ...prev, [name]: next }));
+    clearError(name);
   };
 
   const handlePhotoButtonClick = () => {
     fileInputRef.current?.click();
   };
 
-  const handlePhotoFileChange = async (e) => {
+  const handlePhotoFileChange = (e) => {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-selecting the same file later
     if (!file) return;
 
-    setPhotoError("");
-    setIsUploadingPhoto(true);
-    try {
-      const url = await uploadProfileImage(file);
-      setProfilePicture(url);
-    } catch {
-      setPhotoError("Couldn't upload that photo. Please try a different image.");
-    } finally {
-      setIsUploadingPhoto(false);
+    if (!PHOTO_TYPES.includes(file.type)) {
+      setPhotoError("Use a JPEG, PNG, or WebP image.");
+      return;
     }
+    if (file.size > MAX_PHOTO_BYTES) {
+      setPhotoError("File too large — maximum size is 5 MB.");
+      return;
+    }
+
+    setPhotoError("");
+    setStagedPhotoFile(file);
+    setPhotoPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoError("");
+    if (stagedPhotoFile) {
+      // Discard the staged selection and fall back to the saved photo.
+      setStagedPhotoFile(null);
+      setPhotoPreviewUrl("");
+      return;
+    }
+    // Clears the saved photo — takes effect through the Save payload.
+    setProfilePicture("");
   };
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.lastName) newErrors.lastName = "Last name is required.";
-    if (!formData.firstName) newErrors.firstName = "First name is required.";
+    if (!formData.lastName.trim()) newErrors.lastName = "Last name is required.";
+    if (!formData.firstName.trim()) newErrors.firstName = "First name is required.";
 
     // Only validated when actually changing — mirrors the payload condition
     // below so a legacy stored value can't block edits to other fields.
-    const contactChanged =
-      formData.contactNumber && formData.contactNumber !== (profile?.contact_number || "");
-    if (contactChanged && !/^\d{11}$/.test(formData.contactNumber)) {
+    const storedContact = profile?.contact_number || "";
+    const contactChanged = formData.contactNumber !== storedContact;
+    if (contactChanged && formData.contactNumber && !/^\d{11}$/.test(formData.contactNumber)) {
       newErrors.contactNumber = "Phone number must be 11 digits.";
     }
 
     return newErrors;
   };
 
+  // Only send fields that actually changed, matching the endpoint's
+  // partial-update contract. Email is excluded on purpose — it goes
+  // through the verified Change Email flow instead. `finalPicture` carries
+  // the freshly uploaded photo URL when one was staged.
+  const buildPayload = (finalPicture = profilePicture) => {
+    const payload = {};
+    const original = (value) => value || "";
+    if (formData.lastName !== original(profile?.last_name)) payload.last_name = formData.lastName;
+    if (formData.firstName !== original(profile?.first_name)) payload.first_name = formData.firstName;
+    if (formData.middleName !== original(profile?.middle_name)) payload.middle_name = formData.middleName;
+    // Cleared phone is a real change too — sent as "" to clear the value.
+    if (formData.contactNumber !== original(profile?.contact_number)) {
+      payload.contact_number = formData.contactNumber;
+    }
+    if (finalPicture !== original(profile?.profile_picture)) payload.profile_picture = finalPicture;
+
+    // Blanks are sent as "" on purpose — the endpoint clears the stored value.
+    if (streetAddress !== original(profile?.street_address)) payload.street_address = streetAddress;
+    if (region !== original(profile?.region_code)) payload.region_code = region;
+    if (province !== original(profile?.province_code)) payload.province_code = province;
+    if (city !== original(profile?.city_code)) payload.city_code = city;
+    if (barangay !== original(profile?.barangay_code)) payload.barangay_code = barangay;
+
+    return payload;
+  };
+
+  const isDirty = Boolean(stagedPhotoFile) || Object.keys(buildPayload()).length > 0;
+
+  // Warn before a refresh/close throws away edits.
+  useEffect(() => {
+    if (!isDirty) return undefined;
+    const handleBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+
+  const focusFirstError = (errorMap) => {
+    const firstKey = FIELD_FOCUS_ORDER.find((key) => errorMap[key]);
+    if (firstKey) {
+      focusField(firstKey);
+    } else if (errorMap.form) {
+      document
+        .getElementById("pd-form-error")
+        ?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  };
+
+  const requestBack = () => {
+    if (isDirty) setConfirmDiscard(true);
+    else onBack();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validate();
     setErrors(validationErrors);
-    if (Object.keys(validationErrors).length > 0) return;
-
-    // Only send fields that actually changed, matching the endpoint's
-    // partial-update contract. Email is excluded on purpose — it goes
-    // through the verified Change Email flow instead.
-    const payload = {};
-    if (formData.lastName !== profile?.last_name) payload.last_name = formData.lastName;
-    if (formData.firstName !== profile?.first_name) payload.first_name = formData.firstName;
-    if (formData.middleName !== (profile?.middle_name || "")) payload.middle_name = formData.middleName;
-    if (formData.contactNumber && formData.contactNumber !== (profile?.contact_number || "")) {
-      payload.contact_number = formData.contactNumber;
-    }
-    if (profilePicture !== (profile?.profile_picture || "")) payload.profile_picture = profilePicture;
-
-    // Blanks are sent as "" on purpose — the endpoint clears the stored value.
-    if (streetAddress !== (profile?.street_address || "")) payload.street_address = streetAddress;
-    if (region !== (profile?.region_code || "")) payload.region_code = region;
-    if (province !== (profile?.province_code || "")) payload.province_code = province;
-    if (city !== (profile?.city_code || "")) payload.city_code = city;
-    if (barangay !== (profile?.barangay_code || "")) payload.barangay_code = barangay;
-
-    if (Object.keys(payload).length === 0) {
-      onBack();
+    if (Object.keys(validationErrors).length > 0) {
+      focusFirstError(validationErrors);
       return;
     }
 
     setIsSaving(true);
     try {
+      // A staged photo uploads now — file selection itself never left the
+      // browser, so cancelling earlier cost nothing.
+      let uploadedPicture = profilePicture;
+      if (stagedPhotoFile) {
+        uploadedPicture = await uploadProfileImage(stagedPhotoFile);
+      }
+
+      const payload = buildPayload(uploadedPicture);
+      if (Object.keys(payload).length === 0) {
+        setNotice("No changes to save.");
+        return;
+      }
+
       await updateProfile(payload);
-      setSavedProfile({ ...profile, ...payload });
+
+      setStagedPhotoFile(null);
+      setPhotoPreviewUrl("");
+      setProfilePicture(uploadedPicture);
+      onSaved({ ...profile, ...payload, profile_picture: uploadedPicture });
     } catch (err) {
-      setErrors(
-        mapApiErrors(err, {
-          fields: {
-            last_name: "lastName",
-            first_name: "firstName",
-            middle_name: "middleName",
-            contact_number: "contactNumber",
-            street_address: "streetAddress",
-            region_code: "region",
-            province_code: "province",
-            city_code: "city",
-            barangay_code: "barangay",
-          },
-        })
-      );
+      const mapped = mapApiErrors(err, {
+        fields: {
+          last_name: "lastName",
+          first_name: "firstName",
+          middle_name: "middleName",
+          contact_number: "contactNumber",
+          street_address: "streetAddress",
+          region_code: "region",
+          province_code: "province",
+          city_code: "city",
+          barangay_code: "barangay",
+          profile_picture: "form",
+        },
+      });
+      setErrors(mapped);
+      focusFirstError(mapped);
     } finally {
       setIsSaving(false);
     }
@@ -171,19 +284,30 @@ export default function PersonalDetails({
   const handleEmailVerified = (newEmail) => {
     setCurrentEmail(newEmail);
     setEmailModalOpen(false);
-    setEmailSuccess(true);
+    setNotice("Email updated successfully.");
     if (onEmailChanged) onEmailChanged(newEmail);
   };
+
+  const displayedPhoto = photoPreviewUrl || profilePicture;
+  const canRemovePhoto = Boolean(stagedPhotoFile || profilePicture);
+  const removePhotoLabel = stagedPhotoFile ? "Undo selection" : "Remove photo";
+
+  const addressErrorProps = (key) =>
+    errors[key]
+      ? { "aria-invalid": "true", "aria-describedby": `${key}-error` }
+      : {};
 
   return (
     <div className="personal-details-container">
       {/* Breadcrumb Navigation */}
-      <nav className="breadcrumb-nav">
-        <span className="breadcrumb-link" onClick={onBack}>
-          Portal
+      <nav className="breadcrumb-nav" aria-label="Breadcrumb">
+        <button type="button" className="breadcrumb-link" onClick={requestBack}>
+          Account Settings
+        </button>
+        <span className="breadcrumb-separator" aria-hidden="true">/</span>
+        <span className="breadcrumb-current" aria-current="page">
+          Edit Personal Details
         </span>
-        <span className="breadcrumb-separator">/</span>
-        <span className="breadcrumb-current">Edit Personal Details</span>
       </nav>
 
       {/* Header */}
@@ -201,8 +325,8 @@ export default function PersonalDetails({
           <section className="photo-section">
             <div className="avatar-container">
               <div className="avatar-placeholder">
-                {profilePicture ? (
-                  <img className="profile-picture-preview" src={profilePicture} alt="Profile" />
+                {displayedPhoto ? (
+                  <img className="profile-picture-preview" src={displayedPhoto} alt="Profile" />
                 ) : (
                   <svg viewBox="0 0 24 24" fill="#cfd8dc" width="70%" height="70%">
                     <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
@@ -213,8 +337,9 @@ export default function PersonalDetails({
                 type="button"
                 className="photo-badge-btn"
                 title="Upload Photo"
+                aria-label="Upload a new profile photo"
                 onClick={handlePhotoButtonClick}
-                disabled={isUploadingPhoto}
+                disabled={isSaving}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z" />
@@ -224,7 +349,8 @@ export default function PersonalDetails({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
+                aria-label="Choose a profile photo"
                 style={{ display: "none" }}
                 onChange={handlePhotoFileChange}
               />
@@ -240,11 +366,26 @@ export default function PersonalDetails({
                   type="button"
                   className="btn-light-blue"
                   onClick={handlePhotoButtonClick}
-                  disabled={isUploadingPhoto}
+                  disabled={isSaving}
                 >
-                  {isUploadingPhoto ? "Uploading..." : "Change Photo"}
+                  Change Photo
                 </button>
+                {canRemovePhoto && (
+                  <button
+                    type="button"
+                    className="btn-light-gray"
+                    onClick={handleRemovePhoto}
+                    disabled={isSaving}
+                  >
+                    {removePhotoLabel}
+                  </button>
+                )}
               </div>
+              {stagedPhotoFile && (
+                <p className="photo-staged-hint">
+                  New photo selected — it uploads when you save.
+                </p>
+              )}
               {photoError && <p className="error-text">{photoError}</p>}
             </div>
           </section>
@@ -254,7 +395,9 @@ export default function PersonalDetails({
           {/* Form Fields Stack */}
           <div className="form-fields-stack">
             <div className="form-group">
-              <label htmlFor="lastName">Last Name</label>
+              <label htmlFor="lastName">
+                Last Name <span className="required-star" aria-hidden="true">*</span>
+              </label>
               <div className="input-with-icon">
                 <svg className="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -264,16 +407,25 @@ export default function PersonalDetails({
                   type="text"
                   id="lastName"
                   name="lastName"
+                  maxLength={100}
+                  autoComplete="family-name"
                   value={formData.lastName}
                   onChange={handleChange}
+                  aria-required="true"
+                  aria-invalid={errors.lastName ? "true" : undefined}
+                  aria-describedby={errors.lastName ? "lastName-error" : undefined}
                   className={errors.lastName ? "input-error" : ""}
                 />
               </div>
-              {errors.lastName && <p className="error-text">{errors.lastName}</p>}
+              {errors.lastName && (
+                <p className="error-text" id="lastName-error">{errors.lastName}</p>
+              )}
             </div>
 
             <div className="form-group">
-              <label htmlFor="firstName">First Name</label>
+              <label htmlFor="firstName">
+                First Name <span className="required-star" aria-hidden="true">*</span>
+              </label>
               <div className="input-with-icon">
                 <svg className="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -283,16 +435,25 @@ export default function PersonalDetails({
                   type="text"
                   id="firstName"
                   name="firstName"
+                  maxLength={100}
+                  autoComplete="given-name"
                   value={formData.firstName}
                   onChange={handleChange}
+                  aria-required="true"
+                  aria-invalid={errors.firstName ? "true" : undefined}
+                  aria-describedby={errors.firstName ? "firstName-error" : undefined}
                   className={errors.firstName ? "input-error" : ""}
                 />
               </div>
-              {errors.firstName && <p className="error-text">{errors.firstName}</p>}
+              {errors.firstName && (
+                <p className="error-text" id="firstName-error">{errors.firstName}</p>
+              )}
             </div>
 
             <div className="form-group">
-              <label htmlFor="middleName">Middle Name</label>
+              <label htmlFor="middleName">
+                Middle Name <span className="optional-tag">optional</span>
+              </label>
               <div className="input-with-icon">
                 <svg className="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -302,16 +463,23 @@ export default function PersonalDetails({
                   type="text"
                   id="middleName"
                   name="middleName"
+                  maxLength={100}
                   value={formData.middleName}
                   onChange={handleChange}
+                  aria-invalid={errors.middleName ? "true" : undefined}
+                  aria-describedby={errors.middleName ? "middleName-error" : undefined}
                   className={errors.middleName ? "input-error" : ""}
                 />
               </div>
-              {errors.middleName && <p className="error-text">{errors.middleName}</p>}
+              {errors.middleName && (
+                <p className="error-text" id="middleName-error">{errors.middleName}</p>
+              )}
             </div>
 
             <div className="form-group">
-              <label htmlFor="contactNumber">Phone Number</label>
+              <label htmlFor="contactNumber">
+                Phone Number <span className="optional-tag">optional</span>
+              </label>
               <div className="input-with-icon">
                 <svg className="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
@@ -321,13 +489,19 @@ export default function PersonalDetails({
                   id="contactNumber"
                   name="contactNumber"
                   placeholder="09XXXXXXXXX"
+                  inputMode="numeric"
+                  autoComplete="tel"
                   maxLength={11}
                   value={formData.contactNumber}
                   onChange={handleChange}
+                  aria-invalid={errors.contactNumber ? "true" : undefined}
+                  aria-describedby={errors.contactNumber ? "contactNumber-error" : undefined}
                   className={errors.contactNumber ? "input-error" : ""}
                 />
               </div>
-              {errors.contactNumber && <p className="error-text">{errors.contactNumber}</p>}
+              {errors.contactNumber && (
+                <p className="error-text" id="contactNumber-error">{errors.contactNumber}</p>
+              )}
             </div>
           </div>
 
@@ -352,13 +526,19 @@ export default function PersonalDetails({
                 <SearchableSelect
                   id="region"
                   value={region}
-                  onChange={(value) => handleRegionChange({ target: { value } })}
+                  onChange={(value) => {
+                    handleRegionChange({ target: { value } });
+                    clearError("region", "province", "city", "barangay");
+                  }}
                   options={regionOptions}
                   placeholder="Search region"
                   clearable
                   inputClassName="address-ss-input"
+                  {...addressErrorProps("region")}
                 />
-                {errors.region && <p className="error-text">{errors.region}</p>}
+                {errors.region && (
+                  <p className="error-text" id="region-error">{errors.region}</p>
+                )}
               </div>
 
               <div className="form-group">
@@ -366,14 +546,20 @@ export default function PersonalDetails({
                 <SearchableSelect
                   id="province"
                   value={province}
-                  onChange={(value) => handleProvinceChange({ target: { value } })}
+                  onChange={(value) => {
+                    handleProvinceChange({ target: { value } });
+                    clearError("region", "province", "city", "barangay");
+                  }}
                   options={provinceOptions}
                   placeholder="Search province"
                   disabled={!canSelectProvince}
                   clearable
                   inputClassName="address-ss-input"
+                  {...addressErrorProps("province")}
                 />
-                {errors.province && <p className="error-text">{errors.province}</p>}
+                {errors.province && (
+                  <p className="error-text" id="province-error">{errors.province}</p>
+                )}
               </div>
 
               <div className="form-group">
@@ -381,14 +567,20 @@ export default function PersonalDetails({
                 <SearchableSelect
                   id="city"
                   value={city}
-                  onChange={(value) => handleCityChange({ target: { value } })}
+                  onChange={(value) => {
+                    handleCityChange({ target: { value } });
+                    clearError("region", "province", "city", "barangay");
+                  }}
                   options={cityOptions}
                   placeholder="Search city/municipality"
                   disabled={!canSelectCity}
                   clearable
                   inputClassName="address-ss-input"
+                  {...addressErrorProps("city")}
                 />
-                {errors.city && <p className="error-text">{errors.city}</p>}
+                {errors.city && (
+                  <p className="error-text" id="city-error">{errors.city}</p>
+                )}
               </div>
 
               <div className="form-group">
@@ -396,14 +588,20 @@ export default function PersonalDetails({
                 <SearchableSelect
                   id="barangay"
                   value={barangay}
-                  onChange={setBarangay}
+                  onChange={(value) => {
+                    setBarangay(value);
+                    clearError("region", "province", "city", "barangay");
+                  }}
                   options={barangayOptions}
                   placeholder="Search barangay"
                   disabled={!canSelectBarangay}
                   clearable
                   inputClassName="address-ss-input"
+                  {...addressErrorProps("barangay")}
                 />
-                {errors.barangay && <p className="error-text">{errors.barangay}</p>}
+                {errors.barangay && (
+                  <p className="error-text" id="barangay-error">{errors.barangay}</p>
+                )}
               </div>
 
               <div className="form-group address-full">
@@ -427,11 +625,18 @@ export default function PersonalDetails({
                     name="streetAddress"
                     placeholder="House no., street"
                     value={streetAddress}
-                    onChange={(e) => setStreetAddress(e.target.value)}
+                    onChange={(e) => {
+                      setStreetAddress(e.target.value);
+                      clearError("streetAddress");
+                    }}
+                    aria-invalid={errors.streetAddress ? "true" : undefined}
+                    aria-describedby={errors.streetAddress ? "streetAddress-error" : undefined}
                     className={errors.streetAddress ? "input-error" : ""}
                   />
                 </div>
-                {errors.streetAddress && <p className="error-text">{errors.streetAddress}</p>}
+                {errors.streetAddress && (
+                  <p className="error-text" id="streetAddress-error">{errors.streetAddress}</p>
+                )}
               </div>
             </div>
           </section>
@@ -467,37 +672,48 @@ export default function PersonalDetails({
                 type="button"
                 className="btn-light-blue"
                 onClick={() => setEmailModalOpen(true)}
-                disabled={isSaving || isUploadingPhoto}
+                disabled={isSaving}
               >
                 Change Email
               </button>
             </div>
           </section>
 
-          {errors.form && <p className="error-text">{errors.form}</p>}
+          {errors.form && (
+            <p className="error-text" id="pd-form-error">{errors.form}</p>
+          )}
 
-          <div className="form-actions">
-            <button type="button" className="btn-cancel" onClick={onBack} disabled={isSaving}>
+          <div className={`form-actions${isDirty ? " form-actions-dirty" : ""}`}>
+            {isDirty && (
+              <span className="unsaved-indicator">
+                <span className="unsaved-dot" aria-hidden="true" />
+                You have unsaved changes
+              </span>
+            )}
+            <button type="button" className="btn-cancel" onClick={requestBack} disabled={isSaving}>
               Cancel
             </button>
-            <button type="submit" className="btn-save" disabled={isSaving || isUploadingPhoto}>
+            <button type="submit" className="btn-save" disabled={isSaving || !isDirty}>
               {isSaving ? "Saving..." : "Save Changes"}
             </button>
           </div>
         </form>
       </div>
 
-      {/* Success popups — centered so they're visible regardless of scroll;
-          dismissed only via the OK button. */}
-      {savedProfile && (
-        <SuccessPopup
-          message="Profile updated successfully."
-          onOk={() => onSaved(savedProfile)}
-        />
-      )}
-      {emailSuccess && (
-        <SuccessPopup message="Email updated successfully." onOk={() => setEmailSuccess(false)} />
-      )}
+      <Toast message={notice} onDismiss={() => setNotice("")} />
+
+      <ConfirmDialog
+        open={confirmDiscard}
+        title="Discard your changes?"
+        message="You have unsaved changes to your personal details. Leaving now will discard them."
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+        onConfirm={() => {
+          setConfirmDiscard(false);
+          onBack();
+        }}
+        onCancel={() => setConfirmDiscard(false)}
+      />
 
       <EmailChangeModal
         key={emailModalOpen ? "ecm-open" : "ecm-closed"}
@@ -506,25 +722,6 @@ export default function PersonalDetails({
         onClose={() => setEmailModalOpen(false)}
         onVerified={handleEmailVerified}
       />
-    </div>
-  );
-}
-
-// Centered success popup — green check card, OK-only dismissal.
-function SuccessPopup({ message, onOk }) {
-  return (
-    <div className="pd-success-popup-overlay">
-      <div className="pd-success-popup-card" role="dialog" aria-modal="true" aria-label={message}>
-        <div className="pd-success-check-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </div>
-        <p>{message}</p>
-        <button type="button" className="pd-success-ok-btn" autoFocus onClick={onOk}>
-          OK
-        </button>
-      </div>
     </div>
   );
 }

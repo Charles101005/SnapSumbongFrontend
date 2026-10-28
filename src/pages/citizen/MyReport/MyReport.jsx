@@ -100,7 +100,7 @@ export default function MyReport() {
   // --- Summary stat cards ---
   // Backed by GET /analytics/hazard-report/, which returns the authoritative
   // per-status counts already scoped to this user by the backend.
-  const [stats, setStats] = useState({ total: null, resolved: null, underReview: null, dispatched: null });
+  const [stats, setStats] = useState({ total: null, active: null, resolved: null, invalid: null });
 
   // --- Detail view state ---
   const [selectedReportRow, setSelectedReportRow] = useState(null); // the clicked row (has `category`)
@@ -193,11 +193,15 @@ export default function MyReport() {
       try {
         const data = await getReportMetrics();
         if (cancelled) return;
+        const by = data.count_by_status || {};
+        // "Active" = still in progress: everything except Resolved, Closed, Invalid.
+        const active = ['new', 'assigned', 'under_review', 'on_hold', 'dispatched', 'ongoing']
+          .reduce((sum, key) => sum + (Number(by[key]) || 0), 0);
         setStats({
           total: data.total_count,
-          resolved: data.count_by_status?.resolved ?? 0,
-          underReview: data.count_by_status?.under_review ?? 0,
-          dispatched: data.count_by_status?.dispatched ?? 0,
+          active,
+          resolved: by.resolved ?? 0,
+          invalid: by.invalid ?? 0,
         });
       } catch {
         // Leave stats blank rather than showing misleading numbers.
@@ -651,6 +655,18 @@ export default function MyReport() {
         </div>
 
         <div className="stat-card">
+          <div className="stat-icon active-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+            </svg>
+          </div>
+          <div>
+            <span className="stat-label">ACTIVE</span>
+            <div className="stat-value">{stats.active ?? '—'}</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
           <div className="stat-icon resolved-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="20 6 9 17 4 12" />
@@ -663,28 +679,16 @@ export default function MyReport() {
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon under-review-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <div className="stat-icon invalid-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
+              <path d="m15 9-6 6" />
+              <path d="m9 9 6 6" />
             </svg>
           </div>
           <div>
-            <span className="stat-label">UNDER REVIEW</span>
-            <div className="stat-value">{stats.underReview ?? '—'}</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon dispatched-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M4 12h15" />
-              <path d="m13 6 6 6-6 6" />
-            </svg>
-          </div>
-          <div>
-            <span className="stat-label">DISPATCHED</span>
-            <div className="stat-value">{stats.dispatched ?? '—'}</div>
+            <span className="stat-label">INVALID</span>
+            <div className="stat-value">{stats.invalid ?? '—'}</div>
           </div>
         </div>
       </div>

@@ -1,0 +1,55 @@
+/* ================================
+   ADDRESS SUGGEST (PinLocation)
+   Async Nominatim-backed combobox shown while editing the address.
+   Input visuals come from the caller's .location-input class; this file
+   only adds the dropdown positioning and option styling.
+   ================================ */
+
+.as-root {
+  position: relative;
+  width: 100%;
+}
+
+.as-input {
+  width: 100%;
+}
+
+.as-menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+}
+
+.as-option {
+  padding: 0.5rem 0.7rem;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-dark);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.as-option:hover,
+.as-option-active {
+  background: var(--color-primary-light);
+}
+
+.as-status {
+  padding: 0.5rem 0.7rem;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}

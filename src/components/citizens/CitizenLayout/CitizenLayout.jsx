@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getCurrentUser, getProfile } from "../../../api/accounts";
 import { getMyModerationSummary, getMyWarnings } from "../../../api/warnings";
 import { useAuth } from "../../../context/authContext";
+import ConfirmDialog from "../../shared/ConfirmDialog";
 // Reuses the existing "app shell" (.app / .sidebar / .main) styles that used
 // to live only inside ReportHazards — the DOM structure below is unchanged,
 // just moved up a level so it can wrap more than one route.
@@ -15,6 +16,8 @@ import "./CitizenLayout.css";
 // switch inside a single page component.
 export default function CitizenLayout() {
   const { logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState({
     firstName: "",
     middleName: "",
@@ -29,6 +32,26 @@ export default function CitizenLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
+
+  // Unsaved-work guard: a mounted page (e.g. the hazard report form) can
+  // register a dirty check here. Sidebar links and logout ask for discard
+  // confirmation first instead of silently cancelling the report.
+  const [navGuard, setNavGuard] = useState(null); // { isActive() } | null
+  const [pendingExit, setPendingExit] = useState(null); // { type: "navigate", to } | { type: "logout" }
+
+  const registerNavGuard = useCallback((guard) => {
+    setNavGuard(guard);
+    return () => setNavGuard((prev) => (prev === guard ? null : prev));
+  }, []);
+
+  // Returns true when the navigation was blocked (dialog now open).
+  const requestExit = (action) => {
+    if (navGuard?.isActive?.()) {
+      setPendingExit(action);
+      return true;
+    }
+    return false;
+  };
 
   // Moderation state (Flag -> Warn -> Ban): the amber banner shows whenever
   // the citizen has warnings; the details list is fetched lazily on expand.
@@ -106,6 +129,13 @@ export default function CitizenLayout() {
   const navItemClass = ({ isActive }) => `nav-item ${isActive ? "active" : ""}`;
   const accountSettingsClass = ({ isActive }) => `account-settings ${isActive ? "active" : ""}`;
   const closeSidebar = () => setSidebarOpen(false);
+  // Sidebar link click: close the mobile drawer, and block the navigation
+  // (showing the discard dialog) when the current page has unsaved work.
+  const guardNavLink = (to) => (event) => {
+    closeSidebar();
+    if (to === location.pathname) return;
+    if (requestExit({ type: "navigate", to })) event.preventDefault();
+  };
   const handleLogout = async () => {
     if (loggingOut) return;
     setLoggingOut(true);
@@ -138,7 +168,7 @@ export default function CitizenLayout() {
 
           <nav className="nav">
             {/* Home Option */}
-            <NavLink to="/home" className={navItemClass} onClick={closeSidebar}>
+            <NavLink to="/home" className={navItemClass} onClick={guardNavLink("/home")}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                 <polyline points="9 22 9 12 15 12 15 22"></polyline>
@@ -151,7 +181,7 @@ export default function CitizenLayout() {
             <span className="nav-section-label">REPORTING</span>
 
             {/* My Reports Option */}
-            <NavLink to="/my-reports" className={navItemClass} onClick={closeSidebar}>
+            <NavLink to="/my-reports" className={navItemClass} onClick={guardNavLink("/my-reports")}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
@@ -163,7 +193,7 @@ export default function CitizenLayout() {
             </NavLink>
 
             {/* Report Road Hazard Option */}
-            <NavLink to="/report-hazards" className={navItemClass} onClick={closeSidebar}>
+            <NavLink to="/report-hazards" className={navItemClass} onClick={guardNavLink("/report-hazards")}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
                 <line x1="12" y1="8" x2="12" y2="16"></line>
@@ -193,14 +223,23 @@ export default function CitizenLayout() {
           <div className="user-meta">
             <span className="user-name">{fullName || "Guest"}</span>
             <span className="user-role">{user.role || "Citizen"}</span>
-            <NavLink to="/account-settings" className={accountSettingsClass} onClick={closeSidebar}>
+            <NavLink to="/account-settings" className={accountSettingsClass} onClick={guardNavLink("/account-settings")}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3"></circle>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
               </svg>
               Account Settings
             </NavLink>
-            <button className="user-logout" type="button" onClick={handleLogout} disabled={loggingOut}>
+            <button
+              className="user-logout"
+              type="button"
+              onClick={() => {
+                if (loggingOut) return;
+                if (requestExit({ type: "logout" })) return;
+                handleLogout();
+              }}
+              disabled={loggingOut}
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                 <polyline points="16 17 21 12 16 7" />
@@ -297,8 +336,30 @@ export default function CitizenLayout() {
           </div>
         )}
 
-        <Outlet context={{ user, updateUser, warningCount }} />
+        <Outlet context={{ user, updateUser, warningCount, registerNavGuard }} />
       </main>
+
+      {/* Discard confirmation for unsaved work (e.g. hazard report form)
+          before a sidebar link or logout cancels it. */}
+      <ConfirmDialog
+        open={pendingExit !== null}
+        title="Discard this hazard report?"
+        message={
+          pendingExit?.type === "logout"
+            ? "You have unsaved changes to your hazard report. Logging out now will discard them."
+            : "You have unsaved changes to your hazard report. Leaving now will discard them."
+        }
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+        onConfirm={() => {
+          const action = pendingExit;
+          setPendingExit(null);
+          if (!action) return;
+          if (action.type === "navigate") navigate(action.to);
+          else handleLogout();
+        }}
+        onCancel={() => setPendingExit(null)}
+      />
     </div>
   );
 }

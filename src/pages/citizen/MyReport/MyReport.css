@@ -69,6 +69,8 @@
 .resolved-icon { background: #f0fdf4; color: #22c55e; }
 .under-review-icon { background: #f3e8ff; color: #7e22ce; }
 .dispatched-icon { background: #cffafe; color: #0e7490; }
+.active-icon { background: #fffbeb; color: #d97706; }
+.invalid-icon { background: #fff1f2; color: #e11d48; }
 
 .stat-label {
   font-size: 11px;

@@ -8,6 +8,7 @@ import SubmitReportModal from "../SubmitReport/SubmitReportModal";
 import UploadPhoto from "../UploadPhoto/UploadPhoto";
 import CategorySelection, { getIconFor } from "../CategorySelection/CategorySelection";
 import CategoryInfoButton from "../../../components/CategoryInfoButton/CategoryInfoButton";
+import ConfirmDialog from "../../../components/shared/ConfirmDialog";
 import { getHazardCategories, createHazardReport, uploadHazardImageFiles } from "../../../api/reports";
 import { hazardMarkerIcon } from "../../../utils/leafletHelpers";
 import { isWithinPhilippines } from "../../../utils/philippineBounds";
@@ -27,8 +28,10 @@ export default function HazardReportForm() {
   const navigate = useNavigate();
   // The sidebar/user profile now live in CitizenLayout, which renders this
   // page inside its <Outlet />. `user` is used for the "Submit as..."
-  // confirmation modal; `warningCount` drives the pre-submit moderation notice.
-  const { user, warningCount } = useOutletContext();
+  // confirmation modal; `warningCount` drives the pre-submit moderation notice;
+  // `registerNavGuard` lets the layout block sidebar/logout navigation while
+  // this form has unsaved changes.
+  const { user, warningCount, registerNavGuard } = useOutletContext();
 
   // Navigation / View State ('form' | 'pin-location' | 'category-selection')
   const [currentView, setCurrentView] = useState("form");
@@ -65,6 +68,30 @@ export default function HazardReportForm() {
   );
   const isOtherCategorySelected = otherSelectedCategories.length > 0;
   const selectedCategoryName = categories.find((cat) => cat.hazard_id === selectedCategoryIds[0])?.hazard_name || "";
+
+  // --- Unsaved-changes detection ---
+  // The form starts pre-filled (default location + first category), so only
+  // real user input counts as dirty. Drives the discard confirmation shown
+  // by CitizenLayout when leaving via a sidebar link or logout.
+  const defaultCategoryId = categories[0]?.hazard_id ?? null;
+  const categoryChanged =
+    selectedCategoryIds.length > 0
+      ? selectedCategoryIds[0] !== defaultCategoryId
+      : defaultCategoryId !== null;
+  const locationChanged =
+    locationData.latitude !== DEFAULT_LOCATION.latitude ||
+    locationData.longitude !== DEFAULT_LOCATION.longitude ||
+    locationData.address !== DEFAULT_LOCATION.address;
+  const isDirty =
+    photos.length > 0 ||
+    description.trim().length > 0 ||
+    categoryChanged ||
+    locationChanged;
+
+  useEffect(() => {
+    if (!registerNavGuard) return undefined;
+    return registerNavGuard({ isActive: () => isDirty });
+  }, [registerNavGuard, isDirty]);
 
   // --- Load categories on mount ---
   useEffect(() => {
@@ -135,15 +162,17 @@ export default function HazardReportForm() {
   };
 
   // --- Form Actions ---
-  const handleCancel = () => {
-    if (window.confirm("Discard this hazard report?")) {
-      revokePhotos(photos);
-      setDescription("");
-      setPhotos([]);
-      setSelectedCategoryIds(categories[0] ? [categories[0].hazard_id] : []);
-      setSubmitError("");
-    }
+  const [confirmCancel, setConfirmCancel] = useState(false);
+
+  const resetForm = () => {
+    revokePhotos(photos);
+    setDescription("");
+    setPhotos([]);
+    setSelectedCategoryIds(categories[0] ? [categories[0].hazard_id] : []);
+    setSubmitError("");
   };
+
+  const handleCancel = () => setConfirmCancel(true);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -173,7 +202,7 @@ export default function HazardReportForm() {
     setIsModalOpen(true);
   };
 
-  const handleFinalSubmit = async (submissionType) => {
+  const handleFinalSubmit = async () => {
     setIsModalOpen(false);
     setIsSubmitting(true);
     setSubmitError("");
@@ -187,7 +216,6 @@ export default function HazardReportForm() {
         longitude: locationData.longitude,
         address: locationData.address,
         description,
-        is_anonymous: submissionType === "anonymous",
         image_urls: imageUrls,
       });
 
@@ -447,6 +475,20 @@ export default function HazardReportForm() {
             </form>
           </>
         )}
+
+      {/* Cancel button discard confirmation */}
+      <ConfirmDialog
+        open={confirmCancel}
+        title="Discard this hazard report?"
+        message="Your current report details will be cleared. This cannot be undone."
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+        onConfirm={() => {
+          setConfirmCancel(false);
+          resetForm();
+        }}
+        onCancel={() => setConfirmCancel(false)}
+      />
 
       {/* Upload Photo Modal */}
       <UploadPhoto

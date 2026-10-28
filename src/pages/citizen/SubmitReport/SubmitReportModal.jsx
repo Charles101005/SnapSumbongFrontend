@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import "./SubmitReportModal.css";
 
 export default function SubmitReportModal({
@@ -11,13 +11,10 @@ export default function SubmitReportModal({
   locationAddress = "",
   description = "",
 }) {
-  const [submissionType, setSubmissionType] = useState("named"); // 'named' | 'anonymous'
-  const isAnonymous = submissionType === "anonymous";
-
   if (!isOpen) return null;
 
   const handleConfirm = () => {
-    onConfirm(submissionType);
+    onConfirm();
   };
 
   return (
@@ -74,17 +71,6 @@ export default function SubmitReportModal({
             <span className="summary-value">{description || "No description provided."}</span>
           </div>
         </div>
-
-        {/* Anonymity toggle */}
-        <label className="anonymous-toggle-row">
-          <input
-            type="checkbox"
-            checked={isAnonymous}
-            onChange={(e) => setSubmissionType(e.target.checked ? "anonymous" : "named")}
-          />
-          <span className="anonymous-checkbox"></span>
-          Submit anonymously instead
-        </label>
 
         {/* Action Buttons */}
         <div className="modal-actions">

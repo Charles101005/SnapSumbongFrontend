@@ -254,60 +254,6 @@
   height: 100%;
 }
 
-/* Anonymity checkbox toggle */
-.anonymous-toggle-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  box-sizing: border-box;
-  margin: 0 0 20px 0;
-  padding: 4px 2px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #334155;
-  cursor: pointer;
-  user-select: none;
-}
-
-.anonymous-toggle-row input[type="checkbox"] {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.anonymous-checkbox {
-  position: relative;
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  border: 2px solid #cbd5e1;
-  flex-shrink: 0;
-  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
-}
-
-.anonymous-toggle-row input[type="checkbox"]:checked + .anonymous-checkbox {
-  border-color: #1d82f5;
-  background-color: #1d82f5;
-}
-
-.anonymous-toggle-row input[type="checkbox"]:checked + .anonymous-checkbox::after {
-  content: "";
-  position: absolute;
-  left: 4px;
-  top: 0px;
-  width: 5px;
-  height: 9px;
-  border: solid #ffffff;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-
-.anonymous-toggle-row:active .anonymous-checkbox {
-  transform: scale(0.9);
-}
-
 /* Action Buttons */
 .modal-actions {
   display: flex;

@@ -11,6 +11,7 @@ import "leaflet/dist/leaflet.css";
 import { hazardMarkerIcon, reverseGeocode } from "../../../utils/leafletHelpers";
 import { isWithinPhilippines, PH_LEAFLET_BOUNDS } from "../../../utils/philippineBounds";
 import MapAutoResize from "../../../components/shared/MapAutoResize";
+import AddressSuggest from "./AddressSuggest";
 import "./PinLocation.css";
 
 // Default Manila coordinates, used when no initial location is provided.
@@ -80,13 +81,19 @@ export default function PinLocationPage({ initialLocation, onConfirm, onBack }) 
   const [locateError, setLocateError] = useState("");
   const mapRef = useRef(null);
 
-  const applyCoords = useCallback(async (lat, lng) => {
+  // When explicitAddress is provided (a picked search suggestion), use it
+  // directly and skip the reverse geocode so the chosen label isn't clobbered.
+  const applyCoords = useCallback(async (lat, lng, explicitAddress) => {
     if (!isWithinPhilippines(lat, lng)) {
       setLocateError("Please pin a location within the Philippines.");
       return;
     }
     setLocateError("");
     setCoords([lat, lng]);
+    if (explicitAddress) {
+      setAddress(explicitAddress);
+      return;
+    }
     setIsResolvingAddress(true);
     const resolved = await reverseGeocode(lat, lng);
     setIsResolvingAddress(false);
@@ -231,12 +238,15 @@ export default function PinLocationPage({ initialLocation, onConfirm, onBack }) 
         <div className="location-details">
           <span className="location-label">SELECTED LOCATION</span>
           {isEditingAddress ? (
-            <input
-              type="text"
-              className="location-input"
+            <AddressSuggest
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={setAddress}
               onBlur={() => setIsEditingAddress(false)}
+              onSelectOption={(option) =>
+                applyCoords(option.lat, option.lon, option.label)
+              }
+              placeholder="Search for an address..."
+              inputClassName="location-input"
               autoFocus
             />
           ) : (
