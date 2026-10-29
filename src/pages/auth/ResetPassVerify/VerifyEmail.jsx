@@ -2,12 +2,16 @@ import { useState, useRef } from "react"
 import { Link, useNavigate, useLocation } from "react-router-dom"
 import { verifyEmail, resendOTP } from "../../../api/register"
 import { verifyResetPasswordCode, resendResetPasswordCode } from "../../../api/passwordReset"
+import { getCurrentUser } from "../../../api/accounts"
+import { setAccessToken } from "../../../api/authToken"
+import { useAuth, homePathFor } from "../../../context/authContext"
 import { getAuthFlow, setAuthFlow, clearAuthFlow } from "../../../shared/authFlowStorage"
 import "./VerifyEmail.css"
 
 export default function VerifyEmail() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { setSession } = useAuth();
 
     const flow = getAuthFlow();
     const email = flow?.email ?? location.state?.email;
@@ -86,9 +90,16 @@ export default function VerifyEmail() {
                 setAuthFlow({ email, purpose: "reset-password", resetToken: result.reset_token });
                 navigate("/new-password", { state: { email, resetToken: result.reset_token } });
             } else {
-                await verifyEmail(email, code);
+                const result = await verifyEmail(email, code);
                 clearAuthFlow();
-                navigate("/", { state: { justVerified: true } });
+                try {
+                    setAccessToken(result.access);
+                    const currentUser = await getCurrentUser();
+                    setSession(currentUser);
+                    navigate(homePathFor(currentUser), { replace: true });
+                } catch {
+                    navigate("/", { state: { justVerified: true } });
+                }
             }
         } catch (err) {
             setError(err?.message || err?.detail || "Invalid or expired code.");

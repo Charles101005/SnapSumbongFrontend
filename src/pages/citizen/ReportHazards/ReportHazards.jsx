@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -92,6 +92,34 @@ export default function HazardReportForm() {
     if (!registerNavGuard) return undefined;
     return registerNavGuard({ isActive: () => isDirty });
   }, [registerNavGuard, isDirty]);
+
+  // --- Scroll memory for the pin-location view swap ---
+  // The form unmounts while PinLocation is shown, collapsing the page scroll
+  // height and forcing the scroller back to 0. Save the position on the way
+  // out and restore it after the form remounts (before paint, so there's no
+  // visible jump). The scroller is `.main` on desktop but `.app` on mobile
+  // (≤640px), so resolve it dynamically instead of hardcoding one.
+  const formScrollRef = useRef(0);
+  const prevViewRef = useRef(currentView);
+
+  const getScrollContainer = () => {
+    const candidates = [document.querySelector(".main"), document.querySelector(".app")].filter(Boolean);
+    return (
+      candidates.find((el) => {
+        const overflowY = getComputedStyle(el).overflowY;
+        return (overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight;
+      }) || null
+    );
+  };
+
+  useLayoutEffect(() => {
+    const prev = prevViewRef.current;
+    prevViewRef.current = currentView;
+    if (prev === "pin-location" && currentView === "form") {
+      const scroller = getScrollContainer();
+      if (scroller) scroller.scrollTop = formScrollRef.current;
+    }
+  }, [currentView]);
 
   // --- Load categories on mount ---
   useEffect(() => {
@@ -247,17 +275,6 @@ export default function HazardReportForm() {
             }}
             onBack={() => setCurrentView("form")}
           />
-        ) : currentView === "category-selection" ? (
-          <CategorySelection
-            categories={categories}
-            initialCategoryIds={selectedCategoryIds}
-            maxSelections={MAX_CATEGORIES}
-            onSelectCategories={(chosenIds) => {
-              setSelectedCategoryIds(chosenIds);
-              setCurrentView("form");
-            }}
-            onBack={() => setCurrentView("form")}
-          />
         ) : (
           <>
             <div className="page-header-group">
@@ -273,7 +290,11 @@ export default function HazardReportForm() {
               </div>
             )}
 
-            <form id="hazard-form" onSubmit={handleSubmit}>
+            <form
+              id="hazard-form"
+              onSubmit={handleSubmit}
+              inert={currentView === "category-selection"}
+            >
               {/* 1. GPS Location Tagging */}
               <section className="card">
                 <div className="section-header">
@@ -289,7 +310,11 @@ export default function HazardReportForm() {
                 {/* Map Preview (real Leaflet map, non-interactive — click to fine-tune) */}
                 <div
                   className="map-wrap"
-                  onClick={() => setCurrentView("pin-location")}
+                  onClick={() => {
+                    const scroller = getScrollContainer();
+                    formScrollRef.current = scroller ? scroller.scrollTop : 0;
+                    setCurrentView("pin-location");
+                  }}
                 >
                   <MapContainer
                     key={`${locationData.coords[0]}-${locationData.coords[1]}`}
@@ -473,6 +498,22 @@ export default function HazardReportForm() {
                 </button>
               </div>
             </form>
+
+            {/* Rendered on top of the still-mounted form: the overlay is a
+                fixed full-viewport layer, so the form never has to unmount
+                (which used to reset the page scroll to the top). */}
+            {currentView === "category-selection" && (
+              <CategorySelection
+                categories={categories}
+                initialCategoryIds={selectedCategoryIds}
+                maxSelections={MAX_CATEGORIES}
+                onSelectCategories={(chosenIds) => {
+                  setSelectedCategoryIds(chosenIds);
+                  setCurrentView("form");
+                }}
+                onBack={() => setCurrentView("form")}
+              />
+            )}
           </>
         )}
 

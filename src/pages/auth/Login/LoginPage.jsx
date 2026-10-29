@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { loginUser } from "../../../api/login";
 import { getCurrentUser } from "../../../api/accounts";
 import { setAccessToken } from "../../../api/authToken";
@@ -8,12 +8,14 @@ import "./LoginPage.css";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { status, user, setSession } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [justVerified, setJustVerified] = useState(Boolean(location.state?.justVerified));
 
   useEffect(() => {
     if (status === "authenticated" && user) {
@@ -70,6 +72,20 @@ export default function LoginPage() {
         </div>
 
         <div className="login-card">
+          {justVerified && (
+            <div className="verify-success-banner" role="status">
+              <CheckIcon />
+              <span>Email verified — your account is ready. Please log in to continue.</span>
+              <button
+                type="button"
+                className="banner-dismiss-btn"
+                onClick={() => setJustVerified(false)}
+                aria-label="Dismiss notification"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="login-form" noValidate>
             <div className="form-group">
               <label htmlFor="email" className="form-label">
@@ -149,6 +165,14 @@ function EyeOffIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.62 21.62 0 0 1 5.06-6.06M9.9 4.24A10.4 10.4 0 0 1 12 4c7 0 11 8 11 8a21.6 21.6 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
       <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="20 6 9 17 4 12" />
     </svg>
   );
 }

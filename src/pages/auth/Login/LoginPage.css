@@ -194,3 +194,41 @@
   font-size: 0.8rem;
   margin: 0.35rem 0 0;
 }
+
+.verify-success-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem 2rem 0.75rem 0.75rem;
+  margin-bottom: 1rem;
+  border-radius: 10px;
+  border: 1px solid #bbf7d0;
+  background-color: var(--color-success-bg, #dcfce7);
+  color: var(--color-success-text, #15803d);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  position: relative;
+}
+
+.verify-success-banner svg {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.banner-dismiss-btn {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.4rem;
+  border: none;
+  background: transparent;
+  color: var(--color-success-text, #15803d);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+}
+
+.banner-dismiss-btn:hover {
+  background-color: rgba(21, 128, 61, 0.12);
+}
