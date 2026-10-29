@@ -7,6 +7,13 @@
   z-index: 2;
 }
 
+/* While a popover is open, lift its whole anchor above the other cards'
+   info badges (which share z-index: 2 and, being later in the DOM, would
+   otherwise paint over the popover). */
+.cat-info.open {
+  z-index: 60;
+}
+
 .cat-info-btn {
   display: flex;
   align-items: center;

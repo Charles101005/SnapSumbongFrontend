@@ -18,7 +18,9 @@
 .epm-modal {
   width: min(100%, 880px);
   max-height: calc(100vh - 5rem);
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: #ffffff;
   border-radius: var(--radius-lg);
   box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
@@ -32,6 +34,7 @@
   gap: 1rem;
   padding: 1.5rem 1.75rem 1rem;
   border-bottom: 1px solid var(--color-border-light);
+  flex: none;
 }
 
 .epm-modal-title {
@@ -71,6 +74,10 @@
   font-size: var(--text-sm);
 }
 
+.epm-modal > .epm-banner {
+  flex: none;
+}
+
 .epm-loading {
   margin: 0;
   padding: 2.5rem 1.75rem;
@@ -81,6 +88,9 @@
 
 .epm-body {
   padding: 0 0 1.5rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .epm-btn-save:disabled {
@@ -102,10 +112,18 @@
 
 /* ===== FORM ===== */
 .epm-form {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   padding: 1.5rem 1.75rem;
+  overflow: hidden;
 }
 
 .epm-form-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1.25rem 1.5rem;
@@ -289,11 +307,26 @@
 /* ===== ACTION BUTTONS ===== */
 .epm-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
   gap: 0.75rem;
+  flex: none;
   margin-top: 1.75rem;
   padding-top: 1.25rem;
   border-top: 1px solid var(--color-border-light);
+}
+
+/* Success/no-op messages share the footer row, sitting to the left of the
+   right-aligned action buttons. Form-wide errors stay above the form. */
+.epm-actions .epm-banner {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0 auto 0 0;
+}
+
+.epm-actions > button {
+  flex: none;
 }
 
 .epm-btn-discard,

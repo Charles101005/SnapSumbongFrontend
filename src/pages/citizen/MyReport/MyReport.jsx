@@ -221,6 +221,13 @@ export default function MyReport() {
     setCurrentPage(1);
   };
 
+  const handleFilterKeyDown = (e) => {
+    if (e.key === 'Enter'){
+      handleApplyFilters();
+      if (e.target.tagName === 'SELECT') e.preventDefault(); 
+    } 
+  }
+
   const handleResetFilters = () => {
     setTempCategoryId('');
     setTempStatus('');
@@ -427,16 +434,16 @@ export default function MyReport() {
                         </span>
                         {clickable && <span className="step-view-hint">View Details</span>}
                       </button>
-                      );
-                    })}
-                  </div>
-                  {selectedReportDetail.remarks && (
-                    <div className="remarks-box">
-                      <span className="remarks-title">REMARKS:</span>
-                      <p>{selectedReportDetail.remarks}</p>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
+                {selectedReportDetail.remarks && (
+                  <div className="remarks-box">
+                    <span className="remarks-title">REMARKS:</span>
+                    <p>{selectedReportDetail.remarks}</p>
+                  </div>
+                )}
+              </div>
 
               {/* Original Report Submission */}
               <div className="card submission-card">
@@ -559,17 +566,16 @@ export default function MyReport() {
               {/* Citizen confirmation: close a resolved report */}
               {normalizeStatus(selectedReportDetail.status) === 'RESOLVED' && (
                 <div className="card confirm-resolution-card">
-                  <h3>Was the issue fixed?</h3>
+                  <h3>Close this Report</h3>
                   <p>
-                    Check the repair photos above. If the hazard has been fixed,
-                    confirm below to close this report.
+                    The responsible authorities have resolved this hazard. Review the repair photos above, then confirm below to close this report.
                   </p>
                   <button
                     type="button"
                     className="btn-confirm-resolution"
                     onClick={() => { setConfirmError(''); setConfirmModalOpen(true); }}
                   >
-                    Yes, it&rsquo;s fixed — Confirm Resolution
+                    Confirm & Close Report
                   </button>
                 </div>
               )}
@@ -697,7 +703,7 @@ export default function MyReport() {
       <div className="card filters-card">
         <div className="filter-group">
           <label>Category</label>
-          <select value={tempCategoryId} onChange={(e) => setTempCategoryId(e.target.value)}>
+          <select value={tempCategoryId} onChange={(e) => setTempCategoryId(e.target.value)} onKeyDown={handleFilterKeyDown}>
             <option value="">All Categories</option>
             {categories.map((cat) => (
               <option key={cat.hazard_id} value={cat.hazard_id}>
@@ -709,7 +715,7 @@ export default function MyReport() {
 
         <div className="filter-group">
           <label>Status</label>
-          <select value={tempStatus} onChange={(e) => setTempStatus(e.target.value)}>
+          <select value={tempStatus} onChange={(e) => setTempStatus(e.target.value)} onKeyDown={handleFilterKeyDown}>
             <option value="">All Statuses</option>
             {STATUS_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -728,6 +734,7 @@ export default function MyReport() {
             onChange={(e) => {
               if (notAfterToday(e.target.value)) setTempDate(e.target.value);
             }}
+            onKeyDown={handleFilterKeyDown}
           />
         </div>
 
@@ -740,6 +747,7 @@ export default function MyReport() {
               placeholder="Search"
               value={tempSearch}
               onChange={(e) => setTempSearch(e.target.value)}
+              onKeyDown={handleFilterKeyDown}
             />
           </div>
         </div>
@@ -761,53 +769,53 @@ export default function MyReport() {
             which is what was causing the sticky Report ID column to glitch
             on mobile. */}
         <div className="table-scroll-wrapper">
-        <table className="reports-table">
-          <thead>
-            <tr>
-              <th>REPORT ID</th>
-              <th>CATEGORY</th>
-              <th>DATE SUBMITTED</th>
-              <th>STATUS</th>
-              <th>ACTION</th>
-            </tr>
-          </thead>
-          <tbody>
-            {listLoading ? (
+          <table className="reports-table">
+            <thead>
               <tr>
-                <td colSpan="5" className="empty-table-message">Loading reports...</td>
+                <th>REPORT ID</th>
+                <th>CATEGORY</th>
+                <th>DATE SUBMITTED</th>
+                <th>STATUS</th>
+                <th>ACTION</th>
               </tr>
-            ) : listError ? (
-              <tr>
-                <td colSpan="5" className="empty-table-message">{listError}</td>
-              </tr>
-            ) : reports.length > 0 ? (
-              reports.map((report) => (
-                <tr key={report.report_number}>
-                  <td className="report-id-cell" data-label="Report ID">{report.report_number}</td>
-                  <td data-label="Category">{report.category}</td>
-                  <td data-label="Date Submitted">{formatDate(report.created_at)}</td>
-                  <td data-label="Status">
-                    <span className={getStatusBadgeClass(report.status)}>
-                      {getStatusLabel(report.status)}
-                    </span>
-                  </td>
-                  <td data-label="">
-                    <button
-                      className="action-view-btn"
-                      onClick={() => handleViewDetails(report)}
-                    >
-                      View Details
-                    </button>
-                  </td>
+            </thead>
+            <tbody>
+              {listLoading ? (
+                <tr>
+                  <td colSpan="5" className="empty-table-message">Loading reports...</td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="5" className="empty-table-message">No reports found matching your filters.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              ) : listError ? (
+                <tr>
+                  <td colSpan="5" className="empty-table-message">{listError}</td>
+                </tr>
+              ) : reports.length > 0 ? (
+                reports.map((report) => (
+                  <tr key={report.report_number}>
+                    <td className="report-id-cell" data-label="Report ID">{report.report_number}</td>
+                    <td data-label="Category">{report.category}</td>
+                    <td data-label="Date Submitted">{formatDate(report.created_at)}</td>
+                    <td data-label="Status">
+                      <span className={getStatusBadgeClass(report.status)}>
+                        {getStatusLabel(report.status)}
+                      </span>
+                    </td>
+                    <td data-label="">
+                      <button
+                        className="action-view-btn"
+                        onClick={() => handleViewDetails(report)}
+                      >
+                        View Details
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="empty-table-message">No reports found matching your filters.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -938,28 +946,19 @@ function ConfirmResolutionModal({ submitting, error, onConfirm, onClose }) {
         aria-labelledby="confirm-resolution-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 id="confirm-resolution-title">Confirm Resolution</h3>
+        <h3 id="confirm-resolution-title">Report Resolved</h3>
         <p>
-          By confirming, this report will be marked as <strong>Closed</strong>.
-          Only confirm if the hazard has really been fixed — this cannot be undone.
+          The reported hazard has been successfully resolved and verified by the responsible authorities. As a result, this report has been marked as Closed. Thank you for helping keep the community safe.
         </p>
         {error && <div className="form-error-banner">{error}</div>}
         <div className="confirm-modal-actions">
-          <button
-            type="button"
-            className="btn-modal-cancel"
-            onClick={onClose}
-            disabled={submitting}
-          >
-            Cancel
-          </button>
           <button
             type="button"
             className="btn-confirm-resolution"
             onClick={onConfirm}
             disabled={submitting}
           >
-            {submitting ? 'Confirming...' : 'Yes, close this report'}
+            {submitting ? 'Confirming...' : 'Ok'}
           </button>
         </div>
       </div>

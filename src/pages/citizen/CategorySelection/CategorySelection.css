@@ -4,7 +4,12 @@
   top: 0;
   left: 0;
   width: 100%;
+  /* 100vh on mobile includes the area behind the browser toolbar, which hid
+     the Confirm button behind it. 100dvh tracks the actually-visible viewport
+     (and updates as the toolbar shows/hides); the 100vh above is the fallback
+     for older browsers that don't understand dvh. */
   height: 100vh;
+  height: 100dvh;
   background-color: #f8fafc;
   z-index: 9999;
   display: flex;
@@ -13,8 +18,11 @@
      there's spare space and stays fully scrollable when content is taller
      than the viewport. */
   padding: 24px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
@@ -213,6 +221,7 @@
 @media (max-width: 640px) {
   .category-selection-overlay {
     padding: 16px;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   }
   .category-selection-card {
     padding: 16px;

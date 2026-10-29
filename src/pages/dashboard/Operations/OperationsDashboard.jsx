@@ -214,7 +214,7 @@ export default function OperationsDashboard() {
         setLookups(data);
         loadStatusStats(data.statuses || []);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
   useEffect(() => { load(); }, [page, filters]);
 
@@ -251,7 +251,14 @@ export default function OperationsDashboard() {
   // rest. Status is deliberately never written here: any ?status= would flip
   // the page into a Status View, which the sidebar/summary-bar own — so the
   // Status dropdown stays a local overview-only filter.
-  const applyFilters = () => { setPage(1); setFilters(draft); syncParamsFrom(draft); };
+  const handleApplyFilters = () => { setPage(1); setFilters(draft); syncParamsFrom(draft); };
+  const handleFilterKeyDown = (e) => {
+    if(e.key === "Enter"){
+      handleApplyFilters();
+      if(e.target.tagName === "SELECT") e.preventDefault();
+    }
+  }
+
   const reset = () => {
     // Status Views keep their locked status on reset — clearing it would
     // silently kick the user back to the Overview.
@@ -348,15 +355,43 @@ export default function OperationsDashboard() {
           normal page-local filter alongside Category. */}
       <div className="filters-section">
         <div className="filters-row">
-          <div className="filter-group filter-search"><label>Search</label><div className="search-wrap"><SearchIcon size={16}/><input placeholder="Search by id, category, or location" value={draft.search} onChange={(e) => updateDraft("search", e.target.value)} onKeyDown={(e) => e.key === "Enter" && applyFilters()} /></div></div>
+          <div className="filter-group filter-search">
+            <label>Search</label>
+            <div className="search-wrap">
+              <SearchIcon size={16} />
+              <input placeholder="Search by id, category, or location" 
+                value={draft.search} 
+                onChange={(e) => updateDraft("search", e.target.value)} 
+                onKeyDown={handleFilterKeyDown} 
+              />
+            </div>
+          </div>
           {!isStatusView && (
-            <div className="filter-group"><label>Status</label><select value={draft.status} onChange={(e) => updateDraft("status", e.target.value)}><option value="">All Statuses</option>{statuses.map((s) => <option key={valueOf(s)} value={valueOf(s)}>{labelOf(s)}</option>)}</select></div>
+            <div className="filter-group">
+              <label>Status</label>
+              <select value={draft.status} onChange={(e) => updateDraft("status", e.target.value)} onKeyDown={handleFilterKeyDown}>
+                <option value="">All Statuses</option>
+                {statuses.map((s) => <option key={valueOf(s)} value={valueOf(s)}>{labelOf(s)}</option>)}
+              </select>
+            </div>
           )}
-          <div className="filter-group"><label>Category</label><select value={draft.category} onChange={(e) => updateDraft("category", e.target.value)}><option value="">All Categories</option>{categories.map((c) => <option key={c.hazard_id} value={c.hazard_id}>{c.hazard_name}</option>)}</select></div>
-          <div className="filter-group"><label>Severity</label><select value={draft.severity} onChange={(e) => updateDraft("severity", e.target.value)}><option value="">All Severities</option>{severities.map((s) => <option key={valueOf(s)} value={valueOf(s)}>{labelOf(s)}</option>)}</select></div>
+          <div className="filter-group">
+            <label>Category</label>
+            <select value={draft.category} onChange={(e) => updateDraft("category", e.target.value)} onKeyDown={handleFilterKeyDown}>
+              <option value="">All Categories</option>
+              {categories.map((c) => <option key={c.hazard_id} value={c.hazard_id}>{c.hazard_name}</option>)}
+            </select>
+          </div>
+          <div className="filter-group">
+            <label>Severity</label>
+            <select value={draft.severity} onChange={(e) => updateDraft("severity", e.target.value)} onKeyDown={handleFilterKeyDown}>
+              <option value="">All Severities</option>
+              {severities.map((s) => <option key={valueOf(s)} value={valueOf(s)}>{labelOf(s)}</option>)}
+            </select>
+          </div>
           <div className="filter-group date-filter">
             <label>Date</label>
-            <select value={draft.dateMode} onChange={(e) => updateDraft("dateMode", e.target.value)}>
+            <select value={draft.dateMode} onChange={(e) => updateDraft("dateMode", e.target.value)} onKeyDown={handleFilterKeyDown}>
               <option value={DATE_MODES.TODAY}>Today</option>
               <option value={DATE_MODES.LAST_7_DAYS}>Last 7 Days</option>
               <option value={DATE_MODES.THIS_MONTH}>This Month</option>
@@ -373,6 +408,7 @@ export default function OperationsDashboard() {
                   onChange={(e) => {
                     if (notAfterToday(e.target.value)) updateDraft("fromDate", e.target.value);
                   }}
+                  onKeyDown={handleFilterKeyDown}
                 />
                 <span>to</span>
                 <input
@@ -382,16 +418,17 @@ export default function OperationsDashboard() {
                   onChange={(e) => {
                     if (notAfterToday(e.target.value)) updateDraft("toDate", e.target.value);
                   }}
+                  onKeyDown={handleFilterKeyDown}
                 />
               </div>
             )}
           </div>
           <div className="filter-actions">
             <label className="overdue-toggle" title="Show only open reports past their response time">
-              <input type="checkbox" checked={draft.overdue} onChange={(e) => updateDraft("overdue", e.target.checked)} />
+              <input type="checkbox" checked={draft.overdue} onChange={(e) => updateDraft("overdue", e.target.checked)} onKeyDown={handleFilterKeyDown}/>
               Overdue only
             </label>
-            <button className="btn-apply" onClick={applyFilters}><FilterIcon/>Apply Filters</button><button className="btn-reset" onClick={reset}>Reset</button>
+            <button className="btn-apply" onClick={handleApplyFilters}><FilterIcon />Apply Filters</button><button className="btn-reset" onClick={reset}>Reset</button>
           </div>
         </div>
       </div>
@@ -406,53 +443,53 @@ export default function OperationsDashboard() {
               const sla = slaBadge(report);
               const statusKey = normalize(report.status);
               return (
-              <tr key={report.report_number}>
-                <td className="report-number">{report.report_number}</td>
-                <td className="cell-truncate" title={report.category || ""}>{report.category}</td>
-                <td className="cell-truncate" title={report.address || ""}>{report.address || "—"}</td>
-                <td>{new Date(report.created_at).toLocaleDateString()}</td>
-                <td><span className={`sla-badge sla-${sla.tone}`} title={report.due_at ? `Due ${formatDueDate(report.due_at)}` : "No SLA set"}>{sla.text}</span></td>
-                <td><span className={`status-badge status-${statusClass(report.status)}`}>{displayStatus(report.status, statuses)}</span></td><td><span className={`severity-badge severity-${String(report.severity || "").toLowerCase()}`}>{report.severity || "—"}</span></td>
-                <td>
-                  <div className="table-actions">
-                    <button
-                      type="button"
-                      className="action-icon-btn"
-                      title={`View ${report.report_number}`}
-                      aria-label={`View ${report.report_number}`}
-                      onClick={() => setViewingReport(report.report_number)}
-                    >
-                      <EyeIcon />
-                    </button>
-                    {/* Flagged (Invalid) rows: moderate the reporter in place instead
-                        of editing a terminal status. Closed rows are permanent —
-                        no action besides viewing. */}
-                    {statusKey === "invalid" ? (
-                      canModerate && (
-                        <button
-                          type="button"
-                          className="action-icon-btn"
-                          title={`Moderate reporter of ${report.report_number}`}
-                          aria-label={`Moderate reporter of ${report.report_number}`}
-                          onClick={() => setModeratingReport(report.report_number)}
-                        >
-                          <GavelIcon />
-                        </button>
-                      )
-                    ) : statusKey !== "closed" && canEdit && (
+                <tr key={report.report_number}>
+                  <td className="report-number">{report.report_number}</td>
+                  <td className="cell-truncate" title={report.category || ""}>{report.category}</td>
+                  <td className="cell-truncate" title={report.address || ""}>{report.address || "—"}</td>
+                  <td>{new Date(report.created_at).toLocaleDateString()}</td>
+                  <td><span className={`sla-badge sla-${sla.tone}`} title={report.due_at ? `Due ${formatDueDate(report.due_at)}` : "No SLA set"}>{sla.text}</span></td>
+                  <td><span className={`status-badge status-${statusClass(report.status)}`}>{displayStatus(report.status, statuses)}</span></td><td><span className={`severity-badge severity-${String(report.severity || "").toLowerCase()}`}>{report.severity || "—"}</span></td>
+                  <td>
+                    <div className="table-actions">
                       <button
                         type="button"
                         className="action-icon-btn"
-                        title={`Edit ${report.report_number}`}
-                        aria-label={`Edit ${report.report_number}`}
-                        onClick={() => setEditingReport(report.report_number)}
+                        title={`View ${report.report_number}`}
+                        aria-label={`View ${report.report_number}`}
+                        onClick={() => setViewingReport(report.report_number)}
                       >
-                        <PencilIcon />
+                        <EyeIcon />
                       </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
+                      {/* Flagged (Invalid) rows: moderate the reporter in place instead
+                        of editing a terminal status. Closed rows are permanent —
+                        no action besides viewing. */}
+                      {statusKey === "invalid" ? (
+                        canModerate && (
+                          <button
+                            type="button"
+                            className="action-icon-btn"
+                            title={`Moderate reporter of ${report.report_number}`}
+                            aria-label={`Moderate reporter of ${report.report_number}`}
+                            onClick={() => setModeratingReport(report.report_number)}
+                          >
+                            <GavelIcon />
+                          </button>
+                        )
+                      ) : statusKey !== "closed" && canEdit && (
+                        <button
+                          type="button"
+                          className="action-icon-btn"
+                          title={`Edit ${report.report_number}`}
+                          aria-label={`Edit ${report.report_number}`}
+                          onClick={() => setEditingReport(report.report_number)}
+                        >
+                          <PencilIcon />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
               );
             }) : <tr><td colSpan="8" className="empty-table-message">No reports found.</td></tr>}
           </tbody>

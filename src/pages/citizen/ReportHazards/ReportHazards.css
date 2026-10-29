@@ -818,11 +818,19 @@
    color: var(--color-text-dark);
  }
 
-  /* Sidebar as slide-in drawer */
+  /* Sidebar as slide-in drawer. On phones the .app shell itself is the page
+     scroller (the sidebar is fixed/off-canvas), so it must match the real
+     visible viewport — 100vh included the area behind the browser toolbar,
+     which made the page feel like it could scroll no further near the
+     bottom. 100dvh tracks the visible area as the toolbar shows/hides. */
   .app {
-    overflow: auto;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: 100vh; /* fallback for browsers without dvh */
+    height: 100dvh;
+    overflow-y: auto;
     overflow-x: clip;
-    max-width: 100vw;
   }
  .app > .sidebar {
    width: 260px !important;
@@ -847,12 +855,17 @@
   .app > .main {
     margin-left: 0 !important;
     width: 100% !important;
-    max-width: 100vw !important;
+    max-width: 100% !important;
     min-width: 0 !important;
     height: auto;
     min-height: 100vh;
-    padding: 60px 16px 20px;
-    overflow-x: clip;
+    min-height: 100dvh;
+    padding: 60px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+    /* .app is the single scroll container on phones. Leaving overflow-y:auto
+       here (inherited from the desktop rule) created a nested scroller that
+       could steal the touch gesture and make the page stop scrolling after
+       interacting with content near the bottom (e.g. category cards). */
+    overflow: visible;
   }
 
  /* Pin to exactly 2 columns on phones (auto-fit alone could still try 3

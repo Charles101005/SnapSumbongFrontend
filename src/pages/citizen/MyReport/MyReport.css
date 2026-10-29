@@ -267,12 +267,41 @@
   .status-invalid { background: #ffe4e6; color: #9f1239; }
 
 .action-view-btn {
-  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #2563eb;
   border: none;
-  color: #2563eb;
+  border-radius: 8px;
+  color: #eff6ff;
   font-weight: 600;
   font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease,
+    color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.action-view-btn:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
+}
+
+.action-view-btn:active {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.action-view-btn:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
 }
 
 .empty-table-message {

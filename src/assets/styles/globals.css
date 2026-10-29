@@ -12,6 +12,34 @@ html, body, #root {
   padding: 0;
 }
 
+/* Mobile browsers silently inflate text and let the whole page pan/zoom when
+   any element nudges past the viewport width (100vw elements, wide tables),
+   which reads as "the page is slightly zoomed in". Pin the text scale and
+   clamp horizontal overflow so the layout always fits the device width. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* iOS/Android zoom the viewport when a focused form control is smaller than
+   16px. Because the app navigates client-side (login -> citizen home -> My
+   Reports), that zoom level survives the route change and the next page
+   looks slightly zoomed in. Pin mobile controls to 16px so focusing the
+   login email/password — or any filter/search field — never scales the page. */
+@media (max-width: 768px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background-color: var(--color-bg-page);
@@ -267,7 +295,7 @@ body {
 .sidebar-user-role {
   font-size: var(--text-xs);
   color: var(--color-text-placeholder);
-  text-transform: lowercase;
+  text-transform: capitalize;
 }
 
 .sidebar-user-avatar img {

@@ -11,6 +11,11 @@ import "./EmployeeProfileModal.css";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// The API stores/accepts the one-letter gender code ("M"/"F"/"O"), but detail
+// responses have been seen carrying the full label ("Male"). Normalize to the
+// code so the select matches an option and the payload is always valid.
+const normalizeGender = (value) => (value ? String(value).trim().charAt(0).toUpperCase() : "");
+
 export default function EmployeeProfileModal({ userNumber, mode = "edit", onClose, onSaved }) {
   const isView = mode === "view";
   const [loading, setLoading] = useState(true);
@@ -40,6 +45,10 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
   const [saving, setSaving] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const photoInputRef = useRef(null);
+  // Snapshot of the employee as loaded (or last saved) so handleSave can send
+  // only the fields that actually changed. PATCH treats the payload as a
+  // partial update; resending an unchanged email trips the uniqueness check.
+  const profileRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,7 +58,7 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
       try {
         const [detail, lookup] = await Promise.all([
           getEmployee(userNumber),
-          getRoleLookup(),
+          getRoleLookup({ exclude_citizen: true }),
         ]);
         if (cancelled) return;
         if (!detail || !detail.user_number) {
@@ -60,7 +69,7 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
         setLastName(detail.last_name || "");
         setMiddleName(detail.middle_name || "");
         setBirthdate(detail.birth_date || "");
-        setGender(detail.gender || "");
+        setGender(normalizeGender(detail.gender));
         setEmail(detail.email || "");
         setPhoneNumber(detail.contact_number || "");
         setPhotoUrl(detail.profile_picture || "");
@@ -74,6 +83,7 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
         setIsActive(detail.is_active !== false);
         setCreatedAt(detail.created_at || "");
         setRoleOptions(lookup.map((role) => ({ value: String(role.role_id), label: role.role_name })));
+        profileRef.current = detail;
       } catch (err) {
         if (cancelled) return;
         setDetailError(err?.detail || "Failed to load employee. Please try again.");
@@ -190,6 +200,47 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
     setSuccess("");
   };
 
+  // PATCH is a partial update: send only the fields whose current value
+  // differs from the loaded (or last-saved) snapshot. Resending an unchanged
+  // email in particular trips the backend's uniqueness validation.
+  const buildPayload = (nextPhotoUrl, photoChanged) => {
+    const original = profileRef.current || {};
+    const payload = {};
+
+    if (firstName.trim() !== (original.first_name || "")) payload.first_name = firstName.trim();
+    if (lastName.trim() !== (original.last_name || "")) payload.last_name = lastName.trim();
+    if (middleName.trim() !== (original.middle_name || "")) payload.middle_name = middleName.trim();
+    if (birthdate !== (original.birth_date || "")) payload.birth_date = birthdate;
+
+    const genderCode = normalizeGender(gender);
+    if (genderCode !== normalizeGender(original.gender)) payload.gender = genderCode;
+
+    if (email.trim() !== (original.email || "")) payload.email = email.trim();
+    if (phoneNumber.trim() !== (original.contact_number || "")) {
+      payload.contact_number = phoneNumber.trim();
+    }
+    if (streetAddress.trim() !== (original.street_address || "")) {
+      payload.street_address = streetAddress.trim();
+    }
+    if (region !== (original.region_code || "")) payload.region_code = region;
+    if (province !== (original.province_code || "")) payload.province_code = province;
+    if (city !== (original.city_code || "")) payload.city_code = city;
+    if (barangay !== (original.barangay_code || "")) payload.barangay_code = barangay;
+
+    const originalRoleId = original.role_id ? String(original.role_id) : "";
+    if (roleId !== originalRoleId) payload.role_id = Number(roleId);
+
+    if (isActive !== (original.is_active !== false)) payload.is_active = isActive;
+
+    // Always include a freshly uploaded photo, even if Cloudinary happened to
+    // return the same URL; otherwise only send it when it actually differs.
+    if (photoChanged || nextPhotoUrl !== (original.profile_picture || "")) {
+      payload.profile_picture = nextPhotoUrl;
+    }
+
+    return payload;
+  };
+
   const handleSave = async (event) => {
     event.preventDefault();
 
@@ -197,17 +248,15 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
 
     const trimmedFirst = firstName.trim();
     const trimmedLast = lastName.trim();
-    const trimmedMiddle = middleName.trim();
     const trimmedEmail = email.trim();
     const trimmedPhone = phoneNumber.trim();
-    const trimmedStreet = streetAddress.trim();
 
     // Collect every client-side problem so the user sees them all at once.
     const newErrors = {};
     if (!trimmedFirst) newErrors.firstName = "First name is required.";
     if (!trimmedLast) newErrors.lastName = "Last name is required.";
     if (!birthdate) newErrors.birthdate = "Birthdate is required.";
-    if (!gender) newErrors.gender = "Gender is required.";
+    if (!normalizeGender(gender)) newErrors.gender = "Gender is required.";
     if (!trimmedEmail) {
       newErrors.email = "Email address is required.";
     } else if (!EMAIL_PATTERN.test(trimmedEmail)) {
@@ -229,6 +278,7 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
       // Photo upload is a separate step so a Cloudinary/signature failure
       // never reaches PATCH and gets a photo-specific message.
       let nextPhotoUrl = photoUrl;
+      let photoChanged = false;
       if (photoFile) {
         try {
           nextPhotoUrl = await uploadProfileImage(photoFile);
@@ -240,29 +290,28 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
           });
           return;
         }
+        photoChanged = true;
         // Keep the CDN URL in state even if the PATCH below fails so a
         // retry does not re-upload (and orphan another Cloudinary asset).
         setPhotoFile(null);
         setPhotoUrl(nextPhotoUrl);
       }
 
-      await updateEmployee(userNumber, {
-        first_name: trimmedFirst,
-        last_name: trimmedLast,
-        middle_name: trimmedMiddle,
-        birth_date: birthdate,
-        gender,
-        email: trimmedEmail,
-        contact_number: trimmedPhone,
-        street_address: trimmedStreet,
-        region_code: region,
-        province_code: province,
-        city_code: city,
-        barangay_code: barangay,
-        role_id: Number(roleId),
-        is_active: isActive,
-        ...(nextPhotoUrl ? { profile_picture: nextPhotoUrl } : {}),
-      });
+      const payload = buildPayload(nextPhotoUrl, photoChanged);
+      if (Object.keys(payload).length === 0) {
+        setErrors({});
+        setSuccess("No changes to save.");
+        return;
+      }
+
+      const updated = await updateEmployee(userNumber, payload);
+      // Keep the baseline in sync so a follow-up save doesn't resend fields
+      // that were just persisted.
+      profileRef.current = {
+        ...(profileRef.current || {}),
+        ...payload,
+        ...(updated && typeof updated === "object" ? updated : {}),
+      };
       setErrors({});
       setSuccess("Employee details saved successfully.");
       onSaved?.();
@@ -348,7 +397,6 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
       {modalShell(
         <>
           {errors.form && <div className="epm-banner epm-banner-error">{errors.form}</div>}
-          {success && <div className="epm-banner epm-banner-success">{success}</div>}
 
           <form className="epm-form" onSubmit={handleSave} noValidate>
             <div className="epm-form-grid">
@@ -625,6 +673,7 @@ export default function EmployeeProfileModal({ userNumber, mode = "edit", onClos
             </div>
 
             <div className="epm-actions">
+              {success && <div className="epm-banner epm-banner-success">{success}</div>}
               {isView ? (
                 <button type="button" className="epm-btn-discard" onClick={onClose}>Close</button>
               ) : (

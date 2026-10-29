@@ -154,6 +154,13 @@ export default function RoleManagement() {
     setCurrentPage(1);
   };
 
+  const handleFilterKeyDown = (e) => {
+    if(e.key === "Enter"){
+      handleApplyFilters();
+      if(e.target.tagName === "SELECT") e.preventDefault();
+    }
+  }
+
   const handleReset = () => {
     setDraftSearch("");
     setDraftStatus("");
@@ -218,7 +225,7 @@ export default function RoleManagement() {
                 placeholder="Search by role name..."
                 value={draftSearch}
                 onChange={(e) => setDraftSearch(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleApplyFilters()}
+                onKeyDown={handleFilterKeyDown}
               />
             </div>
           </div>
@@ -229,6 +236,7 @@ export default function RoleManagement() {
               className="filter-select"
               value={draftStatus}
               onChange={(e) => setDraftStatus(e.target.value)}
+              onKeyDown={handleFilterKeyDown}
             >
               {STATUS_FILTER_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
