@@ -139,6 +139,10 @@
 
 .location-details {
  flex: 1;
+ /* Flex children default to min-width:auto — a long space-free address
+    would widen this column and shove the "Edit Address" button out of
+    the card. min-width:0 lets the address wrap (body floor). */
+ min-width: 0;
  display: flex;
  flex-direction: column;
  gap: 4px;
@@ -157,6 +161,14 @@
  font-size: 14.5px;
  font-weight: 600;
  color: var(--color-text-dark);
+}
+
+
+/* Empty state — no pin placed yet: visually recede like a placeholder. */
+.location-address--empty {
+ font-size: 14px;
+ font-weight: 500;
+ color: var(--color-text-placeholder);
 }
 
 

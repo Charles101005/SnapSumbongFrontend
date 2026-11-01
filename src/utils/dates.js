@@ -13,6 +13,12 @@ export const toISODate = (date) =>
 // input then snaps back to its previous date on rejection).
 export const notAfterToday = (iso) => !iso || iso <= toISODate(new Date());
 
+// Strict YYYY-MM-DD check for incoming query params (?range=/&from=/&to=).
+// Deep links are untrusted input — shared URLs and Analytics drill-downs both
+// write them — so anything malformed is dropped before it can seed a filter
+// (or a badge count range) with garbage.
+export const validISODate = (value) => (/^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "");
+
 export const addDays = (date, days) => {
   const next = new Date(date);
   next.setDate(next.getDate() + days);

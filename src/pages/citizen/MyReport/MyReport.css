@@ -565,6 +565,15 @@
   min-width: 0;
 }
 
+/* The submission grid is `align-items: start`, so both columns are only
+   as tall as their content — which left ~300px of dead space under the
+   GPS box whenever the right column (capped description + map) was
+   taller. Stretching just this column (details-column stays content-
+   sized) gives the photo grid real height to grow into. */
+.photos-column {
+  align-self: stretch;
+}
+
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -577,6 +586,54 @@
   height: 100px;
   object-fit: cover;
   border-radius: 8px;
+}
+
+/* Photos fill the Original Report Submission column instead of leaving a
+   dead zone under the GPS box: the grid flexes into whatever height the
+   taller right column (capped description + map) creates, and each image
+   fills its cell (object-fit: cover already set above).
+   - min-width query: at ≤640px both columns are `display: contents` with
+     `order`-based interleaving, so flex sizing must not apply there.
+   - scoped to `.photos-column` because `.photo-grid` is also reused by
+     the LGU Resolution Proof card, which keeps fixed 100px thumbnails.
+   - max-height ≈ the right column's natural maximum, so the fill can
+     never over-inflate the card on its own. */
+@media (min-width: 641px) {
+  .photos-column {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .photos-column .photo-grid {
+    flex: 1 1 auto;
+    max-height: 460px;
+    grid-auto-rows: minmax(100px, 1fr);
+  }
+
+  .photos-column .photo-grid img {
+    height: 100%;
+    min-height: 100px;
+  }
+
+  /* A single upload becomes a full-width banner rather than one small
+     thumbnail with an empty cell beside it. */
+  .photos-column .photo-grid img:only-child {
+    grid-column: 1 / -1;
+  }
+
+  /* Same fill applies to the empty state, so a report with no photos
+     doesn't reintroduce the dead zone under the GPS box. */
+  .photos-column .no-photos-placeholder {
+    flex: 1 1 auto;
+    min-height: 120px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 12px;
+    color: #94a3b8;
+  }
 }
 
 .gps-location-box {
@@ -621,6 +678,22 @@
   padding: 12px;
   border-radius: 8px;
   margin: 0 0 16px 0;
+  line-height: 1.5;
+  /* Bounded height + inner scroll: without a cap a long description grew
+     the gray box without limit, dragging the Attached Map View far below
+     the photos/GPS column and leaving dead space in the left column —
+     which skewed the whole Original Report Submission card. The cap is a
+     ceiling, not a fixed height, so short descriptions still shrink to
+     their content. Height mirrors .map-preview-box's clamp() so the two
+     right-column blocks stay visually parallel. */
+  max-height: clamp(160px, 22vw, 240px);
+  overflow-y: auto;
+  /* Long unbroken tokens (URLs, coordinates) wrap inside the box instead
+     of painting outside the gray background. */
+  overflow-x: hidden;
+  overflow-wrap: anywhere;
+  /* Scrolling inside the box must not chain-scroll the page. */
+  overscroll-behavior: contain;
 }
 
 .map-preview-box {
@@ -1040,6 +1113,12 @@
     order: 2;
   }
 
+  /* Stacked layout: a smaller ceiling keeps the map reachable without
+     scrolling past a full-height description box. */
+  .user-description-section p {
+    max-height: min(45vh, 260px);
+  }
+
   .map-view-section {
     order: 3;
   }
@@ -1288,6 +1367,9 @@
   max-width: 440px;
   max-height: calc(100vh - 48px);
   overflow-y: auto;
+  /* overflow-x would otherwise compute to `auto` too — a long token would
+     surface as a horizontal scrollbar instead of wrapping (body floor). */
+  overflow-x: hidden;
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
 }
 

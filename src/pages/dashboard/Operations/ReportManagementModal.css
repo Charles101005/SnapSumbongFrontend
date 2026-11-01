@@ -4,6 +4,13 @@
   border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 1.5rem 1.75rem;
+  /* Inherited by every descendant: a space-free token (long description,
+     comma-less address, unbreakable name, JSON-shaped error) breaks inside
+     its own column instead of painting over the next one. `anywhere`
+     (unlike `break-word`) also counts toward min-content sizing, so flex
+     items with the default min-width:auto — header row, meta row, alerts —
+     can no longer be forced wider than the card. */
+  overflow-wrap: anywhere;
 }
 
 .mgmt-empty {
@@ -62,7 +69,9 @@
 
 .mgmt-body {
   display: grid;
-  grid-template-columns: 1fr 160px;
+  /* minmax(0, 1fr) keeps the text track shrinkable regardless of content
+     (mirrors .mgmt-location-section) — the image column always wins. */
+  grid-template-columns: minmax(0, 1fr) 160px;
   gap: 1.75rem;
 }
 
@@ -75,6 +84,50 @@
   font-size: var(--text-md);
   line-height: 1.6;
   color: var(--color-text-body);
+  /* Keep the citizen's paragraph breaks (matches ReportDetail comments). */
+  white-space: pre-wrap;
+}
+
+/* Character counter under the Remarks textarea — makes the 500-char cap
+   visible instead of a silent dead end. */
+.mgmt-char-count {
+  margin: 0.3rem 0 0;
+  text-align: right;
+  font-size: var(--text-sm);
+  color: var(--color-text-placeholder);
+}
+
+/* Read-only echo of the remark already on record: context for the next
+   transition, deliberately NOT editable and NOT submittable — the textarea
+   below must only ever contain text typed for THIS transition (a stale
+   remark must never ride along with a status change or satisfy a
+   mandatory-remark gate). Dashed border signals "not an input". */
+.mgmt-previous-remark {
+  margin: 0 0 0.55rem;
+  padding: 0.5rem 0.65rem;
+  background: var(--color-bg-page);
+  border: 1px dashed var(--color-border-light);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  /* Preserve the officer's original line breaks; long tokens wrap
+     (body overflow-wrap floor). */
+  white-space: pre-wrap;
+}
+
+.mgmt-previous-remark-label {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: var(--color-text-placeholder);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.mgmt-previous-remark-text {
+  color: var(--color-text-muted);
 }
 
 .mgmt-meta-row {
@@ -770,6 +823,10 @@
   width: min(100%, 760px);
   max-height: calc(100vh - 5rem);
   overflow-y: auto;
+  /* overflow-x would otherwise compute to `auto` too — a long token would
+     surface as an in-modal horizontal scrollbar instead of wrapping
+     (wrapping handled by the overflow-wrap floor on .mgmt-card / body). */
+  overflow-x: hidden;
 }
 
 .mgmt-modal-header {

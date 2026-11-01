@@ -28,7 +28,7 @@ import {
 } from "../../../components/shared/icons";
 import { getAnalyticsOverview, getHandlerWorkload } from "../../../api/analytics";
 import { getReports } from "../../../api/reports";
-import { REPORT_STATUSES } from "../../../hooks/useStatusCounts";
+import { REPORT_STATUSES } from "../../../context/statusCountsContext";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { useAuth } from "../../../context/authContext";
 import { formatDate, round1 } from "../../../utils/format";
@@ -797,7 +797,7 @@ export default function Analytics() {
                           return (
                             <tr key={report.report_number}>
                               <td className="an-report-no" title={report.report_number}>{report.report_number}</td>
-                              <td className="an-cell-truncate" title={report.category || ""}>{report.category}</td>
+                              <td title={report.category || ""}><span className="an-cell-truncate">{report.category}</span></td>
                               <td>
                                 <span className={`severity-badge severity-${String(report.severity || "").toLowerCase()}`}>
                                   {report.severity || "—"}
@@ -857,7 +857,7 @@ export default function Analytics() {
                     {slowest.map((row) => (
                       <tr key={row.report_number}>
                         <td className="an-report-no" title={row.report_number}>{row.report_number}</td>
-                        <td className="an-cell-truncate" title={row.category || ""}>{row.category}</td>
+                        <td title={row.category || ""}><span className="an-cell-truncate">{row.category}</span></td>
                         <td>{formatDate(row.resolved_at)}</td>
                         <td className="an-duration">{formatDays(row.days)}</td>
                       </tr>

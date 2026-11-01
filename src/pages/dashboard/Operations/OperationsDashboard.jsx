@@ -15,9 +15,9 @@ import {
   SearchIcon,
 } from "../../../components/shared/icons";
 import { getReportLookups, getReports } from "../../../api/reports";
-import { REPORT_STATUSES, STATUS_VIEWS } from "../../../hooks/useStatusCounts";
+import { REPORT_STATUSES, STATUS_VIEWS, useStatusCounts } from "../../../context/statusCountsContext";
 import { formatDueDate, slaBadge } from "../../../utils/sla";
-import { addDays, monthRange, notAfterToday, toISODate } from "../../../utils/dates";
+import { DATE_FILTER_PRESETS, notAfterToday, resolveRange, toISODate, validISODate } from "../../../utils/dates";
 import { normalizeStatusKey as normalize, prettifyStatus } from "../../../utils/format";
 import { PERMISSIONS } from "../../../shared/constants";
 import { usePermissions } from "../../../hooks/usePermissions";
@@ -30,29 +30,14 @@ const PAGE_SIZE = 10;
 const valueOf = (item) => item?.value || item;
 const labelOf = (item) => item?.label || item;
 
-// Date filter modes: quick presets plus a custom start/end range.
-const DATE_MODES = { TODAY: "today", LAST_7_DAYS: "last_7_days", THIS_MONTH: "this_month", ALL: "all", CUSTOM: "custom" };
-// Resolve the selected date mode into from/to ISO dates ("" = no bound).
-// Presets are computed at request time so they stay correct across
-// day/month boundaries; custom uses the From/to inputs as-is.
-const resolveDateRange = (mode, fromDate, toDate) => {
-  const now = new Date();
-  switch (mode) {
-    case DATE_MODES.TODAY: {
-      const today = toISODate(now);
-      return { from: today, to: today };
-    }
-    case DATE_MODES.LAST_7_DAYS:
-      // Inclusive 7-day window: today and the 6 preceding days.
-      return { from: toISODate(addDays(now, -6)), to: toISODate(now) };
-    case DATE_MODES.THIS_MONTH:
-      return monthRange(now);
-    case DATE_MODES.CUSTOM:
-      return { from: fromDate || "", to: toDate || "" };
-    default:
-      return { from: "", to: "" };
-  }
-};
+// Date presets and their resolution (today / last_7_days / this_month / all /
+// custom) come from utils/dates.js — the same DATE_FILTER_PRESETS list the
+// Dashboard Home and Audit Trail dropdowns render. This page previously kept
+// its own DATE_MODES + resolveDateRange copy of the identical five keys; the
+// shared helper is now the only implementation, so the table, the badge counts
+// and every other filter row can never resolve a preset differently.
+// Presets are evaluated at request time, so "Today" stays correct across a
+// day/month boundary while the tab is open.
 
 const displayStatus = (status, statuses = []) => {
   const match = statuses.find((s) => valueOf(s) === status || labelOf(s) === status);
@@ -80,22 +65,21 @@ export default function OperationsDashboard() {
   const rawSeverity = (searchParams.get("severity") || "").trim().toUpperCase();
   const urlSeverity = /^P[1-5]$/.test(rawSeverity) ? rawSeverity : "";
   const urlOverdue = (searchParams.get("overdue") || "").trim() === "true";
-  const DATE_RANGE_VALUES = Object.values(DATE_MODES);
+  const DATE_RANGE_VALUES = DATE_FILTER_PRESETS.map((preset) => preset.key);
   const rawRange = (searchParams.get("range") || "").trim();
   const urlRange = rawRange && DATE_RANGE_VALUES.includes(rawRange) ? rawRange : "";
-  const validDate = (value) => (/^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "");
-  const urlFrom = validDate((searchParams.get("from") || "").trim());
-  const urlTo = validDate((searchParams.get("to") || "").trim());
+  const urlFrom = validISODate((searchParams.get("from") || "").trim());
+  const urlTo = validISODate((searchParams.get("to") || "").trim());
   // Default period is Today (the clean URL has no range param); an explicit
-  // ?range=… or bare ?from=/?to= deep-link overrides it.
-  const urlDateMode = urlRange || (urlFrom || urlTo ? DATE_MODES.CUSTOM : DATE_MODES.TODAY);
+  // ?range=… or bare ?from=/?to= deep-link overrides it. StatusCountsProvider
+  // resolves the very same URL with the very same rule, so the badge counts
+  // and this table always describe the same window.
+  const urlDateMode = urlRange || (urlFrom || urlTo ? "custom" : "today");
   // Status Views (?status=…) pre-filter the table via the URL. The compact
   // summary bar stays visible in both modes; only the page header adapts.
   const isStatusView = Boolean(urlStatus);
   const statusView = STATUS_VIEWS.find((v) => v.status === rawStatus);
   const [lookups, setLookups] = useState({ categories: [], statuses: [], severities: [] });
-  const [statusStats, setStatusStats] = useState({});
-  const [overdueCount, setOverdueCount] = useState(0);
   const [reports, setReports] = useState([]);
   const [count, setCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -104,12 +88,35 @@ export default function OperationsDashboard() {
   const [draft, setDraft] = useState(filters);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Bumped by reloadAll() after a mutation so the fetch effect below refetches
+  // — the same refreshTick pattern MyReport uses, which keeps the loader out
+  // of the effect's dependency list.
+  const [refreshTick, setRefreshTick] = useState(0);
   // Report number whose Update modal is open, or null when closed.
   const [editingReport, setEditingReport] = useState(null);
   // Report number whose Moderation dialog is open (Invalid rows only), or null.
   const [moderatingReport, setModeratingReport] = useState(null);
   // Report number whose read-only detail dialog is open, or null when closed.
   const [viewingReport, setViewingReport] = useState(null);
+
+  // Shared status counts: the sidebar Status Views badges and the summary
+  // chips below read one store (see StatusCountsProvider), so the two can
+  // never disagree and both refresh off the same triggers.
+  const {
+    counts: statusCounts,
+    total: countsTotal,
+    overdue: overdueCount,
+    loaded: countsLoaded,
+    refresh: refreshCounts,
+  } = useStatusCounts();
+  // Single post-mutation refresh for every modal on this page: bump the tick
+  // so the table refetches and tell the counts store to refetch, so the
+  // table, chips and sidebar badges all land on the new numbers together
+  // (they used to wait up to 60s for the badge poll).
+  const reloadAll = () => {
+    setRefreshTick((tick) => tick + 1);
+    refreshCounts();
+  };
 
   // Adjust state when the deep-link params change (sidebar click, Analytics
   // drill-down, or browser navigation) — see react.dev "adjusting some state
@@ -141,88 +148,88 @@ export default function OperationsDashboard() {
     setDraft(applyUrl);
   }
 
-  const load = async () => {
-    try {
+  // Fetch the rows for the current page and filters. The body is inlined into
+  // an async IIFE — the shape every list page in this codebase uses (MyReport,
+  // DashboardHome) — because calling a setState-ing helper synchronously from
+  // the effect body (the old `useEffect(() => { load(); })`) trips
+  // react-hooks/set-state-in-effect. `cancelled` discards a response that
+  // lands after the user already changed page or filters; refreshTick re-runs
+  // the fetch after a modal save without putting a loader in the deps list.
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
       setLoading(true);
       setError("");
-      // Resolve the date range from the selected preset or custom inputs.
-      const { from: fromDate, to: toDate } = resolveDateRange(filters.dateMode, filters.fromDate, filters.toDate);
-      const reportData = await getReports({
-        q: filters.search || undefined,
-        category_id: filters.category || undefined,
-        status: filters.status || undefined,
-        severity: filters.severity || undefined,
-        from_date: fromDate || undefined,
-        to_date: toDate || undefined,
-        // SLA: show only open reports past their due date.
-        overdue: filters.overdue || undefined,
-        // Reports Overview lists every report regardless of status (including
-        // Resolved/Closed/Invalid), so exclude_closed is always off here.
-        exclude_closed: false,
-        page,
-        page_size: PAGE_SIZE,
-      });
-      setReports(reportData.results || []);
-      setCount(reportData.count || 0);
-      const pages = Math.max(1, reportData.total_pages || 1);
-      if (page > pages) {
-        // Page is past the end (e.g. after filters shrink the set) — clamp
-        // and let the [page, filters] effect refetch.
-        setPage(pages);
-        return;
+      try {
+        // Resolve the date range from the selected preset or custom inputs —
+        // the shared resolver, so this table and the badge counts (which read
+        // the same URL) can never interpret a preset differently.
+        const { from: fromDate, to: toDate } = resolveRange(filters.dateMode, new Date(), { from: filters.fromDate, to: filters.toDate });
+        const reportData = await getReports({
+          q: filters.search || undefined,
+          category_id: filters.category || undefined,
+          status: filters.status || undefined,
+          severity: filters.severity || undefined,
+          from_date: fromDate || undefined,
+          to_date: toDate || undefined,
+          // SLA: show only open reports past their due date.
+          overdue: filters.overdue || undefined,
+          // Reports Overview lists every report regardless of status (including
+          // Resolved/Closed/Invalid), so exclude_closed is always off here.
+          exclude_closed: false,
+          page,
+          page_size: PAGE_SIZE,
+        });
+        if (cancelled) return;
+        setReports(reportData.results || []);
+        setCount(reportData.count || 0);
+        const pages = Math.max(1, reportData.total_pages || 1);
+        if (page > pages) {
+          // Page is past the end (e.g. after filters shrink the set) — clamp
+          // and let this effect refetch.
+          setPage(pages);
+          return;
+        }
+        setTotalPages(pages);
+      } catch (err) {
+        if (cancelled) return;
+        setError(err?.detail || err?.message || "Unable to load monitoring data.");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setTotalPages(pages);
-    } catch (err) {
-      setError(err?.detail || err?.message || "Unable to load monitoring data.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    })();
 
-  // The overview cards use the API's current status buckets. Fetch a count
-  // per real status because the reports endpoint returns exact counts.
-  // The overdue count (SLA) comes from the same endpoint's filter.
-  const loadStatusStats = async (statusList) => {
-    if (!statusList.length) return;
-    try {
-      const entries = await Promise.all(
-        statusList.map(async (item) => {
-          const value = valueOf(item);
-          try {
-            const data = await getReports({ status: value, exclude_closed: false, page: 1, page_size: 1 });
-            return [normalize(value), Number(data.count || 0)];
-          } catch {
-            return [normalize(value), 0];
-          }
-        })
-      );
-      setStatusStats(Object.fromEntries(entries));
-    } catch {
-      // Overview cards just fall back to 0 — the table below still works.
-    }
-    try {
-      const overdueData = await getReports({ overdue: true, exclude_closed: false, page: 1, page_size: 1 });
-      setOverdueCount(Number(overdueData.count || 0));
-    } catch {
-      setOverdueCount(0);
-    }
-  };
+    return () => {
+      cancelled = true;
+    };
+  }, [page, filters, refreshTick]);
 
+  // Filter-dropdown lookups load once per mount. Status counts deliberately
+  // do NOT come from here anymore: StatusCountsProvider owns them (one request
+  // for all nine buckets instead of the old request-per-status fan-out), and
+  // its data has to outlive this page to keep the sidebar badges stable.
   useEffect(() => {
+    let cancelled = false;
     getReportLookups()
       .then((data) => {
-        setLookups(data);
-        loadStatusStats(data.statuses || []);
+        if (!cancelled) setLookups(data);
       })
       .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
-  useEffect(() => { load(); }, [page, filters]);
 
-  const countFor = (...keys) => keys.reduce((sum, key) => sum + Number(statusStats[normalize(key)] || 0), 0);
+  const countFor = (...keys) => keys.reduce((sum, key) => sum + Number(statusCounts[normalize(key)] || 0), 0);
   // Active = every open report (not yet Resolved, Closed, or Invalid).
   const active = countFor("new", "assigned", "under_review", "on_hold", "dispatched", "ongoing");
   const invalid = countFor("invalid");
-  const totalReports = Object.values(statusStats).reduce((sum, n) => sum + Number(n || 0), 0) || count;
+  const totalReports = Number(countsTotal || 0);
+  // Summary chips show "—" until the shared store has a real answer instead
+  // of the old fabricated 0, and hold the last known number through a failed
+  // refresh (the store's failure rule).
+  const chipValue = (value) => (countsLoaded ? value : "—");
   const categories = lookups.categories || [];
   const statuses = lookups.statuses || [];
   const severities = lookups.severities || [];
@@ -239,9 +246,9 @@ export default function OperationsDashboard() {
     else next.delete("overdue");
     // Today is the default period, so it needs no param; every other mode
     // (including an explicit All Time) is written back for shareable URLs.
-    if (source.dateMode && source.dateMode !== DATE_MODES.TODAY) put("range", source.dateMode);
+    if (source.dateMode && source.dateMode !== "today") put("range", source.dateMode);
     else next.delete("range");
-    const custom = source.dateMode === DATE_MODES.CUSTOM;
+    const custom = source.dateMode === "custom";
     put("from", custom ? source.fromDate || "" : "");
     put("to", custom ? source.toDate || "" : "");
     return next;
@@ -255,7 +262,7 @@ export default function OperationsDashboard() {
   const reset = () => {
     // Status Views keep their locked status on reset — clearing it would
     // silently kick the user back to the Overview.
-    const empty = { category: "", severity: "", status: isStatusView ? urlStatus : "", search: "", dateMode: DATE_MODES.TODAY, fromDate: "", toDate: "", overdue: false };
+    const empty = { category: "", severity: "", status: isStatusView ? urlStatus : "", search: "", dateMode: "today", fromDate: "", toDate: "", overdue: false };
     setPage(1); setDraft(empty); setFilters(empty);
     syncParamsFrom(empty);
   };
@@ -322,23 +329,23 @@ export default function OperationsDashboard() {
       <div className="summary-bar">
         <button type="button" className="summary-metric" title="Show all reports" onClick={openOverview}>
           <span className="summary-icon summary-icon-total"><ClipboardIcon size={18} /></span>
-          <span className="summary-text"><span className="summary-label">TOTAL REPORTS</span><strong>{totalReports}</strong></span>
+          <span className="summary-text"><span className="summary-label">TOTAL REPORTS</span><strong>{chipValue(totalReports)}</strong></span>
         </button>
         <div className="summary-metric summary-metric-static" title="New + Assigned + Under Review + On-Hold + Dispatched + Ongoing">
           <span className="summary-icon summary-icon-active"><ActivityIcon size={18} /></span>
-          <span className="summary-text"><span className="summary-label">ACTIVE</span><strong>{active}</strong></span>
+          <span className="summary-text"><span className="summary-label">ACTIVE</span><strong>{chipValue(active)}</strong></span>
         </div>
         <button type="button" className="summary-metric" title="View Resolved reports" onClick={() => openStatusView("resolved")}>
           <span className="summary-icon summary-icon-resolved"><CheckIcon size={18} /></span>
-          <span className="summary-text"><span className="summary-label">RESOLVED</span><strong>{countFor("resolved")}</strong></span>
+          <span className="summary-text"><span className="summary-label">RESOLVED</span><strong>{chipValue(countFor("resolved"))}</strong></span>
         </button>
         <button type="button" className="summary-metric" title="View Invalid reports" onClick={() => openStatusView("invalid")}>
           <span className="summary-icon summary-icon-invalid"><FlagIcon size={18} /></span>
-          <span className="summary-text"><span className="summary-label">INVALID</span><strong>{invalid}</strong></span>
+          <span className="summary-text"><span className="summary-label">INVALID</span><strong>{chipValue(invalid)}</strong></span>
         </button>
         <button type="button" className={`summary-metric${filters.overdue ? " summary-metric-toggled" : ""}`} title="Toggle the Overdue only filter" aria-pressed={filters.overdue} onClick={toggleOverdue}>
           <span className="summary-icon summary-icon-overdue"><ClockIcon size={18} /></span>
-          <span className="summary-text"><span className="summary-label">OVERDUE (SLA)</span><strong>{overdueCount}</strong></span>
+          <span className="summary-text"><span className="summary-label">OVERDUE (SLA)</span><strong>{chipValue(overdueCount)}</strong></span>
         </button>
       </div>
 
@@ -357,13 +364,11 @@ export default function OperationsDashboard() {
           <div className="filter-group date-filter">
             <label>Date</label>
             <select value={draft.dateMode} onChange={(e) => updateDraft("dateMode", e.target.value)}>
-              <option value={DATE_MODES.TODAY}>Today</option>
-              <option value={DATE_MODES.LAST_7_DAYS}>Last 7 Days</option>
-              <option value={DATE_MODES.THIS_MONTH}>This Month</option>
-              <option value={DATE_MODES.ALL}>All Time</option>
-              <option value={DATE_MODES.CUSTOM}>Custom Range</option>
+              {DATE_FILTER_PRESETS.map((option) => (
+                <option key={option.key} value={option.key}>{option.label}</option>
+              ))}
             </select>
-            {draft.dateMode === DATE_MODES.CUSTOM && (
+            {draft.dateMode === "custom" && (
               <div className="date-range">
                 <span>From</span>
                 <input
@@ -408,8 +413,8 @@ export default function OperationsDashboard() {
               return (
               <tr key={report.report_number}>
                 <td className="report-number">{report.report_number}</td>
-                <td className="cell-truncate" title={report.category || ""}>{report.category}</td>
-                <td className="cell-truncate" title={report.address || ""}>{report.address || "—"}</td>
+                <td title={report.category || ""}><span className="cell-truncate">{report.category}</span></td>
+                <td title={report.address || ""}><span className="cell-truncate">{report.address || "—"}</span></td>
                 <td>{new Date(report.created_at).toLocaleDateString()}</td>
                 <td><span className={`sla-badge sla-${sla.tone}`} title={report.due_at ? `Due ${formatDueDate(report.due_at)}` : "No SLA set"}>{sla.text}</span></td>
                 <td><span className={`status-badge status-${statusClass(report.status)}`}>{displayStatus(report.status, statuses)}</span></td><td><span className={`severity-badge severity-${String(report.severity || "").toLowerCase()}`}>{report.severity || "—"}</span></td>
@@ -468,7 +473,7 @@ export default function OperationsDashboard() {
           reportNumber={editingReport}
           lookups={lookups}
           onClose={() => setEditingReport(null)}
-          onSaved={() => { load(); loadStatusStats(statuses); }}
+          onSaved={reloadAll}
         />
       )}
 
@@ -476,7 +481,7 @@ export default function OperationsDashboard() {
         <ReportModerationModal
           reportNumber={moderatingReport}
           onClose={() => setModeratingReport(null)}
-          onChanged={() => { load(); loadStatusStats(statuses); }}
+          onChanged={reloadAll}
         />
       )}
 
@@ -484,7 +489,7 @@ export default function OperationsDashboard() {
         <ReportDetail
           reportNumber={viewingReport}
           onClose={() => setViewingReport(null)}
-          onChanged={() => { load(); loadStatusStats(statuses); }}
+          onChanged={reloadAll}
         />
       )}
     </DashboardLayout>

@@ -14,15 +14,23 @@ import MapAutoResize from "../../../components/shared/MapAutoResize";
 import AddressSuggest from "./AddressSuggest";
 import "./PinLocation.css";
 
-// Default Manila coordinates, used when no initial location is provided.
-const DEFAULT_COORDS = [14.5818, 120.977];
+// View-only fallback center: when nothing has been pinned yet we still need
+// a center for Leaflet to render the map. It is NOT a selected location —
+// no marker is shown until the user pins one.
+const PH_OVERVIEW_CENTER = [12.8797, 121.774];
 
 function RecenterOnCoords({ coords }) {
   const map = useMap();
+  const prevCoordsRef = React.useRef(coords);
   React.useEffect(() => {
-    map.setView(coords, map.getZoom());
+    if (!coords) return;
+    // The empty state opens zoomed out to the whole country, so the first
+    // pin should zoom in to street level instead of keeping the overview zoom.
+    const isFirstPin = !prevCoordsRef.current;
+    prevCoordsRef.current = coords;
+    map.setView(coords, isFirstPin ? 16 : map.getZoom());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [coords[0], coords[1]]);
+  }, [coords?.[0], coords?.[1]]);
   return null;
 }
 
@@ -62,19 +70,19 @@ function LimitZoomToPhilippines() {
 }
 
 export default function PinLocationPage({ initialLocation, onConfirm, onBack }) {
+  // Start empty: the user must pin a location manually (map click / address
+  // search) or via "Use My Location" before confirming.
   const initialCoords = useMemo(
     () =>
       Array.isArray(initialLocation?.coords) && initialLocation.coords.length === 2
         ? initialLocation.coords
-        : DEFAULT_COORDS,
+        : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
   const [coords, setCoords] = useState(initialCoords);
-  const [address, setAddress] = useState(
-    initialLocation?.address || "Rizal Park, Ermita, Manila, 1000 Metro Manila"
-  );
+  const [address, setAddress] = useState(initialLocation?.address || "");
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [isResolvingAddress, setIsResolvingAddress] = useState(false);
@@ -99,6 +107,11 @@ export default function PinLocationPage({ initialLocation, onConfirm, onBack }) 
     setIsResolvingAddress(false);
     if (resolved) {
       setAddress(resolved);
+    } else {
+      // Reverse geocoding can fail (offline, rate-limited, etc.). Keep the
+      // pin usable with a coordinate-based fallback so the report form's
+      // address validation doesn't reject a legitimately placed pin.
+      setAddress(`Dropped pin at ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
     }
   }, []);
 
@@ -143,6 +156,12 @@ export default function PinLocationPage({ initialLocation, onConfirm, onBack }) 
   };
 
   const handleConfirm = () => {
+    // Nothing pinned yet — keep the user on this screen and tell them why.
+    if (!coords) {
+      setLocateError("Please pin a location on the map or use your current location.");
+      return;
+    }
+
     // The API stores coordinates as DecimalField(decimal_places=6), so round
     // here rather than sending raw floats with 15+ decimal places (which the
     // backend rejects with a 400).
@@ -154,11 +173,17 @@ export default function PinLocationPage({ initialLocation, onConfirm, onBack }) 
       return;
     }
 
+    if (!address || !address.trim()) {
+      setLocateError("Please provide an address for the pinned location.");
+      return;
+    }
+
+    setLocateError("");
     onConfirm({
       coords: [roundedLat, roundedLng],
       latitude: roundedLat,
       longitude: roundedLng,
-      address,
+      address: address.trim(),
     });
   };
 
@@ -167,15 +192,15 @@ export default function PinLocationPage({ initialLocation, onConfirm, onBack }) 
       {/* Title & Subtitle */}
       <header className="pin-header">
         <h2>Pin the Location</h2>
-        <p>Click the map, drag the pin, or use your GPS to pinpoint the hazard.</p>
+        <p>A location is required — click the map, drag the pin, or use your GPS to pinpoint the hazard.</p>
       </header>
 
       {/* Interactive Map Wrapper */}
       <div className="pin-map-card">
         <div className="pin-map-viewport">
           <MapContainer
-            center={coords}
-            zoom={16}
+            center={coords || PH_OVERVIEW_CENTER}
+            zoom={coords ? 16 : 6}
             style={{ width: "100%", height: "100%" }}
             ref={mapRef}
             maxBounds={PH_LEAFLET_BOUNDS}
@@ -188,12 +213,14 @@ export default function PinLocationPage({ initialLocation, onConfirm, onBack }) 
             />
             <ClickToPlaceMarker onPick={handleMapClick} />
             <RecenterOnCoords coords={coords} />
-            <Marker
-              position={coords}
-              draggable
-              icon={hazardMarkerIcon}
-              eventHandlers={{ dragend: handleMarkerDragEnd }}
-            />
+            {coords && (
+              <Marker
+                position={coords}
+                draggable
+                icon={hazardMarkerIcon}
+                eventHandlers={{ dragend: handleMarkerDragEnd }}
+              />
+            )}
             <MapAutoResize />
           </MapContainer>
 
@@ -216,7 +243,11 @@ export default function PinLocationPage({ initialLocation, onConfirm, onBack }) 
         </div>
       </div>
 
-      {locateError && <p className="locate-error">{locateError}</p>}
+      {locateError && (
+        <p className="locate-error" role="alert">
+          {locateError}
+        </p>
+      )}
 
       {/* Selected Location Details Card */}
       <div className="location-card">
@@ -250,12 +281,20 @@ export default function PinLocationPage({ initialLocation, onConfirm, onBack }) 
               autoFocus
             />
           ) : (
-            <div className="location-address">
-              {isResolvingAddress ? "Resolving address..." : address}
+            <div
+              className={`location-address${
+                !address && !isResolvingAddress ? " location-address--empty" : ""
+              }`}
+            >
+              {isResolvingAddress
+                ? "Resolving address..."
+                : address || "No location selected yet — tap the map or use your GPS."}
             </div>
           )}
           <span className="location-coords">
-            {coords[0].toFixed(6)}, {coords[1].toFixed(6)}
+            {coords
+              ? `${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}`
+              : "—"}
           </span>
         </div>
 

@@ -49,6 +49,10 @@
 
 .toast-message {
   flex: 1;
+  /* Flex children default to min-width:auto — a space-free token (e.g. a
+     URL in a backend error) would refuse to shrink and paint over the
+     close button / page. min-width:0 lets it wrap (body floor). */
+  min-width: 0;
 }
 
 .toast-close {

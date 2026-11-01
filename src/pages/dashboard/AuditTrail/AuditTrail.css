@@ -131,6 +131,10 @@
   max-width: 520px;
   max-height: 90vh;
   overflow-y: auto;
+  /* overflow-x would otherwise compute to `auto` too — a long token in the
+     audit description / actor name would surface as a horizontal
+     scrollbar instead of wrapping (body overflow-wrap floor). */
+  overflow-x: hidden;
 }
 
 .activity-details-header {

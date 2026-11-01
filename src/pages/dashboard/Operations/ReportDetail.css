@@ -20,6 +20,11 @@
   max-height: calc(100vh - 5rem);
   flex-direction: column;
   overflow: hidden;
+  /* Inherited safety net (mirrors .mgmt-card): a space-free token — the
+     description, a comma-less address, a long backend error — breaks
+     inside its box instead of painting over a neighbour. Inert for text
+     that fits; never overrides white-space: nowrap. */
+  overflow-wrap: anywhere;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-card);
@@ -58,6 +63,10 @@
 
 .report-detail-modal-body {
   overflow-y: auto;
+  /* overflow-x would otherwise compute to `auto` too — the source of the
+     horizontal scrollbar seen when a long description overflowed. Text
+     now wraps (overflow-wrap floor), so clip the axis explicitly. */
+  overflow-x: hidden;
   padding: 1.25rem 1.5rem;
 }
 
@@ -190,7 +199,12 @@
   color: var(--color-text-body);
   font-size: var(--text-sm);
   line-height: 1.5;
+  /* pre-wrap preserves the citizen's paragraph breaks — but on its own it
+     does NOT break long words, so an unbroken description/remark would
+     paint outside this box. `anywhere` (inherited from .report-detail-modal
+     via the body floor, restated here for clarity) does the breaking. */
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* photolog phase groups (Before / During / After) */
@@ -331,6 +345,10 @@
 .activity-modal {
   width: min(100%, 560px);
   overflow: hidden;
+  /* Same safety net as the parent dialog: audit descriptions, performer
+     names and primary_action strings are backend-controlled and may
+     contain space-free tokens (IDs, URLs). */
+  overflow-wrap: anywhere;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-card);

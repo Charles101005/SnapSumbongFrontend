@@ -28,6 +28,10 @@
   animation: ecmCardFadeIn 0.35s ease;
   max-height: calc(100vh - 48px);
   overflow-y: auto;
+  /* overflow-x would otherwise compute to `auto` too — a long token
+     (raw backend detail) would surface as a horizontal scrollbar
+     instead of wrapping (body overflow-wrap floor). */
+  overflow-x: hidden;
 }
 
 .ecm-icon-badge {

@@ -145,6 +145,21 @@ const formatDate = (value) => {
   if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 };
+// Text for the save-level inline alert: strings (backend detail/message)
+// pass through untouched; any other shape is stringified and clamped so a
+// large error payload can't bloat the alert box. Wrapping itself is handled
+// by overflow-wrap: anywhere on .mgmt-card.
+const toAlertText = (value) => {
+  if (typeof value === "string") return value;
+  try {
+    return `${JSON.stringify(value)}`.slice(0, 300);
+  } catch {
+    return `${value}`.slice(0, 300);
+  }
+};
+
+const REMARKS_MAX_LENGTH = 500; // Matches TransferReportModal's remark cap.
+const VALIDATOR_NAME_MAX_LENGTH = 100; // Matches the name-field cap in PersonalDetails.
 
 export default function ReportManagementModal({ reportNumber, lookups, onClose, onSaved }) {
   const [report, setReport] = useState(null);
@@ -200,6 +215,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
     setRemarksError("");
     setCategory("");
     setCategorySlaPreview(null);
+    setRemarks("");
     setLoadingDetail(Boolean(reportNumber));
   }
 
@@ -272,7 +288,12 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
           (item) => (item.label || item) === data.status || (item.value || item) === data.status
         );
         setStatus(matchingStatus?.value || statusToValue(data.status));
-        setRemarks(data.remarks || "");
+        // The textarea is input for the NEXT transition, not a display of
+        // the remark already on record — always start empty so a stale
+        // remark can never ride along with (or silently satisfy a gate
+        // for) the next status change. The stored remark stays visible as
+        // the read-only "Previous remark" note above the field.
+        setRemarks("");
         // Preselect the current category (category_id, or name-mapped
         // against the lookup list when the payload predates category_id).
         setCategory(loadCategoryId);
@@ -900,6 +921,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                   className="mgmt-input"
                   type="text"
                   value={validatorName}
+                  maxLength={VALIDATOR_NAME_MAX_LENGTH}
                   onChange={(e) => { setValidatorName(e.target.value); setValidatorError(""); setError(""); setSuccess(""); }}
                   placeholder="Name of the technical personnel who validated the completed works"
                   aria-invalid={Boolean(validatorError)}
@@ -913,18 +935,29 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
 
             <div className="mgmt-section">
               <span className="mgmt-label">Remarks</span>
+              {report.remarks && (
+                <p className="mgmt-previous-remark">
+                  <span className="mgmt-previous-remark-label">Previous remark on record</span>
+                  <span className="mgmt-previous-remark-text">{report.remarks}</span>
+                </p>
+              )}
               {remarksError && <FieldAlert message={remarksError} />}
               <textarea
                 className="mgmt-textarea"
                 rows="4"
                 value={remarks}
+                maxLength={REMARKS_MAX_LENGTH}
                 onChange={(e) => { setRemarks(e.target.value); setRemarksError(""); setError(""); setSuccess(""); }}
                 placeholder="Provide remarks about the hazard..."
                 aria-invalid={Boolean(remarksError)}
+                aria-describedby="mgmt-remarks-count"
               />
+              <p className="mgmt-char-count" id="mgmt-remarks-count">
+                {remarks.length}/{REMARKS_MAX_LENGTH}
+              </p>
             </div>
 
-            {error && <FieldAlert message={typeof error === "string" ? error : JSON.stringify(error)} />}
+            {error && <FieldAlert message={toAlertText(error)} />}
             {success && <FieldAlert message={success} variant="success" />}
             <div className="mgmt-actions">
               <button className="btn-discard-pill" onClick={onClose} disabled={saving}>Close</button>

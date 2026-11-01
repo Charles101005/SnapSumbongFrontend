@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthProvider";
+import { StatusCountsProvider } from "./context/StatusCountsProvider";
 import { useAuth } from "./context/authContext";
 import RequireAuth from "./components/guards/RequireAuth";
 import RequirePermission from "./components/guards/RequirePermission";
@@ -129,7 +130,13 @@ function AppRoutes() {
 function App() {
     return (
         <AuthProvider>
-            <AppRoutes />
+            {/* Shared status-count store — mounted above the routes so the
+                sidebar badges and summary chips keep their data across
+                navigation instead of re-fetching (and flashing "—") on every
+                page change. */}
+            <StatusCountsProvider>
+                <AppRoutes />
+            </StatusCountsProvider>
         </AuthProvider>
     );
 }

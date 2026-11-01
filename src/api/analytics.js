@@ -13,6 +13,32 @@ export const getReportMetrics = async () => {
     }
 };
 
+// One request for every status count the staff UI shows (the 9 sidebar Status
+// Views badges + the Operations summary chips), scoped exactly like
+// getReportMetrics. The requested date range picks the cheaper backend lens:
+//  - bounded range -> GET /analytics/overview/ reads intake.by_status: reports
+//    CREATED in the window grouped by current status. That is the same date
+//    semantics as GET /reports/?from_date=&to_date=&status=, so a badge count
+//    matches the row count it drills into. Cheap because the window is small.
+//  - unbounded     -> GET /analytics/hazard-report/ (the light endpoint). An
+//    unbounded overview walks every delivery/SLA row server-side, so it is the
+//    wrong thing to poll for "All Time".
+// -> { total, byStatus }
+export const getStatusCounts = async ({ from = "", to = "" } = {}) => {
+    if (from || to) {
+        const overview = await getAnalyticsOverview({ from, to });
+        return {
+            total: Number(overview?.intake?.total || 0),
+            byStatus: overview?.intake?.by_status || {},
+        };
+    }
+    const metrics = await getReportMetrics();
+    return {
+        total: Number(metrics?.total_count || 0),
+        byStatus: metrics?.count_by_status || {},
+    };
+};
+
 // GET /analytics/overview/?from=&to=
 // Period aggregates in four lenses (scoped like getReportMetrics):
 //   intake   — reports filed in the range (volume, severity, daily series)

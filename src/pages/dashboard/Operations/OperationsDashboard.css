@@ -298,12 +298,16 @@
   color:#2584df;
   font-weight:600
 }
-/* Long category/location text truncates with a native title tooltip. */
+/* Long category/location text truncates with a native title tooltip.
+   The truncation lives on an inner block-level span: `max-width` is
+   ignored on <td> in auto table layout, so applying it to the cell let
+   ordinary long addresses widen the table and clip the ACTION column. */
 .cell-truncate {
-  max-width:220px;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis
+  display: block;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis
 }
 .table-actions {
   display:flex;

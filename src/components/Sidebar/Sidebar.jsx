@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { getCurrentUser, getProfile } from "../../api/accounts";
 import { useAuth } from "../../context/authContext";
-import { STATUS_VIEWS, useStatusCounts } from "../../hooks/useStatusCounts";
+import { STATUS_VIEWS, useStatusCounts } from "../../context/statusCountsContext";
 import { useCanAnalytics } from "../../hooks/useCanAnalytics";
 import { usePermissions } from "../../hooks/usePermissions";
 import "./Sidebar.css";
@@ -143,10 +143,20 @@ export default function Sidebar() {
 
   const toggleSection = (section) =>
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
-  // Status views deep-link the shared table via /dashboard/operations?status=…
   const statusParam = (new URLSearchParams(location.search).get("status") || "").toLowerCase();
   const activeStatus = STATUS_VIEWS.some((view) => view.status === statusParam) ? statusParam : "";
   const isOverviewActive = isActive("/dashboard/operations") && !activeStatus;
+  // Status Views deep-link the shared table via /dashboard/operations?status=….
+  // Merge ?status= into whatever the URL already carries: hardcoding the query
+  // here used to silently drop the date range, severity and overdue filters the
+  // user had applied, which then made the badge count disagree with the rows it
+  // opened.
+  const statusViewHref = (status) => {
+    const next = new URLSearchParams(location.search);
+    next.set("status", status);
+    const query = next.toString();
+    return { pathname: "/dashboard/operations", search: query ? `?${query}` : "" };
+  };
   const { can } = usePermissions();
   const canUsers = can("user:read_all") || can("employee:read_all");
 
@@ -248,7 +258,7 @@ export default function Sidebar() {
                   return (
                     <Link
                       key={view.status}
-                      to={{ pathname: "/dashboard/operations", search: `?status=${view.status}` }}
+                      to={statusViewHref(view.status)}
                       className={`sidebar-subnav-item with-badge ${isActive("/dashboard/operations") && activeStatus === view.status ? "active" : ""}`}
                     >
                       <span>{view.label}</span>

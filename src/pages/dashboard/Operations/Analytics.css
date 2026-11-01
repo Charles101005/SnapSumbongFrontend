@@ -529,7 +529,10 @@
   white-space: nowrap;
 }
 
+/* Inner block-level span: `max-width` is ignored on <td> in auto table
+   layout, so the truncation must live on the span, not the cell. */
 .an-cell-truncate {
+  display: block;
   max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;

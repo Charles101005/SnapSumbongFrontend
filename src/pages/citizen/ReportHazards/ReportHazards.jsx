@@ -14,15 +14,15 @@ import { hazardMarkerIcon } from "../../../utils/leafletHelpers";
 import { isWithinPhilippines } from "../../../utils/philippineBounds";
 import "./ReportHazards.css";
 
-const DEFAULT_LOCATION = {
-  coords: [14.5818, 120.977], // Manila default
-  latitude: 14.5818,
-  longitude: 120.977,
-  address: "Rizal Park, Ermita, Manila, 1000 Metro Manila",
-};
+// View-only center for the preview map when nothing has been pinned yet —
+// this is NOT a location for the report; it just gives Leaflet a center to
+// render so the user can click through to the pin editor.
+const PH_OVERVIEW_CENTER = [12.8797, 121.774];
 
 const MAX_PHOTOS = 5;
 const MAX_CATEGORIES = 1; // Backend now stores a single category per report (FK, not M2M).
+const MIN_DESCRIPTION_LENGTH = 10;
+const MAX_DESCRIPTION_LENGTH = 250;
 
 export default function HazardReportForm() {
   const navigate = useNavigate();
@@ -45,8 +45,9 @@ export default function HazardReportForm() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
-  // Location State
-  const [locationData, setLocationData] = useState(DEFAULT_LOCATION);
+  // Location State — starts empty; the user must pin a location manually
+  // (or use "Use My Location") before the report can be submitted.
+  const [locationData, setLocationData] = useState(null);
 
   // Form Field States
   const [photos, setPhotos] = useState([]); // { file, previewUrl }[]
@@ -56,6 +57,9 @@ export default function HazardReportForm() {
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  // Required-field messages render as neutral gray hints until the first
+  // failed submit attempt; from then on they're red errors with role="alert".
+  const [showFieldErrors, setShowFieldErrors] = useState(false);
 
   // Dynamic Full Name derived from state
   const fullName = `${user.firstName} ${user.lastName}`.trim();
@@ -69,19 +73,39 @@ export default function HazardReportForm() {
   const isOtherCategorySelected = otherSelectedCategories.length > 0;
   const selectedCategoryName = categories.find((cat) => cat.hazard_id === selectedCategoryIds[0])?.hazard_name || "";
 
+  // --- Live validation errors ---
+  // Derived from state on every render, so each error is visible whenever its
+  // field is still incomplete and clears the moment the field is filled.
+  // Priority order when submitting (see handleSubmit): location → photos →
+  // category → description.
+  const locationError = !locationData
+    ? "Please pin a location for the hazard. Click the map to set it."
+    : !locationData.address || locationData.address.trim().length < 10
+    ? "Please pin a location with a valid address."
+    : !isWithinPhilippines(locationData.latitude, locationData.longitude)
+    ? "Please pin a location within the Philippines."
+    : "";
+  const photosError =
+    photos.length === 0 ? "Please add at least one photo of the hazard." : "";
+  // Suppressed while categories load or fail to load — that state already has
+  // its own message and isn't the user's doing yet.
+  const categoryError =
+    !categoriesLoading && !categoriesError && selectedCategoryIds.length === 0
+      ? "Please select a hazard category."
+      : "";
+  const descriptionError =
+    description.trim().length < MIN_DESCRIPTION_LENGTH
+      ? `Please provide a description of at least ${MIN_DESCRIPTION_LENGTH} characters.`
+      : "";
+
   // --- Unsaved-changes detection ---
-  // The form starts pre-filled (default location + first category), so only
-  // real user input counts as dirty. Drives the discard confirmation shown
-  // by CitizenLayout when leaving via a sidebar link or logout.
-  const defaultCategoryId = categories[0]?.hazard_id ?? null;
-  const categoryChanged =
-    selectedCategoryIds.length > 0
-      ? selectedCategoryIds[0] !== defaultCategoryId
-      : defaultCategoryId !== null;
-  const locationChanged =
-    locationData.latitude !== DEFAULT_LOCATION.latitude ||
-    locationData.longitude !== DEFAULT_LOCATION.longitude ||
-    locationData.address !== DEFAULT_LOCATION.address;
+  // The form starts completely empty (no location, no photos, no description,
+  // no category), so any real user input counts as dirty. Drives the discard
+  // confirmation shown by CitizenLayout when leaving via a sidebar link or logout.
+  // The default category selection is empty, so any picked category counts.
+  const categoryChanged = selectedCategoryIds.length > 0;
+  // Pinning any location is now explicit user input (the form starts with none).
+  const locationChanged = locationData !== null;
   const isDirty =
     photos.length > 0 ||
     description.trim().length > 0 ||
@@ -101,6 +125,32 @@ export default function HazardReportForm() {
   // (≤640px), so resolve it dynamically instead of hardcoding one.
   const formScrollRef = useRef(0);
   const prevViewRef = useRef(currentView);
+
+  // --- Section refs for scroll-to-error ---
+  // On a failed submit attempt the viewport glides to the first invalid
+  // section (priority: location → photos → category → description) so the
+  // inline error is on screen without the user hunting for it.
+  const locationSectionRef = useRef(null);
+  const photosSectionRef = useRef(null);
+  const categorySectionRef = useRef(null);
+  const descriptionSectionRef = useRef(null);
+  const submitErrorRef = useRef(null);
+
+  const scrollToSection = (ref) => {
+    const el = ref?.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Move focus too (screen readers announce the section); preventScroll
+    // keeps the smooth scroll we just triggered from being overridden.
+    el.focus({ preventScroll: true });
+  };
+
+  // Server/network failures (the only thing left in `submitError`) render
+  // inline next to the buttons — glide there when a new one appears.
+  useEffect(() => {
+    if (!submitError) return;
+    submitErrorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [submitError]);
 
   const getScrollContainer = () => {
     const candidates = [document.querySelector(".main"), document.querySelector(".app")].filter(Boolean);
@@ -130,9 +180,8 @@ export default function HazardReportForm() {
         const data = await getHazardCategories();
         if (cancelled) return;
         setCategories(data);
-        if (data.length > 0) {
-          setSelectedCategoryIds((prev) => (prev.length > 0 ? prev : [data[0].hazard_id]));
-        }
+        // No auto-preselect: the category starts empty so the live
+        // "Please select a hazard category." error nags before submitting.
       } catch {
         if (!cancelled) setCategoriesError("Couldn't load hazard categories. Please refresh the page.");
       } finally {
@@ -181,7 +230,6 @@ export default function HazardReportForm() {
   // A report can only have one category now, so picking a new one replaces
   // whatever was previously selected instead of appending to a list.
   const handleCategoryClick = (hazardId) => {
-    setSubmitError("");
     setSelectedCategoryIds((prev) => (prev.includes(hazardId) ? [] : [hazardId]));
   };
 
@@ -196,37 +244,46 @@ export default function HazardReportForm() {
     revokePhotos(photos);
     setDescription("");
     setPhotos([]);
-    setSelectedCategoryIds(categories[0] ? [categories[0].hazard_id] : []);
+    setSelectedCategoryIds([]);
+    setLocationData(null);
     setSubmitError("");
   };
 
-  const handleCancel = () => setConfirmCancel(true);
+  const handleCancel = () => {
+    // Nothing to lose yet → leave immediately; the discard confirmation is
+    // only shown for reports with actual input in it (same isDirty signal
+    // the sidebar nav guard uses).
+    if (!isDirty) {
+      navigate("/home");
+      return;
+    }
+    setConfirmCancel(true);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    setSubmitError("");
 
-    if (selectedCategoryIds.length === 0) {
-      setSubmitError("Please select a hazard category.");
-      return;
-    }
-    if (photos.length === 0) {
-      setSubmitError("Please add at least one photo of the hazard.");
-      return;
-    }
-    if (description.trim().length < 5) {
-      setSubmitError("Please provide a description of at least 5 characters.");
-      return;
-    }
-    if (!locationData.address || locationData.address.trim().length < 10) {
-      setSubmitError("Please pin a location with a valid address.");
-      return;
-    }
-    if (!isWithinPhilippines(locationData.latitude, locationData.longitude)) {
-      setSubmitError("Please pin a location within the Philippines.");
+    // Field messages are neutral hints until this first failed attempt, which
+    // escalates them to red errors (role="alert") and glides the screen to the
+    // first invalid section in priority order: location → photos → category →
+    // description.
+    const firstInvalid =
+      locationError
+        ? locationSectionRef
+        : photosError
+        ? photosSectionRef
+        : categoryError
+        ? categorySectionRef
+        : descriptionError
+        ? descriptionSectionRef
+        : null;
+    if (firstInvalid) {
+      setShowFieldErrors(true);
+      scrollToSection(firstInvalid);
       return;
     }
 
+    setSubmitError(""); // drop any stale API error before retrying
     setIsModalOpen(true);
   };
 
@@ -234,6 +291,15 @@ export default function HazardReportForm() {
     setIsModalOpen(false);
     setIsSubmitting(true);
     setSubmitError("");
+
+    // Defensive guard: the confirm modal can only open after handleSubmit
+    // validated the fields, but never send a report without a location.
+    if (locationError) {
+      setShowFieldErrors(true);
+      setIsSubmitting(false);
+      scrollToSection(locationSectionRef);
+      return;
+    }
 
     try {
       const imageUrls = await uploadHazardImageFiles(photos.map((p) => p.file));
@@ -250,7 +316,7 @@ export default function HazardReportForm() {
       revokePhotos(photos);
       setDescription("");
       setPhotos([]);
-      setSelectedCategoryIds(categories[0] ? [categories[0].hazard_id] : []);
+      setSelectedCategoryIds([]);
 
       navigate("/report-submitted", {
         state: { referenceNumber: result.report_number },
@@ -296,7 +362,12 @@ export default function HazardReportForm() {
               inert={currentView === "category-selection"}
             >
               {/* 1. GPS Location Tagging */}
-              <section className="card">
+              <section
+                className="card"
+                ref={locationSectionRef}
+                tabIndex={-1}
+                aria-describedby="location-error"
+              >
                 <div className="section-header">
                   <div className="section-title">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -317,9 +388,13 @@ export default function HazardReportForm() {
                   }}
                 >
                   <MapContainer
-                    key={`${locationData.coords[0]}-${locationData.coords[1]}`}
-                    center={locationData.coords}
-                    zoom={16}
+                    key={
+                      locationData
+                        ? `${locationData.coords[0]}-${locationData.coords[1]}`
+                        : "no-location"
+                    }
+                    center={locationData ? locationData.coords : PH_OVERVIEW_CENTER}
+                    zoom={locationData ? 16 : 6}
                     style={{ width: "100%", height: "100%" }}
                     zoomControl={false}
                     dragging={false}
@@ -331,16 +406,39 @@ export default function HazardReportForm() {
                     attributionControl={false}
                   >
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                    <Marker position={locationData.coords} icon={hazardMarkerIcon} />
+                    {locationData && (
+                      <Marker position={locationData.coords} icon={hazardMarkerIcon} />
+                    )}
                     <MapAutoResize />
                   </MapContainer>
-                  <div className="map-click-hint">Click to adjust</div>
+                  <div className="map-click-hint">
+                    {locationData ? "Click to adjust" : "Click to pin location"}
+                  </div>
                 </div>
-                <p className="map-address-caption">{locationData.address}</p>
+                {/* Caption shows the resolved address once pinned; while empty
+                    the field message below is the single source of truth (the
+                    old empty-caption line said the same thing — redundant). */}
+                {locationData && (
+                  <p className="map-address-caption">{locationData.address}</p>
+                )}
+                {locationError && (
+                  <p
+                    className={showFieldErrors ? "field-error" : "field-hint"}
+                    id="location-error"
+                    role={showFieldErrors ? "alert" : undefined}
+                  >
+                    {locationError}
+                  </p>
+                )}
               </section>
 
               {/* 2. Photo Upload */}
-              <section className="card">
+              <section
+                className="card"
+                ref={photosSectionRef}
+                tabIndex={-1}
+                aria-describedby="photos-error"
+              >
                 <div className="section-title" style={{ marginBottom: "16px" }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z" />
@@ -398,10 +496,24 @@ export default function HazardReportForm() {
                     )}
                   </div>
                 )}
+                {photosError && (
+                  <p
+                    className={showFieldErrors ? "field-error" : "field-hint"}
+                    id="photos-error"
+                    role={showFieldErrors ? "alert" : undefined}
+                  >
+                    {photosError}
+                  </p>
+                )}
               </section>
 
               {/* 3. Category Selection */}
-              <section className="card">
+              <section
+                className="card"
+                ref={categorySectionRef}
+                tabIndex={-1}
+                aria-describedby="category-error"
+              >
                 <div className="section-title" style={{ marginBottom: "16px" }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
@@ -456,10 +568,24 @@ export default function HazardReportForm() {
                     </>
                   )}
                 </div>
+                {categoryError && (
+                  <p
+                    className={showFieldErrors ? "field-error" : "field-hint"}
+                    id="category-error"
+                    role={showFieldErrors ? "alert" : undefined}
+                  >
+                    {categoryError}
+                  </p>
+                )}
               </section>
 
               {/* 4. Description Box */}
-              <section className="card">
+              <section
+                className="card"
+                ref={descriptionSectionRef}
+                tabIndex={-1}
+                aria-describedby="description-error"
+              >
                 <div className="section-title" style={{ marginBottom: "16px" }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -468,18 +594,45 @@ export default function HazardReportForm() {
                     <line x1="16" y1="17" x2="8" y2="17"></line>
                   </svg>
                   4. Description Box
+                  <span
+                    className={`photo-count-hint${
+                      description.length >= MAX_DESCRIPTION_LENGTH
+                        ? " photo-count-hint--limit"
+                        : ""
+                    }`}
+                  >
+                    {description.length}/{MAX_DESCRIPTION_LENGTH}
+                  </span>
                 </div>
                 <textarea
                   id="description"
                   placeholder="Provide more context about the hazard..."
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onChange={(e) =>
+                    // Slice as well as maxLength so the state itself can never
+                    // hold more than the cap (IME/composition edge cases).
+                    setDescription(e.target.value.slice(0, MAX_DESCRIPTION_LENGTH))
+                  }
+                  maxLength={MAX_DESCRIPTION_LENGTH}
+                  aria-invalid={Boolean(descriptionError)}
+                  aria-describedby="description-error"
                 />
+                {descriptionError && (
+                  <p
+                    className={showFieldErrors ? "field-error" : "field-hint"}
+                    id="description-error"
+                    role={showFieldErrors ? "alert" : undefined}
+                  >
+                    {descriptionError}
+                  </p>
+                )}
               </section>
 
-              {submitError && <div className="form-error-banner">{submitError}</div>}
-
-              {/* Submit / Cancel Actions */}
+              {/* Submit / Cancel Actions — buttons must stay a single flex
+                  row (globals.css sets .btn-submit to width:100%, so any
+                  extra in-row item would wrap them). Server/network errors —
+                  the only non-field errors — render as a line below the row;
+                  field validation errors live in their sections above. */}
               <div className="actions">
                 <button
                   type="button"
@@ -497,6 +650,15 @@ export default function HazardReportForm() {
                   </svg>
                 </button>
               </div>
+              {submitError && (
+                <p
+                  className="field-error submit-error-inline"
+                  ref={submitErrorRef}
+                  role="alert"
+                >
+                  {submitError}
+                </p>
+              )}
             </form>
 
             {/* Rendered on top of the still-mounted form: the overlay is a
@@ -527,6 +689,9 @@ export default function HazardReportForm() {
         onConfirm={() => {
           setConfirmCancel(false);
           resetForm();
+          // The user pressed Cancel to leave, so after wiping the report
+          // send them home instead of keeping them on the empty form.
+          navigate("/home");
         }}
         onCancel={() => setConfirmCancel(false)}
       />
@@ -547,7 +712,7 @@ export default function HazardReportForm() {
         userName={fullName}
         photos={photos}
         categoryName={selectedCategoryName}
-        locationAddress={locationData.address}
+        locationAddress={locationData?.address || ""}
         description={description}
       />
     </>
