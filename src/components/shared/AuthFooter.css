@@ -1,0 +1,28 @@
+.auth-footer {
+  flex-shrink: 0;
+  width: 100%;
+  padding: 1.25rem 1rem 0.25rem;
+  text-align: center;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--color-text-placeholder);
+}
+
+.auth-footer-contact {
+  margin: 0 0 0.35rem;
+}
+
+.auth-footer-contact a {
+  color: var(--color-primary);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.auth-footer-contact a:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
+.auth-footer-text {
+  margin: 0;
+}

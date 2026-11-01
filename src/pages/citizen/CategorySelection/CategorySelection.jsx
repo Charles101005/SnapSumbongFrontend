@@ -156,60 +156,12 @@ export default function CategorySelection({
 
   return (
     <div className="category-selection-overlay">
-      <div className="category-selection-card">
-        {/* Header */}
-        <div className="category-selection-header">
-          <svg
-            className="header-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-          </svg>
-          <h2>3. Category Selection</h2>
-          <span className="category-selection-count">
-            {selectedIds.length}/{maxSelections} selected
-          </span>
-        </div>
-
-        {/* Category Grid */}
-        <div className="extended-category-grid">
-          {categories.length === 0 ? (
-            <p className="category-empty-state">
-              No hazard categories are available right now. Please try again later.
-            </p>
-          ) : (
-            categories.map((cat) => {
-              const isSelected = selectedIds.includes(cat.hazard_id);
-              return (
-                <div
-                  key={cat.hazard_id}
-                  className={`extended-category-card ${isSelected ? "selected" : ""}`}
-                  onClick={() => toggleCategory(cat.hazard_id)}
-                >
-                  <CategoryInfoButton
-                    categoryName={cat.hazard_name}
-                    description={cat.description}
-                  />
-                  <div className="extended-icon-wrapper">{getIconFor(cat.hazard_name)}</div>
-                  <span className="extended-category-label">{cat.hazard_name}</span>
-                  {isSelected && <span className="extended-check-badge">&#10003;</span>}
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        {limitNotice && <p className="category-limit-notice">{limitNotice}</p>}
-
-        {/* Separated Action Buttons */}
-        <div className="category-selection-actions">
-          <button type="button" className="btn-back" onClick={onBack}>
+      <div className="category-selection-scroll">
+        <div className="category-selection-card">
+          {/* Header */}
+          <div className="category-selection-header">
             <svg
+              className="header-icon"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -217,20 +169,70 @@ export default function CategorySelection({
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
             </svg>
-            Back
-          </button>
-
-          <button
-            type="button"
-            className="btn-confirm"
-            onClick={handleConfirm}
-            disabled={selectedIds.length === 0}
-          >
-            Confirm
-          </button>
+            <h2>3. Category Selection</h2>
+            <span className="category-selection-count">
+              {selectedIds.length}/{maxSelections} selected
+            </span>
+          </div>
+  
+          {/* Category Grid */}
+          <div className="extended-category-grid">
+            {categories.length === 0 ? (
+              <p className="category-empty-state">
+                No hazard categories are available right now. Please try again later.
+              </p>
+            ) : (
+              categories.map((cat) => {
+                const isSelected = selectedIds.includes(cat.hazard_id);
+                return (
+                  <div
+                    key={cat.hazard_id}
+                    className={`extended-category-card ${isSelected ? "selected" : ""}`}
+                    onClick={() => toggleCategory(cat.hazard_id)}
+                  >
+                    <CategoryInfoButton
+                      categoryName={cat.hazard_name}
+                      description={cat.description}
+                    />
+                    <div className="extended-icon-wrapper">{getIconFor(cat.hazard_name)}</div>
+                    <span className="extended-category-label">{cat.hazard_name}</span>
+                    {isSelected && <span className="extended-check-badge">&#10003;</span>}
+                  </div>
+                );
+              })
+            )}
+          </div>
+  
+          {limitNotice && <p className="category-limit-notice">{limitNotice}</p>}
+  
+          {/* Separated Action Buttons */}
+          <div className="category-selection-actions">
+            <button type="button" className="btn-back" onClick={onBack}>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
+              Back
+            </button>
+  
+            <button
+              type="button"
+              className="btn-confirm"
+              onClick={handleConfirm}
+              disabled={selectedIds.length === 0}
+            >
+              Confirm
+            </button>
+          </div>
         </div>
       </div>
     </div>

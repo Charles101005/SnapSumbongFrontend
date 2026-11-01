@@ -2,7 +2,14 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { requestPasswordReset } from "../../../api/passwordReset";
 import { setAuthFlow } from "../../../shared/authFlowStorage";
-import "./ResetPass.css";
+import AuthShell from "../../../components/shared/AuthShell";
+import {
+    AlertIcon,
+    ArrowRightIcon,
+    LogInIcon,
+    MailIcon,
+    SpinnerIcon,
+} from "../../../components/shared/icons";
 
 export default function ResetPass() {
     const navigate = useNavigate();
@@ -34,49 +41,80 @@ export default function ResetPass() {
             setAuthFlow({ email, purpose: "reset-password", otp: null });
             navigate("/verify-email", { state: { email, purpose: "reset-password" } });
         } catch (err) {
-            setErrors({ email: err?.detail || err?.message || "Couldn't send the reset code. Try again." });
+            setErrors({ form: err?.detail || err?.message || "Couldn't send the reset code. Try again." });
         } finally {
             setSubmitting(false);
         }
     };
 
     return (
-        <div className="resetpass-page">
-            <div className="resetpass-wrapper">
-                {/* Logo + heading */}
-                <div className="resetpass-header">
-                    <div className="resetpass-logo">
-                        <img src="/SnapSumbongLogo.png" alt="SnapSumbong" className="brand-logo-img" />
-                    </div>
-                    <h1 className="resetpass-title">SnapSumbong</h1>
-                    <p className="resetpass-subtitle">Reset your password</p>
+        <AuthShell subtitle="Reset your password">
+            <section className="auth-card" aria-labelledby="reset-heading">
+                <div className="auth-card-header">
+                    <h2 id="reset-heading" className="auth-card-title">Forgot your password?</h2>
+                    <p className="auth-card-subtitle">
+                        Enter the email linked to your account and we'll send you a 4-digit
+                        verification code.
+                    </p>
                 </div>
-                <div className="resetpass-card">
-                    <h2 className="resetpass-card-title">Forgot Password</h2>
-                    <form onSubmit={handleSubmit} className="resetpass-form" noValidate>
-                        <div className="form-group">
-                            <label htmlFor="email" className="form-label">
-                                Email
-                            </label>
+
+                <form onSubmit={handleSubmit} className="auth-form" noValidate>
+                    {errors.form && (
+                        <div className="auth-alert" role="alert">
+                            <AlertIcon size={16} />
+                            <span>{errors.form}</span>
+                        </div>
+                    )}
+
+                    <div className="auth-field">
+                        <label htmlFor="email" className="auth-label">Email address</label>
+                        <div className="auth-input-wrap">
+                            <span className="auth-input-icon" aria-hidden="true">
+                                <MailIcon size={16} />
+                            </span>
                             <input
                                 id="email"
                                 type="email"
                                 value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                onChange={(e) => {
+                                    setEmail(e.target.value);
+                                    setErrors((prev) => ({ ...prev, email: undefined, form: undefined }));
+                                }}
                                 placeholder="Enter your email"
-                                className={`form-input ${errors.email ? "input-error" : ""}`}
+                                className={`auth-input auth-input--icon ${errors.email ? "auth-input--error" : ""}`}
+                                autoComplete="email"
+                                inputMode="email"
+                                aria-invalid={Boolean(errors.email)}
+                                aria-describedby={errors.email ? "email-error" : undefined}
                             />
-                            {errors.email && <p className="error-text">{errors.email}</p>}
                         </div>
-                        <button type="submit" className="resetpass-button" disabled={submitting}>
-                            {submitting ? "Sending..." : "Verify Email"}
-                        </button>
-                    </form>
+                        {errors.email && <p id="email-error" className="auth-error">{errors.email}</p>}
+                    </div>
+
+                    <button type="submit" className="auth-submit" disabled={submitting}>
+                        {submitting ? (
+                            <>
+                                <SpinnerIcon size={16} className="auth-spinner" />
+                                Sending code...
+                            </>
+                        ) : (
+                            <>
+                                Send reset code
+                                <ArrowRightIcon size={16} />
+                            </>
+                        )}
+                    </button>
+                </form>
+
+                <div className="auth-divider">
+                    <span>Remember your password?</span>
                 </div>
-                <p className="login-text">
-                    Remember your password? <Link to="/">Log in</Link>
-                </p>
-            </div>
-        </div>
+
+                <Link to="/" className="auth-secondary">
+                    Back to log in
+                    <LogInIcon size={16} />
+                </Link>
+            </section>
+        </AuthShell>
     );
 }

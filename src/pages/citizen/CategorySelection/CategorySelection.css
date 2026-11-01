@@ -12,11 +12,11 @@
   height: 100dvh;
   background-color: #f8fafc;
   z-index: 9999;
-  display: flex;
-  /* No align/justify center here: centering an overflowing flex child clips
-     its top out of the scroll region. margin: auto on the card centers when
-     there's spare space and stays fully scrollable when content is taller
-     than the viewport. */
+  /* Deliberately a plain block scroll container. A flex container that used
+     auto margins to center the card made iOS Safari stop scrolling after a
+     category re-rendered (tapping a card near the bottom of the grid). The
+     centering now lives on .category-selection-scroll below instead. */
+  display: block;
   padding: 24px;
   padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
@@ -25,14 +25,26 @@
      category name would surface as a horizontal scrollbar on the overlay
      instead of wrapping in its tile (body overflow-wrap floor). */
   overflow-x: hidden;
+  overscroll-behavior: contain;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Centers the card when it fits the viewport, but because it uses min-height
+   (not height) it grows with the card and lets tall content start at the top
+   and scroll normally. Keeping this out of the scroll container itself is
+   what avoids the iOS Safari scroll freeze. */
+.category-selection-scroll {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Centered White Card Container */
 .category-selection-card {
   width: 100%;
   max-width: 980px;
-  margin: auto;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 16px;

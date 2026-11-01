@@ -50,6 +50,7 @@
   font-weight: 700;
   box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
   transition: background-color 0.15s ease;
+  text-decoration: none;
 }
 
 .home-btn-primary:hover {
@@ -74,6 +75,7 @@
   font-size: 13.5px;
   font-weight: 700;
   transition: border-color 0.15s ease, color 0.15s ease;
+  text-decoration: none;
 }
 
 .home-btn-secondary:hover {

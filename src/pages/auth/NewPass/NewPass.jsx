@@ -4,7 +4,16 @@ import { resetPassword } from "../../../api/passwordReset";
 import { getAuthFlow, clearAuthFlow } from "../../../shared/authFlowStorage";
 import { mapApiErrors } from "../../../utils/apiErrors";
 import { validatePassword } from "../../../utils/passwordValidation";
-import "./NewPass.css";
+import AuthShell from "../../../components/shared/AuthShell";
+import PasswordChecklist from "../../../components/shared/PasswordChecklist";
+import {
+    AlertIcon,
+    ArrowRightIcon,
+    EyeIcon,
+    EyeOffIcon,
+    LockIcon,
+    SpinnerIcon,
+} from "../../../components/shared/icons";
 
 export default function NewPass() {
     const navigate = useNavigate();
@@ -22,16 +31,23 @@ export default function NewPass() {
 
     if (!email || !resetToken) {
         return (
-            <div className="newpass-page">
-                <div className="newpass-wrapper">
-                    <div className="newpass-card">
-                        <p className="error-text">
-                            No reset session found. Please start over.
-                        </p>
-                        <Link to="/forgot-password">Back to Forgot Password</Link>
+            <AuthShell subtitle="Reset your password">
+                <section className="auth-card" aria-labelledby="newpass-missing-heading">
+                    <h2 id="newpass-missing-heading" className="auth-card-title">Reset link expired</h2>
+                    <div className="auth-alert auth-alert--spaced" role="alert">
+                        <AlertIcon size={16} />
+                        <span>No reset session found. Please start the password reset again.</span>
                     </div>
-                </div>
-            </div>
+                    <Link
+                        to="/forgot-password"
+                        onClick={clearAuthFlow}
+                        className="auth-secondary auth-secondary--spaced"
+                    >
+                        Start over
+                        <ArrowRightIcon size={16} />
+                    </Link>
+                </section>
+            </AuthShell>
         );
     }
 
@@ -79,112 +95,116 @@ export default function NewPass() {
     };
 
     return (
-    <div className="newpass-page">
-      <div className="newpass-wrapper">
-        {/* Logo */}
-        <div className="newpass-logo">
-          <img src="/SnapSumbongLogo.png" alt="SnapSumbong" className="brand-logo-img" />
-        </div>
- 
-        <div className="newpass-card">
-          <h1 className="newpass-title">SnapSumbong</h1>
-          <h2 className="newpass-card-title">Create New Password</h2>
-          <p className="newpass-subtitle">Please enter your new password below.</p>
- 
-          <form onSubmit={handleSubmit} noValidate>
-            <div className="form-group">
-              <label htmlFor="password" className="form-label">
-                New Password
-              </label>
-              <div className="input-wrapper">
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter new password"
-                  className={`form-input ${errors.password ? "input-error" : ""}`}
-                />
-                <button
-                  type="button"
-                  className="toggle-password-btn"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-                </button>
-              </div>
-              {errors.password && <p className="error-text">{errors.password}</p>}
-            </div>
- 
-            <div className="form-group">
-              <label htmlFor="confirmPassword" className="form-label">
-                Confirm New Password
-              </label>
-              <div className="input-wrapper">
-                <input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm new password"
-                  className={`form-input ${errors.confirmPassword ? "input-error" : ""}`}
-                />
-                <button
-                  type="button"
-                  className="toggle-password-btn"
-                  onClick={() => setShowConfirmPassword((prev) => !prev)}
-                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                >
-                  {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
-                </button>
-              </div>
-              {errors.confirmPassword && (
-                <p className="error-text">{errors.confirmPassword}</p>
-              )}
-            </div>
- 
-            {errors.form && <p className="error-text">{errors.form}</p>}
+        <AuthShell subtitle="Create a new password">
+            <section className="auth-card" aria-labelledby="newpass-heading">
+                <div className="auth-card-header">
+                    <h2 id="newpass-heading" className="auth-card-title">Set a new password</h2>
+                    <p className="auth-card-subtitle">
+                        Choose a new password for <strong>{email}</strong>.
+                    </p>
+                </div>
 
-            <button type="submit" className="continue-btn" disabled={submitting}>
-              {submitting ? "Saving..." : "Continue"}
-              <ArrowRightIcon />
-            </button>
-          </form>
- 
-          <p className="back-to-login">
-            <Link to="/">← Back to login</Link>
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
+                <form onSubmit={handleSubmit} className="auth-form" noValidate>
+                    {errors.form && (
+                        <div className="auth-alert" role="alert">
+                            <AlertIcon size={16} />
+                            <span>{errors.form}</span>
+                        </div>
+                    )}
 
- 
-function EyeIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
- 
-function EyeOffIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.62 21.62 0 0 1 5.06-6.06M9.9 4.24A10.4 10.4 0 0 1 12 4c7 0 11 8 11 8a21.6 21.6 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-      <line x1="1" y1="1" x2="23" y2="23" />
-    </svg>
-  );
-}
- 
-function ArrowRightIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="5" y1="12" x2="19" y2="12" />
-      <polyline points="12 5 19 12 12 19" />
-    </svg>
-  );
+                    <div className="auth-field">
+                        <label htmlFor="password" className="auth-label">New password</label>
+                        <div className="auth-input-wrap">
+                            <span className="auth-input-icon" aria-hidden="true">
+                                <LockIcon size={16} />
+                            </span>
+                            <input
+                                id="password"
+                                type={showPassword ? "text" : "password"}
+                                value={newPassword}
+                                onChange={(e) => {
+                                    setNewPassword(e.target.value);
+                                    setErrors((prev) => ({ ...prev, password: undefined, form: undefined }));
+                                }}
+                                placeholder="Enter new password"
+                                className={`auth-input auth-input--icon auth-input--toggle ${errors.password ? "auth-input--error" : ""}`}
+                                autoComplete="new-password"
+                                aria-invalid={Boolean(errors.password)}
+                                aria-describedby={errors.password ? "password-error" : undefined}
+                            />
+                            <button
+                                type="button"
+                                className="auth-toggle"
+                                onClick={() => setShowPassword((prev) => !prev)}
+                                aria-label={showPassword ? "Hide password" : "Show password"}
+                            >
+                                {showPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                            </button>
+                        </div>
+                        {errors.password && <p id="password-error" className="auth-error">{errors.password}</p>}
+                        <p className="auth-hint">
+                            Use 8+ characters with uppercase, lowercase, a number, and a symbol.
+                        </p>
+                        <PasswordChecklist password={newPassword} identity={{ email }} />
+                    </div>
+
+                    <div className="auth-field">
+                        <label htmlFor="confirmPassword" className="auth-label">Confirm new password</label>
+                        <div className="auth-input-wrap">
+                            <span className="auth-input-icon" aria-hidden="true">
+                                <LockIcon size={16} />
+                            </span>
+                            <input
+                                id="confirmPassword"
+                                type={showConfirmPassword ? "text" : "password"}
+                                value={confirmPassword}
+                                onChange={(e) => {
+                                    setConfirmPassword(e.target.value);
+                                    setErrors((prev) => ({ ...prev, confirmPassword: undefined, form: undefined }));
+                                }}
+                                placeholder="Re-enter new password"
+                                className={`auth-input auth-input--icon auth-input--toggle ${errors.confirmPassword ? "auth-input--error" : ""}`}
+                                autoComplete="new-password"
+                                aria-invalid={Boolean(errors.confirmPassword)}
+                                aria-describedby={errors.confirmPassword ? "confirmPassword-error" : undefined}
+                            />
+                            <button
+                                type="button"
+                                className="auth-toggle"
+                                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                            >
+                                {showConfirmPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                            </button>
+                        </div>
+                        {errors.confirmPassword && (
+                            <p id="confirmPassword-error" className="auth-error">{errors.confirmPassword}</p>
+                        )}
+                    </div>
+
+                    <button type="submit" className="auth-submit" disabled={submitting}>
+                        {submitting ? (
+                            <>
+                                <SpinnerIcon size={16} className="auth-spinner" />
+                                Saving...
+                            </>
+                        ) : (
+                            <>
+                                Update password
+                                <ArrowRightIcon size={16} />
+                            </>
+                        )}
+                    </button>
+                </form>
+
+                <div className="auth-divider">
+                    <span>Changed your mind?</span>
+                </div>
+
+                <Link to="/" className="auth-secondary">
+                    Back to log in
+                </Link>
+            </section>
+        </AuthShell>
+    );
 }

@@ -232,7 +232,6 @@ export default function OperationsDashboard() {
     return () => {
       cancelled = true;
     };
-      .catch(() => { });
   }, []);
 
   const countFor = (...keys) => keys.reduce((sum, key) => sum + Number(statusCounts[normalize(key)] || 0), 0);
@@ -291,7 +290,14 @@ export default function OperationsDashboard() {
   // rest. Status is deliberately never written here: any ?status= would flip
   // the page into a Status View, which the sidebar/summary-bar own — so the
   // Status dropdown stays a local overview-only filter.
-  const applyFilters = () => { setDateHint(""); setPage(1); setFilters(draft); syncParamsFrom(draft); };
+  const handleApplyFilters = () => { setDateHint(""); setPage(1); setFilters(draft); syncParamsFrom(draft); };
+  // Enter inside any filter control applies the draft, matching MyReport and
+  // AuditTrail. Prevent the default on selects so the dropdown doesn't reopen.
+  const handleFilterKeyDown = (e) => {
+    if (e.key !== "Enter") return;
+    handleApplyFilters();
+    if (e.target.tagName === "SELECT") e.preventDefault();
+  };
   const reset = () => {
     // Status Views keep their locked status on reset — clearing it would
     // silently kick the user back to the Overview.
@@ -525,39 +531,14 @@ export default function OperationsDashboard() {
                       <button
                         type="button"
                         className="action-icon-btn"
-                        title={`View ${report.report_number}`}
-                        aria-label={`View ${report.report_number}`}
-                        onClick={() => setViewingReport(report.report_number)}
+                        title={`Edit ${report.report_number}`}
+                        aria-label={`Edit ${report.report_number}`}
+                        onClick={() => setEditingReport(report.report_number)}
                       >
-                        <EyeIcon />
+                        <PencilIcon />
                       </button>
-                      {/* Flagged (Invalid) rows: moderate the reporter in place instead
-                        of editing a terminal status. Closed rows are permanent —
-                        no action besides viewing. */}
-                      {statusKey === "invalid" ? (
-                        canModerate && (
-                          <button
-                            type="button"
-                            className="action-icon-btn"
-                            title={`Moderate reporter of ${report.report_number}`}
-                            aria-label={`Moderate reporter of ${report.report_number}`}
-                            onClick={() => setModeratingReport(report.report_number)}
-                          >
-                            <GavelIcon />
-                          </button>
-                        )
-                      ) : statusKey !== "closed" && canEdit && (
-                        <button
-                          type="button"
-                          className="action-icon-btn"
-                          title={`Edit ${report.report_number}`}
-                          aria-label={`Edit ${report.report_number}`}
-                          onClick={() => setEditingReport(report.report_number)}
-                        >
-                          <PencilIcon />
-                        </button>
-                      )}
-                    </div>
+                    )}
+                  </div>
                   </td>
                 </tr>
               );

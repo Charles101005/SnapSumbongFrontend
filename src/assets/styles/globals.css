@@ -46,15 +46,7 @@ body {
   color: var(--color-text-dark);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Safety floor for user/backend-supplied text: a space-free token
-     (long description, comma-less address, unbreakable name, URL or ID in
-     an err.detail string) breaks inside its box instead of painting over
-     neighboring content or stretching a flex row / table column.
-     `anywhere` is inert for text that fits: normal break points (spaces,
-     hyphens) are always tried first, so healthy layouts are unaffected.
-     It also never overrides `white-space: nowrap` (badges, pills,
-     `.cell-truncate`), and form controls / SVGs are unaffected. */
-  overflow-wrap: anywhere;
+  /* overflow-wrap: anywhere; */
 }
 
 /* ===== SHARED DASHBOARD LAYOUT ===== */
