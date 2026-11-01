@@ -379,6 +379,13 @@ export default function AuditTrail() {
     setCurrentPage(1);
   };
 
+  const handleFilterKeyDown = (e) => {
+    if(e.key === "Enter"){
+      handleApplyFilters();
+      if(e.target.tagName === "SELECT") e.preventDefault();
+    }
+  };
+
   const handleReset = () => {
     setDraftSearch("");
     setDraftModule(ALL_MODULES);
@@ -415,13 +422,13 @@ export default function AuditTrail() {
                   placeholder="Search users or activities..."
                   value={draftSearch}
                   onChange={(e) => setDraftSearch(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleApplyFilters()}
+                  onKeyDown={handleFilterKeyDown}
                 />
               </div>
             </div>
             <div className="filter-field">
               <label className="filter-label">Module</label>
-              <select className="filter-select" value={draftModule} onChange={(e) => setDraftModule(e.target.value)}>
+              <select className="filter-select" value={draftModule} onChange={(e) => setDraftModule(e.target.value)} onKeyDown={handleFilterKeyDown}>
                 <option value={ALL_MODULES}>All Module</option>
                 {moduleOptions.map((m) => (
                   <option key={m.value} value={m.value}>{m.label}</option>
@@ -430,7 +437,7 @@ export default function AuditTrail() {
             </div>
             <div className="filter-field">
               <label className="filter-label">User Role</label>
-              <select className="filter-select" value={draftRole} onChange={(e) => setDraftRole(e.target.value)}>
+              <select className="filter-select" value={draftRole} onChange={(e) => setDraftRole(e.target.value)} onKeyDown={handleFilterKeyDown}>
                 <option value={ALL_ROLES}>All Roles</option>
                 <option value="0">System</option>
                 {roleOptions.map((r) => (
@@ -440,7 +447,7 @@ export default function AuditTrail() {
             </div>
             <div className="filter-field audit-date-filter">
               <label className="filter-label">Date</label>
-              <select className="filter-select" value={draftDateMode} onChange={(e) => setDraftDateMode(e.target.value)}>
+              <select className="filter-select" value={draftDateMode} onChange={(e) => setDraftDateMode(e.target.value)} onKeyDown={handleFilterKeyDown}>
                 {DATE_FILTER_PRESETS.map((option) => (
                   <option key={option.key} value={option.key}>{option.label}</option>
                 ))}
@@ -456,6 +463,7 @@ export default function AuditTrail() {
                     onChange={(e) => {
                       if (notAfterToday(e.target.value)) setDraftDateFrom(e.target.value);
                     }}
+                    onKeyDown={handleFilterKeyDown}
                   />
                   <span className="date-range-separator">to</span>
                   <input
@@ -466,6 +474,7 @@ export default function AuditTrail() {
                     onChange={(e) => {
                       if (notAfterToday(e.target.value)) setDraftDateTo(e.target.value);
                     }}
+                    onKeyDown={handleFilterKeyDown}
                   />
                 </div>
               )}

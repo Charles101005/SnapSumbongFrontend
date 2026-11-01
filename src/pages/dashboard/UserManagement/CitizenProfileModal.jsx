@@ -195,9 +195,9 @@ export default function CitizenProfileModal({ userNumber, mode = "view", onClose
       {modalShell(
         <>
           {error && <div className="cp-banner cp-banner-error">{error}</div>}
-          {success && <div className="cp-banner cp-banner-success">{success}</div>}
 
           <form className="cp-form" onSubmit={handleSave} noValidate>
+            <div className="cp-form-body">
             <div className="cp-form-grid">
               <div className="cp-field">
                 <label className="cp-label" htmlFor="cp-user-number">User Number</label>
@@ -426,8 +426,10 @@ export default function CitizenProfileModal({ userNumber, mode = "view", onClose
                 }}
               />
             </div>
+            </div>
 
             <div className="cp-actions">
+              {success && <div className="cp-banner cp-banner-success">{success}</div>}
               {isView ? (
                 <button type="button" className="cp-btn-discard" onClick={onClose}>Close</button>
               ) : (

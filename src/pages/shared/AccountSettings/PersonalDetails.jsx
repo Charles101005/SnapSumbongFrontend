@@ -478,7 +478,9 @@ export default function PersonalDetails({
 
             <div className="form-group">
               <label htmlFor="contactNumber">
-                Phone Number <span className="optional-tag">optional</span>
+                Phone Number {variant !== "staff" && (
+                <span className="optional-tag">optional</span>
+              )}
               </label>
               <div className="input-with-icon">
                 <svg className="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

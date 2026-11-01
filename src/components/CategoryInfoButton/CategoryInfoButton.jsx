@@ -58,7 +58,11 @@ export default function CategoryInfoButton({ categoryName = "", description = ""
   };
 
   return (
-    <div className="cat-info" ref={rootRef} onClick={(e) => e.stopPropagation()}>
+    <div
+      className={`cat-info${open ? " open" : ""}`}
+      ref={rootRef}
+      onClick={(e) => e.stopPropagation()}
+    >
       <button
         type="button"
         className={`cat-info-btn${open ? " active" : ""}`}

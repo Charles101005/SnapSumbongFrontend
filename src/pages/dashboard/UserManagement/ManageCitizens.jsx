@@ -116,6 +116,13 @@ export default function ManageCitizens() {
     setCurrentPage(1);
   };
 
+  const handleFilterKeyDown = (e) => {
+    if (e.key === 'Enter'){
+      handleApplyFilters();
+      if (e.target.tagName === 'SELECT') e.preventDefault(); 
+    } 
+  }
+
   const handleReset = () => {
     setDraftSearch("");
     setDraftStatus("");
@@ -156,13 +163,13 @@ export default function ManageCitizens() {
                   placeholder="Search by name or email..."
                   value={draftSearch}
                   onChange={(e) => setDraftSearch(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleApplyFilters()}
+                  onKeyDown={handleFilterKeyDown}
                 />
               </div>
             </div>
             <div className="filter-field">
               <label className="filter-label">Account Status</label>
-              <select className="filter-select" value={draftStatus} onChange={(e) => setDraftStatus(e.target.value)}>
+              <select className="filter-select" value={draftStatus} onChange={(e) => setDraftStatus(e.target.value)} onKeyDown={handleFilterKeyDown}>
                 {STATUS_FILTER_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}

@@ -95,11 +95,14 @@ export const deactivateRole = async (roleId) => {
 };
 
 // GET /accounts/lookup/roles/
+// query: exclude_citizen ("true" to omit the citizen role)
 // -> [{ role_id, role_name }] (plain array, not paginated)
 // requires any of: employee:create, employee:read_all, employee:assign_role
-export const getRoleLookup = async () => {
+export const getRoleLookup = async ({ exclude_citizen } = {}) => {
     try {
-        const response = await api.get("accounts/lookup/roles/");
+        const response = await api.get("accounts/lookup/roles/", {
+            params: { exclude_citizen },
+        });
         return response.data;
     } catch (error) {
         if (error.response?.data) throw error.response.data;

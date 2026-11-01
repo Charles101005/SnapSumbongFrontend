@@ -85,7 +85,7 @@ export default function ManageEmployees() {
     let cancelled = false;
     const loadRoles = async () => {
       try {
-        const lookup = await getRoleLookup();
+        const lookup = await getRoleLookup({ exclude_citizen: true });
         if (cancelled) return;
         setRoleOptions([
           { value: "", label: "All Roles" },
@@ -147,6 +147,13 @@ export default function ManageEmployees() {
     setCurrentPage(1);
   };
 
+  const handleFilterKeyDown = (e) => {
+    if(e.key === "Enter"){
+      handleApplyFilters();
+      if(e.target.tagName === "SELECT") e.preventDefault();
+    }
+  }
+
   const handleReset = () => {
     setDraftSearch("");
     setDraftStatus("");
@@ -195,13 +202,13 @@ export default function ManageEmployees() {
                   placeholder="Search by name or email..."
                   value={draftSearch}
                   onChange={(e) => setDraftSearch(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleApplyFilters()}
+                  onKeyDown={handleFilterKeyDown}
                 />
               </div>
             </div>
             <div className="filter-field">
               <label className="filter-label">Role</label>
-              <select className="filter-select" value={draftRole} onChange={(e) => setDraftRole(e.target.value)}>
+              <select className="filter-select" value={draftRole} onChange={(e) => setDraftRole(e.target.value)} onKeyDown={handleFilterKeyDown}>
                 {roleOptions.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
@@ -209,7 +216,7 @@ export default function ManageEmployees() {
             </div>
             <div className="filter-field">
               <label className="filter-label">Account Status</label>
-              <select className="filter-select" value={draftStatus} onChange={(e) => setDraftStatus(e.target.value)}>
+              <select className="filter-select" value={draftStatus} onChange={(e) => setDraftStatus(e.target.value)} onKeyDown={handleFilterKeyDown}>
                 {STATUS_FILTER_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
