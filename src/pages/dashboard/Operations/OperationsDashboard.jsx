@@ -17,7 +17,7 @@ import {
 import { getReportLookups, getReports } from "../../../api/reports";
 import { REPORT_STATUSES, STATUS_VIEWS, useStatusCounts } from "../../../context/statusCountsContext";
 import { formatDueDate, slaBadge } from "../../../utils/sla";
-import { DATE_FILTER_PRESETS, notAfterToday, resolveRange, toISODate, validISODate } from "../../../utils/dates";
+import { DATE_FILTER_PRESETS, notAfterToday, resolveRange, sanitizeDateBounds, toISODate } from "../../../utils/dates";
 import { normalizeStatusKey as normalize, prettifyStatus } from "../../../utils/format";
 import { PERMISSIONS } from "../../../shared/constants";
 import { usePermissions } from "../../../hooks/usePermissions";
@@ -68,8 +68,16 @@ export default function OperationsDashboard() {
   const DATE_RANGE_VALUES = DATE_FILTER_PRESETS.map((preset) => preset.key);
   const rawRange = (searchParams.get("range") || "").trim();
   const urlRange = rawRange && DATE_RANGE_VALUES.includes(rawRange) ? rawRange : "";
-  const urlFrom = validISODate((searchParams.get("from") || "").trim());
-  const urlTo = validISODate((searchParams.get("to") || "").trim());
+  // Sanitised at derivation, not in the deep-link block below: the useState
+  // seeds for filters/draft run on the FIRST render, where that block never
+  // fires (prevDeepLink starts equal to deepLink). Same rules as the date
+  // inputs and StatusCountsProvider — drop future dates, repair an inverted
+  // pair (From wins, To moves) — so every consumer of this URL resolves the
+  // identical window. See sanitizeDateBounds.
+  const { from: urlFrom, to: urlTo } = sanitizeDateBounds(
+    searchParams.get("from") || "",
+    searchParams.get("to") || ""
+  );
   // Default period is Today (the clean URL has no range param); an explicit
   // ?range=… or bare ?from=/?to= deep-link overrides it. StatusCountsProvider
   // resolves the very same URL with the very same rule, so the badge counts
@@ -86,6 +94,12 @@ export default function OperationsDashboard() {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ category: "", severity: urlSeverity, status: urlStatus, search: "", dateMode: urlDateMode, fromDate: urlFrom, toDate: urlTo, overdue: urlOverdue });
   const [draft, setDraft] = useState(filters);
+  // Transient explanation for a date-input correction — the custom range
+  // corrects the user as they edit (see updateCustomBound), and this is what
+  // makes that correction visible instead of silent. Set on a drag or a
+  // rejected future date, cleared by the next valid date edit, a preset
+  // change, Apply and Reset; only rendered inside Custom Range.
+  const [dateHint, setDateHint] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   // Bumped by reloadAll() after a mutation so the fetch effect below refetches
@@ -135,12 +149,11 @@ export default function OperationsDashboard() {
       if (urlSeverity !== prevSeverity) next.severity = urlSeverity;
       if ((urlOverdue ? "1" : "0") !== prevOverdue) next.overdue = urlOverdue;
       if (dateChanged) {
-        // Deep-links are untrusted input: drop anything after today so a
-        // shared URL can't seed the filters with future dates.
-        const today = toISODate(new Date());
+        // Already sanitised at derivation (future dates dropped, inverted
+        // pairs repaired) — the seed just takes the values as they are.
         next.dateMode = urlDateMode;
-        next.fromDate = urlFrom > today ? "" : urlFrom;
-        next.toDate = urlTo > today ? "" : urlTo;
+        next.fromDate = urlFrom;
+        next.toDate = urlTo;
       }
       return Object.keys(next).every((key) => next[key] === current[key]) ? current : next;
     };
@@ -235,6 +248,25 @@ export default function OperationsDashboard() {
   const severities = lookups.severities || [];
 
   const updateDraft = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
+  // Custom-range correction — the exact rule Analytics applies in its From/To
+  // handlers (Analytics.jsx:424,436): the window must stay a valid inclusive
+  // From → To pair, so whichever bound the user just set wins and the other
+  // drags with it — From past To moves To forward, To before From moves From
+  // back. An inverted window (which the API would read as an empty result)
+  // therefore can never be applied, and because both values already passed
+  // notAfterToday, a dragged bound can never be in the future either. The
+  // hint surfaces the otherwise-silent correction to the user.
+  const updateCustomBound = (bound, value) => {
+    if (bound === "from") {
+      const dragged = Boolean(value && draft.toDate && value > draft.toDate);
+      setDateHint(dragged ? "To adjusted to match From" : "");
+      setDraft((current) => ({ ...current, fromDate: value, toDate: dragged ? value : current.toDate }));
+      return;
+    }
+    const dragged = Boolean(value && draft.fromDate && value < draft.fromDate);
+    setDateHint(dragged ? "From adjusted to match To" : "");
+    setDraft((current) => ({ ...current, toDate: value, fromDate: dragged ? value : current.fromDate }));
+  };
   // Mirror the deep-linkable filters into the URL so sidebar links, Analytics
   // drill-downs and browser back/forward all read from one source of truth.
   // Category/status/search stay page-local and are never written to the URL.
@@ -258,12 +290,12 @@ export default function OperationsDashboard() {
   // rest. Status is deliberately never written here: any ?status= would flip
   // the page into a Status View, which the sidebar/summary-bar own — so the
   // Status dropdown stays a local overview-only filter.
-  const applyFilters = () => { setPage(1); setFilters(draft); syncParamsFrom(draft); };
+  const applyFilters = () => { setDateHint(""); setPage(1); setFilters(draft); syncParamsFrom(draft); };
   const reset = () => {
     // Status Views keep their locked status on reset — clearing it would
     // silently kick the user back to the Overview.
     const empty = { category: "", severity: "", status: isStatusView ? urlStatus : "", search: "", dateMode: "today", fromDate: "", toDate: "", overdue: false };
-    setPage(1); setDraft(empty); setFilters(empty);
+    setDateHint(""); setPage(1); setDraft(empty); setFilters(empty);
     syncParamsFrom(empty);
   };
 
@@ -363,7 +395,7 @@ export default function OperationsDashboard() {
           <div className="filter-group"><label>Severity</label><select value={draft.severity} onChange={(e) => updateDraft("severity", e.target.value)}><option value="">All Severities</option>{severities.map((s) => <option key={valueOf(s)} value={valueOf(s)}>{labelOf(s)}</option>)}</select></div>
           <div className="filter-group date-filter">
             <label>Date</label>
-            <select value={draft.dateMode} onChange={(e) => updateDraft("dateMode", e.target.value)}>
+            <select value={draft.dateMode} onChange={(e) => { setDateHint(""); updateDraft("dateMode", e.target.value); }}>
               {DATE_FILTER_PRESETS.map((option) => (
                 <option key={option.key} value={option.key}>{option.label}</option>
               ))}
@@ -376,7 +408,14 @@ export default function OperationsDashboard() {
                   value={draft.fromDate}
                   max={toISODate(new Date())}
                   onChange={(e) => {
-                    if (notAfterToday(e.target.value)) updateDraft("fromDate", e.target.value);
+                    // Same rejection as Analytics: the controlled input snaps
+                    // back to its previous date — say why instead of leaving
+                    // the user to guess.
+                    if (!notAfterToday(e.target.value)) {
+                      setDateHint("Dates can't be in the future");
+                      return;
+                    }
+                    updateCustomBound("from", e.target.value);
                   }}
                 />
                 <span>to</span>
@@ -385,10 +424,17 @@ export default function OperationsDashboard() {
                   value={draft.toDate}
                   max={toISODate(new Date())}
                   onChange={(e) => {
-                    if (notAfterToday(e.target.value)) updateDraft("toDate", e.target.value);
+                    if (!notAfterToday(e.target.value)) {
+                      setDateHint("Dates can't be in the future");
+                      return;
+                    }
+                    updateCustomBound("to", e.target.value);
                   }}
                 />
               </div>
+            )}
+            {draft.dateMode === "custom" && dateHint && (
+              <p className="date-range-hint" role="status">{dateHint}</p>
             )}
           </div>
           <div className="filter-actions">

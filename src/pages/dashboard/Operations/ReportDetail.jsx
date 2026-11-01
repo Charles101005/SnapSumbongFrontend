@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getReportDetail, getReportHistoryDetail } from "../../../api/reports";
 import { formatDueDate, slaBadge } from "../../../utils/sla";
 import { PERMISSIONS } from "../../../shared/constants";
@@ -327,6 +327,47 @@ function TimelineActivityModal({ event, reportNumber, onClose }) {
     ? (String(rawLogId).startsWith("LOG-") ? `#${rawLogId}` : `#LOG-${rawLogId}`)
     : "Unavailable";
   const primaryAction = event.primary_action || `Updated report status #${reportNumber}`;
+  const description = event.description || `Status changed to ${event.status || "Unknown"}.`;
+
+  // Long audit descriptions (the embedded citizen/officer remark can run to
+  // hundreds of characters) collapse to a few lines. The "See more" toggle
+  // is shown ONLY when the text genuinely overflows its clamped box at the
+  // current modal width — measured via ResizeObserver, so it stays correct
+  // from desktop down to a 375px viewport and re-checks on resize. Short
+  // descriptions render exactly as before (no clamp class, no button).
+  // (The parent conditionally renders this modal, so it remounts per open —
+  // state is always fresh for each timeline entry.)
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const [descriptionClampable, setDescriptionClampable] = useState(false);
+  const descriptionRef = useRef(null);
+  const descriptionExpandedRef = useRef(false);
+
+  useEffect(() => {
+    const element = descriptionRef.current;
+    if (!element || typeof ResizeObserver === "undefined") return undefined;
+    // Runs as an observer callback (never synchronously in the effect body).
+    // CONTRACT: the clamped <p> uses max-height + overflow:hidden (see
+    // .activity-description-clamped), NOT -webkit-line-clamp — line-clamp
+    // elides content so scrollHeight == clientHeight and this could never
+    // detect truncation. With max-height, scrollHeight keeps the full text
+    // height while clientHeight caps at the clamp, so a genuine overflow
+    // reliably yields scrollHeight > clientHeight.
+    // Only measurable while collapsed — once expanded, scrollHeight equals
+    // the unclamped clientHeight and would wrongly hide "See less".
+    const measure = () => {
+      if (descriptionExpandedRef.current) return;
+      setDescriptionClampable(element.scrollHeight > element.clientHeight + 1);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const toggleDescription = () => {
+    const next = !descriptionExpanded;
+    descriptionExpandedRef.current = next;
+    setDescriptionExpanded(next);
+  };
 
   return (
     <div className="activity-modal-overlay" onClick={(eventClick) => { eventClick.stopPropagation(); onClose(); }}>
@@ -369,7 +410,22 @@ function TimelineActivityModal({ event, reportNumber, onClose }) {
 
           <div className="activity-description">
             <span className="activity-field-label">Description</span>
-            <p>{event.description || `Status changed to ${event.status || "Unknown"}.`}</p>
+            <p
+              ref={descriptionRef}
+              className={descriptionExpanded ? undefined : "activity-description-clamped"}
+            >
+              {description}
+            </p>
+            {descriptionClampable && (
+              <button
+                type="button"
+                className="activity-description-toggle"
+                aria-expanded={descriptionExpanded}
+                onClick={toggleDescription}
+              >
+                {descriptionExpanded ? "See less" : "See more"}
+              </button>
+            )}
           </div>
         </div>
 

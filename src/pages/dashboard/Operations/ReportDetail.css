@@ -472,6 +472,40 @@
   overflow-wrap: anywhere;
 }
 
+/* Collapsed state of a long description: clamped to 4 lines. The class is
+   only applied when the measured text actually overflows at the current
+   width (see TimelineActivityModal), so short descriptions are untouched.
+
+   Deliberately NOT -webkit-line-clamp: that technique ELIDES content
+   (scrollHeight == clientHeight in Chrome), so the overflow measurement
+   would never detect the truncation and the "See more" toggle would never
+   render. max-height instead creates REAL scrollable overflow — scrollHeight
+   stays at the full text height while clientHeight caps at 4 lines — which
+   is exactly the contract the measurement needs.
+   calc() is em-based (4 lines x line-height 1.5), so it tracks the
+   element's own font-size and cuts cleanly at the 4th line-box edge. */
+.activity-description-clamped {
+  max-height: calc(1.5em * 4);
+  overflow: hidden;
+}
+
+/* Text-style toggle (mirrors .timeline-view-details): See more / See less. */
+.activity-description-toggle {
+  margin-top: 0.35rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.activity-description-toggle:hover {
+  text-decoration: underline;
+}
+
 .activity-modal-footer {
   display: flex;
   justify-content: flex-end;

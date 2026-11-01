@@ -4,7 +4,7 @@ import { getReports } from "../api/reports";
 import { getStatusCounts } from "../api/analytics";
 import { useAuth } from "./authContext";
 import { StatusCountsContext, STATUS_VIEWS } from "./statusCountsContext";
-import { DATE_FILTER_PRESETS, resolveRange, toISODate, validISODate } from "../utils/dates";
+import { DATE_FILTER_PRESETS, resolveRange, sanitizeDateBounds } from "../utils/dates";
 
 // Backstop only — the event triggers below (save, tab focus, date change) are
 // what keep the numbers live in normal use.
@@ -41,14 +41,14 @@ export function StatusCountsProvider({ children }) {
   // Today. Reduced to primitives so the effect can depend on values rather
   // than object identity (re-renders never re-fire a request).
   const rawRange = (searchParams.get("range") || "").trim();
-  // Same future-date guard the Operations table applies to deep links (its
-  // "drop anything after today" rule): a shared URL can't seed the count
-  // window with dates that don't exist yet, so both sides resolve any URL
-  // to the identical range.
-  const today = toISODate(new Date());
-  const clampToPast = (iso) => (iso && iso > today ? "" : iso);
-  const rangeFrom = clampToPast(validISODate((searchParams.get("from") || "").trim()));
-  const rangeTo = clampToPast(validISODate((searchParams.get("to") || "").trim()));
+  // Same sanitiser the Operations table applies to deep links — future dates
+  // dropped, an inverted From → To pair repaired (From wins, To moves) — so
+  // the badge counts and the table resolve any URL to the identical window
+  // and can never disagree about what the badges count.
+  const { from: rangeFrom, to: rangeTo } = sanitizeDateBounds(
+    searchParams.get("from") || "",
+    searchParams.get("to") || ""
+  );
   const preset = DATE_FILTER_PRESETS.some((option) => option.key === rawRange)
     ? rawRange
     : rangeFrom || rangeTo

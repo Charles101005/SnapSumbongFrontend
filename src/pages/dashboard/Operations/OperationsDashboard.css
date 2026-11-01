@@ -233,6 +233,14 @@
   width:152px;
   padding-right:2rem
 }
+/* Correction notice under the custom range: shown when the inputs adjust a
+   bound to keep From <= To, or reject a future date (see updateCustomBound).
+   Amber rather than the .form-error red — it's guidance, not a failure. */
+.date-range-hint {
+  margin:.25rem 0 0;
+  font-size:.62rem;
+  color:#b45309
+}
 .filters-section .filter-actions {
   display:flex;
   flex:1 0 100%;

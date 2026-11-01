@@ -19,6 +19,58 @@ export const notAfterToday = (iso) => !iso || iso <= toISODate(new Date());
 // (or a badge count range) with garbage.
 export const validISODate = (value) => (/^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "");
 
+// Sanitise a custom From → To pair read from a URL (deep link / shared link).
+// Three rules, applied in order — the same outcomes the date inputs produce
+// while the user edits:
+//  1. format check (validISODate) — garbage never seeds a window;
+//  2. drop anything after today — reports don't exist yet (notAfterToday rule);
+//  3. repair an inverted pair: the From bound wins and To moves to match it,
+//     so from_date > to_date can never reach the API as an empty result.
+//     Deliberately silent — a deep link isn't a user action; the interactive
+//     path reports through validateCustomRange below instead.
+// Every URL consumer must call this — the Operations table's filters and
+// StatusCountsProvider's badge counts — or a repaired URL would make the two
+// disagree. -> { from, to }
+export const sanitizeDateBounds = (from, to) => {
+  const today = toISODate(new Date());
+  const start = validISODate(String(from || "").trim());
+  const end = validISODate(String(to || "").trim());
+  const fromStart = start > today ? "" : start;
+  const toEnd = end > today ? "" : end;
+  return fromStart && toEnd && fromStart > toEnd
+    ? { from: fromStart, to: fromStart }
+    : { from: fromStart, to: toEnd };
+};
+
+// Layer 1 of the custom-range standard (constrain → validate → block): the
+// picker bounds for a From/To pair. From can't be chosen after the To that's
+// already set (nor after today); To can't be chosen before the From already
+// set — so an inverted window can't be picked at all. HTML min/max only
+// guards the picker, not typed/pasted values, which validateCustomRange
+// below then catches. -> { fromMax, toMin }
+export const customRangeBounds = (from, to) => {
+  const today = toISODate(new Date());
+  return {
+    fromMax: to && to < today ? to : today,
+    toMin: from || undefined,
+  };
+};
+
+// Layers 2+3 of the same standard: the actionable message for a custom
+// From → To pair, or "" when the pair is safe to apply. Derived on every
+// render — a state, not a notification — so it persists exactly as long as
+// the values are invalid, and the Apply button / fetch stays gated while it
+// is set. The inputs keep whatever the user typed; nothing is rewritten
+// behind their back. Rules, in order:
+//  1. either bound in the future — reports don't exist yet;
+//  2. From after To — the window would query as an empty result.
+export const validateCustomRange = (from, to) => {
+  if (from && !notAfterToday(from)) return "Dates can't be in the future";
+  if (to && !notAfterToday(to)) return "Dates can't be in the future";
+  if (from && to && from > to) return "Start date must be on or before end date";
+  return "";
+};
+
 export const addDays = (date, days) => {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
