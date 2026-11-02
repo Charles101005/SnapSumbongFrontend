@@ -33,7 +33,7 @@ import { usePermissions } from "../../../hooks/usePermissions";
 import { useAuth } from "../../../context/authContext";
 import { formatDate, round1 } from "../../../utils/format";
 import { formatDueDate, slaBadge } from "../../../utils/sla";
-import { RANGE_PRESETS, addDays, formatRange, notAfterToday, previousPeriod, resolveRange, toISODate } from "../../../utils/dates";
+import { RANGE_PRESETS, addDays, customRangeBounds, formatRange, previousPeriod, resolveRange, toISODate, validateCustomRange } from "../../../utils/dates";
 import {
   detectSpikes,
   formatDays,
@@ -202,7 +202,25 @@ export default function Analytics() {
   );
   const prevRange = useMemo(() => previousPeriod(range), [range]);
 
+  // Custom-range standard — constrain → validate → block (see utils/dates.js).
+  // customRangeBounds makes impossible days unpickable; validateCustomRange
+  // reports anything typed/pasted past those bounds; and the fetch effect
+  // below refuses to run while dateError is set, so the dashboard keeps the
+  // last valid numbers instead of querying an empty/inverted window. The
+  // inputs are never rewritten — the user fixes them, guided by the inline
+  // error. Presets are always valid, so only Custom Range is checked.
+  const dateError = preset === "custom" ? validateCustomRange(customFrom, customTo) : "";
+  const { fromMax, toMin } = customRangeBounds(customFrom, customTo);
+  // A change that invalidates the range cancels any in-flight request at its
+  // `cancelled` guard, which can leave `loading` true. While the range is
+  // invalid the dashboard deliberately shows the last valid response, so
+  // treat that as settled instead of flipping every panel to its placeholder.
+  const busy = loading && !dateError;
+
   useEffect(() => {
+    // Blocked: keep the previous (valid) response on screen while the range
+    // is invalid — the inline error explains why nothing is updating.
+    if (dateError) return undefined;
     let cancelled = false;
     const activeRange = resolveRange(preset, new Date(), { from: customFrom, to: customTo });
     const activePrevRange = previousPeriod(activeRange);
@@ -260,7 +278,7 @@ export default function Analytics() {
     return () => {
       cancelled = true;
     };
-  }, [preset, customFrom, customTo, reloadKey, isStaff]);
+  }, [preset, customFrom, customTo, reloadKey, isStaff, dateError]);
 
   /* ===== Derived series & stats ===== */
   // Bounded selections fill the exact period; All Time falls back to the
@@ -414,31 +432,27 @@ export default function Analytics() {
                 <input
                   type="date"
                   value={customFrom}
-                  max={toISODate(new Date())}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (!notAfterToday(value)) return;
-                    setCustomFrom(value);
-                    // A From past the To moves the To with it so the window
-                    // stays a valid inclusive From → To range.
-                    if (value && customTo && value > customTo) setCustomTo(value);
-                  }}
+                  max={fromMax}
+                  aria-invalid={dateError ? "true" : undefined}
+                  aria-describedby={dateError ? "an-date-range-error" : undefined}
+                  onChange={(e) => setCustomFrom(e.target.value)}
                 />
                 <span>to</span>
                 <input
                   type="date"
                   value={customTo}
+                  min={toMin}
                   max={toISODate(new Date())}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (!notAfterToday(value)) return;
-                    setCustomTo(value);
-                    if (value && customFrom && value < customFrom) setCustomFrom(value);
-                  }}
+                  aria-invalid={dateError ? "true" : undefined}
+                  aria-describedby={dateError ? "an-date-range-error" : undefined}
+                  onChange={(e) => setCustomTo(e.target.value)}
                 />
               </div>
             )}
-            <button type="button" className="an-refresh" onClick={() => setReloadKey((key) => key + 1)}>
+            {dateError && (
+              <p className="date-range-error" id="an-date-range-error" role="alert">{dateError}</p>
+            )}
+            <button type="button" className="an-refresh" disabled={Boolean(dateError)} onClick={() => setReloadKey((key) => key + 1)}>
               <RefreshIcon /> Refresh
             </button>
           </div>
@@ -457,8 +471,8 @@ export default function Analytics() {
             <div className="an-kpi-body">
               <span className="an-kpi-label">Total Reports</span>
               <div className="an-kpi-value-row">
-                <strong className="an-kpi-value">{loading ? "—" : (overview?.intake?.total ?? "—")}</strong>
-                {!loading && <DeltaChip value={totalDelta} unit="%" goodDirection="neutral" />}
+                <strong className="an-kpi-value">{busy ? "—" : (overview?.intake?.total ?? "—")}</strong>
+                {!busy && <DeltaChip value={totalDelta} unit="%" goodDirection="neutral" />}
               </div>
               <span className="an-kpi-hint">Filed in the selected period</span>
             </div>
@@ -469,8 +483,8 @@ export default function Analytics() {
             <div className="an-kpi-body">
               <span className="an-kpi-label">Avg Resolution Time</span>
               <div className="an-kpi-value-row">
-                <strong className="an-kpi-value">{loading ? "—" : formatDays(delivery?.avg_days)}</strong>
-                {!loading && <DeltaChip value={avgDelta} unit="%" goodDirection="down" />}
+                <strong className="an-kpi-value">{busy ? "—" : formatDays(delivery?.avg_days)}</strong>
+                {!busy && <DeltaChip value={avgDelta} unit="%" goodDirection="down" />}
               </div>
               <span className="an-kpi-hint">
                 {delivery?.resolved
@@ -489,8 +503,8 @@ export default function Analytics() {
             <div className="an-kpi-body">
               <span className="an-kpi-label">SLA Compliance</span>
               <div className="an-kpi-value-row">
-                <strong className={`an-kpi-value an-value-${slaTone}`}>{loading ? "—" : formatPct(slaPct)}</strong>
-                {!loading && <DeltaChip value={slaDelta} unit="pp" goodDirection="up" />}
+                <strong className={`an-kpi-value an-value-${slaTone}`}>{busy ? "—" : formatPct(slaPct)}</strong>
+                {!busy && <DeltaChip value={slaDelta} unit="pp" goodDirection="up" />}
               </div>
               <span className="an-kpi-hint">
                 {sla && (sla.judged || sla.pending)
@@ -533,7 +547,7 @@ export default function Analytics() {
               action={<Link to={operationsHref({})} className="an-panel-link">View these reports →</Link>}
             />
             {prevError && <p className="an-note an-note-warn">{prevError}</p>}
-            {loading ? (
+            {busy ? (
               <Skeleton height={250} />
             ) : dataError ? (
               <p className="an-empty">{dataError}</p>
@@ -579,7 +593,7 @@ export default function Analytics() {
               title="Severity Distribution"
               sub="Reports filed in period — click a bar to drill down"
             />
-            {loading ? (
+            {busy ? (
               <Skeleton height={190} />
             ) : severityData.some((row) => row.count > 0) ? (
               <div className="an-chart">
@@ -628,7 +642,7 @@ export default function Analytics() {
               title="Status Mix"
               sub="Where reports sit in the workflow — click a bar to drill down"
             />
-            {loading ? (
+            {busy ? (
               <Skeleton height={190} />
             ) : statusMixData.length ? (
               <div className="an-chart">
@@ -677,7 +691,7 @@ export default function Analytics() {
               title="Resolution Time Trend"
               sub={`${granularity === "week" ? "Weekly" : "Daily"} average of created → resolved`}
             />
-            {loading ? (
+            {busy ? (
               <Skeleton height={190} />
             ) : trend.length ? (
               <div className="an-chart">
@@ -729,7 +743,7 @@ export default function Analytics() {
               title="Report Surges"
               sub="Sudden jumps in report volume"
             />
-            {loading ? (
+            {busy ? (
               <Skeleton height={120} />
             ) : spikes.length ? (
               <ul className="an-spike-list">
@@ -774,7 +788,7 @@ export default function Analytics() {
                   </Link>
                 }
               />
-              {loading ? (
+              {busy ? (
                 <Skeleton height={120} />
               ) : overdue.error ? (
                 <p className="an-empty">{overdue.error}</p>
@@ -840,7 +854,7 @@ export default function Analytics() {
                 </Link>
               }
             />
-            {loading ? (
+            {busy ? (
               <Skeleton height={120} />
             ) : slowest.length ? (
               <div className="an-table-wrap">

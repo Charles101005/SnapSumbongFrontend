@@ -20,7 +20,7 @@ import { useCanAudit } from "../../../hooks/useCanAudit";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { PERMISSIONS } from "../../../shared/constants";
 import { formatDate, formatLastActive, normalizeStatusKey, prettifyStatus } from "../../../utils/format";
-import { DATE_FILTER_PRESETS, formatRange, notAfterToday, resolveRange, toISODate } from "../../../utils/dates";
+import { DATE_FILTER_PRESETS, customRangeBounds, formatRange, resolveRange, toISODate, validateCustomRange } from "../../../utils/dates";
 import "./DashboardHome.css";
 
 export default function DashboardHome() {
@@ -49,7 +49,24 @@ export default function DashboardHome() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
+  // Custom-range standard — constrain → validate → block (see utils/dates.js).
+  // customRangeBounds makes impossible days unpickable, validateCustomRange
+  // reports anything typed/pasted past those bounds, and the fetch effect
+  // below skips while the pair is invalid so every widget keeps its last
+  // valid numbers. The inputs keep what the user entered — nothing is
+  // auto-corrected. Presets are always valid.
+  const dateError = dateMode === "custom" ? validateCustomRange(dateFrom, dateTo) : "";
+  const { fromMax, toMin } = customRangeBounds(dateFrom, dateTo);
+  // A change that invalidates the range cancels any in-flight request at its
+  // `cancelled` guard, which can leave `loading` true. While the range is
+  // invalid we're deliberately showing the last valid response, so treat that
+  // as settled — otherwise every widget would flip to its placeholder.
+  const busy = loading && !dateError;
+
   useEffect(() => {
+    // Blocked: an invalid custom range doesn't fetch. The previous (valid)
+    // response stays on screen; the inline error explains why.
+    if (dateError) return undefined;
     let cancelled = false;
 
     (async () => {
@@ -135,7 +152,7 @@ export default function DashboardHome() {
     })();
 
     return () => { cancelled = true; };
-  }, [canAudit, canReadEmployees, canReadCitizens, canViewUsers, dateMode, dateFrom, dateTo]);
+  }, [canAudit, canReadEmployees, canReadCitizens, canViewUsers, dateMode, dateFrom, dateTo, dateError]);
 
   const counts = metrics?.count_by_status || {};
   const total = metrics?.total_count ?? null;
@@ -143,7 +160,7 @@ export default function DashboardHome() {
   const underReview = Number(counts.under_review || 0);
   const dispatched = Number(counts.dispatched || 0);
 
-  const display = (value) => (loading ? "—" : (value ?? "—"));
+  const display = (value) => (busy ? "—" : (value ?? "—"));
   const bannerError = errors.metrics || errors.recent;
   // Resolved at render for the toolbar note; requests re-resolve at fetch
   // time, so a "Today" selection stays correct after a day/month boundary.
@@ -203,24 +220,28 @@ export default function DashboardHome() {
                 <input
                   type="date"
                   value={dateFrom}
-                  max={toISODate(new Date())}
-                  onChange={(e) => {
-                    if (notAfterToday(e.target.value)) setDateFrom(e.target.value);
-                  }}
+                  max={fromMax}
+                  aria-invalid={dateError ? "true" : undefined}
+                  aria-describedby={dateError ? "dh-date-range-error" : undefined}
+                  onChange={(e) => setDateFrom(e.target.value)}
                 />
                 <span>to</span>
                 <input
                   type="date"
                   value={dateTo}
+                  min={toMin}
                   max={toISODate(new Date())}
-                  onChange={(e) => {
-                    if (notAfterToday(e.target.value)) setDateTo(e.target.value);
-                  }}
+                  aria-invalid={dateError ? "true" : undefined}
+                  aria-describedby={dateError ? "dh-date-range-error" : undefined}
+                  onChange={(e) => setDateTo(e.target.value)}
                 />
               </div>
             )}
+            {dateError && (
+              <p className="date-range-error" id="dh-date-range-error" role="alert">{dateError}</p>
+            )}
           </div>
-          <span className="dh-range-note">{formatRange(activeRange)}</span>
+          {!dateError && <span className="dh-range-note">{formatRange(activeRange)}</span>}
         </div>
 
         <div className="dh-kpi-grid" data-count={kpiCards.length}>
@@ -246,7 +267,7 @@ export default function DashboardHome() {
                   <tr><th>REPORT ID</th><th>CATEGORY</th><th>DATE</th><th>STATUS</th><th>SEVERITY</th><th>ACTION</th></tr>
                 </thead>
                 <tbody>
-                  {loading ? (
+                  {busy ? (
                     <tr><td colSpan="6" className="dh-empty">Loading reports...</td></tr>
                   ) : recent.length ? (
                     recent.map((report) => (
@@ -277,7 +298,7 @@ export default function DashboardHome() {
           <aside className="dh-alerts">
             <div className="dh-alerts-header"><DiamondIcon /> CRITICAL ALERTS</div>
             <div className="dh-alerts-body">
-              {loading ? (
+              {busy ? (
                 <p className="dh-muted">Loading alerts...</p>
               ) : alerts.length ? (
                 alerts.map((alert) => (
@@ -316,7 +337,7 @@ export default function DashboardHome() {
                   <tr><th>USER</th><th>ROLE</th><th>ACTION</th><th>MODULE</th><th>WHEN</th></tr>
                 </thead>
                 <tbody>
-                  {loading ? (
+                  {busy ? (
                     <tr><td colSpan="5" className="dh-empty">Loading activity...</td></tr>
                   ) : auditLogs.length ? (
                     auditLogs.map((log) => (

@@ -743,6 +743,17 @@ body {
   color: var(--color-text-muted);
 }
 
+/* Persistent validation message for a custom From → To pair (see
+   validateCustomRange in utils/dates.js). Not a toast: it stays for exactly
+   as long as the values are invalid. Pages whose date row is a column stack
+   it automatically; the wrapping toolbar rows add a local flex rule to give
+   it a full line. */
+.date-range-error {
+  margin: 0.25rem 0 0;
+  font-size: var(--text-xs);
+  color: #be123c;
+}
+
 .filter-buttons {
   display: flex;
   align-items: center;
@@ -769,6 +780,17 @@ body {
 
 .btn-filter-apply:hover {
   background-color: var(--color-primary-hover);
+}
+
+/* Blocked while a custom date range is invalid — the inline
+   .date-range-error next to the fields explains why. */
+.btn-filter-apply:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-filter-apply:disabled:hover {
+  background-color: var(--color-primary);
 }
 
 .btn-filter-reset {

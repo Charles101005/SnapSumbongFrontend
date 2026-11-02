@@ -27,6 +27,7 @@
 .dh-date-filter {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.45rem;
   font-size: 0.72rem;
   font-weight: 600;
@@ -82,6 +83,12 @@
   font-weight: 600;
   color: var(--color-text-muted);
   white-space: nowrap;
+}
+/* Custom-range validation: the message takes its own line under the
+   From/To inputs inside the wrapping .dh-date-filter row. */
+.dh-date-filter .date-range-error {
+  flex: 1 0 100%;
+  margin: 0;
 }
 
 /* ===== Row 1: KPI cards (styling lives in components/shared/KpiCard.css) =====

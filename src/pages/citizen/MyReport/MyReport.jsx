@@ -7,7 +7,7 @@ import './MyReport.css';
 import { getReports, getReportDetail, getHazardCategories, confirmReportResolution } from '../../../api/reports';
 import { getReportMetrics } from '../../../api/analytics';
 import { hazardMarkerIcon } from '../../../utils/leafletHelpers';
-import { notAfterToday, toISODate } from '../../../utils/dates';
+import { toISODate, validateCustomRange } from '../../../utils/dates';
 import { formatDueDate, slaBadge } from '../../../utils/sla';
 
 const ROWS_PER_PAGE = 5; // Matches the backend's SmallListPagination page size.
@@ -213,7 +213,17 @@ export default function MyReport() {
     };
   }, [refreshTick]);
 
+  // Custom-range standard — constrain → validate → block (see utils/dates.js).
+  // This filter has a single bound, so the rule reduces to "nothing in the
+  // future"; the picker is capped at today and validateCustomRange catches
+  // anything typed/pasted past it. The input keeps the user's value and the
+  // Apply button below stays blocked while the message is visible.
+  const dateError = validateCustomRange(tempDate, '');
+
   const handleApplyFilters = () => {
+    // Blocked while the date is invalid — the inline error under the field
+    // explains why, and the draft keeps the typed value for correction.
+    if (dateError) return;
     setAppliedCategoryId(tempCategoryId);
     setAppliedStatus(tempStatus);
     setAppliedDate(tempDate);
@@ -700,7 +710,7 @@ export default function MyReport() {
       </div>
 
       {/* Filters Card */}
-      <div className="card filters-card">
+      <div className={`card filters-card${dateError ? ' filters-card-invalid' : ''}`}>
         <div className="filter-group">
           <label>Category</label>
           <select value={tempCategoryId} onChange={(e) => setTempCategoryId(e.target.value)} onKeyDown={handleFilterKeyDown}>
@@ -731,11 +741,14 @@ export default function MyReport() {
             type="date"
             value={tempDate}
             max={toISODate(new Date())}
-            onChange={(e) => {
-              if (notAfterToday(e.target.value)) setTempDate(e.target.value);
-            }}
+            aria-invalid={dateError ? 'true' : undefined}
+            aria-describedby={dateError ? 'my-date-range-error' : undefined}
+            onChange={(e) => setTempDate(e.target.value)}
             onKeyDown={handleFilterKeyDown}
           />
+          {dateError && (
+            <p className="date-range-error" id="my-date-range-error" role="alert">{dateError}</p>
+          )}
         </div>
 
         <div className="filter-group search-filter-group">
@@ -753,7 +766,7 @@ export default function MyReport() {
         </div>
 
         <div className="filter-actions">
-          <button className="btn-apply" onClick={handleApplyFilters}>
+          <button className="btn-apply" disabled={Boolean(dateError)} onClick={handleApplyFilters}>
             Apply Filters
           </button>
           <button className="btn-reset" onClick={handleResetFilters}>

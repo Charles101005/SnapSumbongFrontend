@@ -108,6 +108,13 @@
   margin-top: 0.15rem;
 }
 
+/* The custom-range error adds a line to the Date field. Keep the row's normal
+   bottom alignment for the action buttons, but top-align the fields so the
+   taller Date field doesn't drag the rest down with it. */
+.audit-trail-page .filter-row-invalid .filter-field {
+  align-self: flex-start;
+}
+
 /* ===== ACTIVITY DETAILS MODAL ===== */
 .activity-details-overlay {
   position: fixed;

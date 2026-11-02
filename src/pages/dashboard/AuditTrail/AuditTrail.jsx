@@ -3,7 +3,7 @@ import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout
 import "./AuditTrail.css";
 import { getAuditLogs, getAuditLog, getAuditModuleLookup } from "../../../api/audits";
 import { getRoleLookup } from "../../../api/roles";
-import { DATE_FILTER_PRESETS, notAfterToday, resolveRange, toISODate } from "../../../utils/dates";
+import { DATE_FILTER_PRESETS, customRangeBounds, resolveRange, toISODate, validateCustomRange } from "../../../utils/dates";
 import Pagination from "../../../components/shared/Pagination";
 
 const ROWS_PER_PAGE = 4;
@@ -369,7 +369,18 @@ export default function AuditTrail() {
   const startRow = count === 0 ? 0 : (safePage - 1) * ROWS_PER_PAGE + 1;
   const endRow = Math.min(safePage * ROWS_PER_PAGE, count);
 
+  // Custom-range standard — constrain → validate → block (see utils/dates.js).
+  // customRangeBounds makes impossible days unpickable, validateCustomRange
+  // reports anything typed/pasted past those bounds, and Apply/Enter are
+  // blocked while it reports. The draft keeps exactly what the user entered —
+  // nothing is auto-corrected. Presets are always valid.
+  const draftDateError = draftDateMode === "custom" ? validateCustomRange(draftDateFrom, draftDateTo) : "";
+  const { fromMax, toMin } = customRangeBounds(draftDateFrom, draftDateTo);
+
   const handleApplyFilters = () => {
+    // Blocked while the draft custom range is invalid (see draftDateError);
+    // the inline error under the date fields explains why.
+    if (draftDateError) return;
     setSearchQuery(draftSearch);
     setModuleFilter(draftModule);
     setRoleFilter(draftRole);
@@ -411,7 +422,7 @@ export default function AuditTrail() {
         </div>
 
         <div className="filter-card">
-          <div className="filter-row">
+          <div className={`filter-row${draftDateError ? " filter-row-invalid" : ""}`}>
             <div className="filter-field filter-field-search">
               <label className="filter-label">Search Activities</label>
               <div className="filter-search-wrap">
@@ -453,34 +464,40 @@ export default function AuditTrail() {
                 ))}
               </select>
               {draftDateMode === "custom" && (
-                <div className="date-range-wrapper">
-                  <span className="date-range-separator">From</span>
-                  <input
-                    type="date"
-                    className="filter-date"
-                    value={draftDateFrom}
-                    max={toISODate(new Date())}
-                    onChange={(e) => {
-                      if (notAfterToday(e.target.value)) setDraftDateFrom(e.target.value);
-                    }}
-                    onKeyDown={handleFilterKeyDown}
-                  />
-                  <span className="date-range-separator">to</span>
-                  <input
-                    type="date"
-                    className="filter-date"
-                    value={draftDateTo}
-                    max={toISODate(new Date())}
-                    onChange={(e) => {
-                      if (notAfterToday(e.target.value)) setDraftDateTo(e.target.value);
-                    }}
-                    onKeyDown={handleFilterKeyDown}
-                  />
-                </div>
+                <>
+                  <div className="date-range-wrapper">
+                    <span className="date-range-separator">From</span>
+                    <input
+                      type="date"
+                      className="filter-date"
+                      value={draftDateFrom}
+                      max={fromMax}
+                      aria-invalid={draftDateError ? "true" : undefined}
+                      aria-describedby={draftDateError ? "audit-date-range-error" : undefined}
+                      onChange={(e) => setDraftDateFrom(e.target.value)}
+                      onKeyDown={handleFilterKeyDown}
+                    />
+                    <span className="date-range-separator">to</span>
+                    <input
+                      type="date"
+                      className="filter-date"
+                      value={draftDateTo}
+                      min={toMin}
+                      max={toISODate(new Date())}
+                      aria-invalid={draftDateError ? "true" : undefined}
+                      aria-describedby={draftDateError ? "audit-date-range-error" : undefined}
+                      onChange={(e) => setDraftDateTo(e.target.value)}
+                      onKeyDown={handleFilterKeyDown}
+                    />
+                  </div>
+                  {draftDateError && (
+                    <p className="date-range-error" id="audit-date-range-error" role="alert">{draftDateError}</p>
+                  )}
+                </>
               )}
             </div>
             <div className="filter-buttons">
-              <button className="btn-filter-apply" onClick={handleApplyFilters}>
+              <button type="button" className="btn-filter-apply" disabled={Boolean(draftDateError)} onClick={handleApplyFilters}>
                 <FilterIcon />
                 Apply Filters
               </button>

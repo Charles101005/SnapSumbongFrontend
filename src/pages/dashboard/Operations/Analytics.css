@@ -87,6 +87,13 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
+/* Custom-range validation: the message takes its own full line inside the
+   wrapping .an-header-actions row (see validateCustomRange). */
+.an-header-actions .date-range-error {
+  flex: 1 0 100%;
+  margin: 0;
+}
+
 .an-refresh {
   display: inline-flex;
   align-items: center;
@@ -105,6 +112,18 @@
 .an-refresh:hover {
   background: var(--color-bg-page);
   border-color: #cbd5e1;
+}
+
+/* Refresh refetches the current range, so it's blocked while that range is
+   invalid (the fetch effect is gated too). */
+.an-refresh:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.an-refresh:disabled:hover {
+  background: #fff;
+  border-color: var(--color-border);
 }
 
 /* ===== Banner / notes ===== */

@@ -17,7 +17,7 @@ import {
 import { getReportLookups, getReports } from "../../../api/reports";
 import { REPORT_STATUSES, STATUS_VIEWS, useStatusCounts } from "../../../context/statusCountsContext";
 import { formatDueDate, slaBadge } from "../../../utils/sla";
-import { DATE_FILTER_PRESETS, notAfterToday, resolveRange, sanitizeDateBounds, toISODate } from "../../../utils/dates";
+import { DATE_FILTER_PRESETS, customRangeBounds, resolveRange, sanitizeDateBounds, toISODate, validateCustomRange } from "../../../utils/dates";
 import { normalizeStatusKey as normalize, prettifyStatus } from "../../../utils/format";
 import { PERMISSIONS } from "../../../shared/constants";
 import { usePermissions } from "../../../hooks/usePermissions";
@@ -94,12 +94,6 @@ export default function OperationsDashboard() {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ category: "", severity: urlSeverity, status: urlStatus, search: "", dateMode: urlDateMode, fromDate: urlFrom, toDate: urlTo, overdue: urlOverdue });
   const [draft, setDraft] = useState(filters);
-  // Transient explanation for a date-input correction — the custom range
-  // corrects the user as they edit (see updateCustomBound), and this is what
-  // makes that correction visible instead of silent. Set on a drag or a
-  // rejected future date, cleared by the next valid date edit, a preset
-  // change, Apply and Reset; only rendered inside Custom Range.
-  const [dateHint, setDateHint] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   // Bumped by reloadAll() after a mutation so the fetch effect below refetches
@@ -248,25 +242,15 @@ export default function OperationsDashboard() {
   const severities = lookups.severities || [];
 
   const updateDraft = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
-  // Custom-range correction — the exact rule Analytics applies in its From/To
-  // handlers (Analytics.jsx:424,436): the window must stay a valid inclusive
-  // From → To pair, so whichever bound the user just set wins and the other
-  // drags with it — From past To moves To forward, To before From moves From
-  // back. An inverted window (which the API would read as an empty result)
-  // therefore can never be applied, and because both values already passed
-  // notAfterToday, a dragged bound can never be in the future either. The
-  // hint surfaces the otherwise-silent correction to the user.
-  const updateCustomBound = (bound, value) => {
-    if (bound === "from") {
-      const dragged = Boolean(value && draft.toDate && value > draft.toDate);
-      setDateHint(dragged ? "To adjusted to match From" : "");
-      setDraft((current) => ({ ...current, fromDate: value, toDate: dragged ? value : current.toDate }));
-      return;
-    }
-    const dragged = Boolean(value && draft.fromDate && value < draft.fromDate);
-    setDateHint(dragged ? "From adjusted to match To" : "");
-    setDraft((current) => ({ ...current, toDate: value, fromDate: dragged ? value : current.fromDate }));
-  };
+  // Custom-range standard — constrain → validate → block (see
+  // utils/dates.js): customRangeBounds makes impossible days unpickable, and
+  // validateCustomRange reports anything typed/pasted past those bounds.
+  // dateError is derived on every render, so it persists exactly as long as
+  // the pair is invalid; the inputs keep what the user typed (nothing is
+  // rewritten behind their back) and Apply/Enter below stay blocked until
+  // they fix it. Only Custom Range is validated — presets are always valid.
+  const dateError = draft.dateMode === "custom" ? validateCustomRange(draft.fromDate, draft.toDate) : "";
+  const { fromMax, toMin } = customRangeBounds(draft.fromDate, draft.toDate);
   // Mirror the deep-linkable filters into the URL so sidebar links, Analytics
   // drill-downs and browser back/forward all read from one source of truth.
   // Category/status/search stay page-local and are never written to the URL.
@@ -290,7 +274,12 @@ export default function OperationsDashboard() {
   // rest. Status is deliberately never written here: any ?status= would flip
   // the page into a Status View, which the sidebar/summary-bar own — so the
   // Status dropdown stays a local overview-only filter.
-  const handleApplyFilters = () => { setDateHint(""); setPage(1); setFilters(draft); syncParamsFrom(draft); };
+  const handleApplyFilters = () => {
+    // Blocked while the custom range is invalid — the inline error explains
+    // why, and the draft is left untouched so the user can correct it.
+    if (dateError) return;
+    setPage(1); setFilters(draft); syncParamsFrom(draft);
+  };
   // Enter inside any filter control applies the draft, matching MyReport and
   // AuditTrail. Prevent the default on selects so the dropdown doesn't reopen.
   const handleFilterKeyDown = (e) => {
@@ -302,7 +291,7 @@ export default function OperationsDashboard() {
     // Status Views keep their locked status on reset — clearing it would
     // silently kick the user back to the Overview.
     const empty = { category: "", severity: "", status: isStatusView ? urlStatus : "", search: "", dateMode: "today", fromDate: "", toDate: "", overdue: false };
-    setDateHint(""); setPage(1); setDraft(empty); setFilters(empty);
+    setPage(1); setDraft(empty); setFilters(empty);
     syncParamsFrom(empty);
   };
 
@@ -393,7 +382,7 @@ export default function OperationsDashboard() {
           chips) and the Status dropdown is hidden; the overview shows it as a
           normal page-local filter alongside Category. */}
       <div className="filters-section">
-        <div className="filters-row">
+        <div className={`filters-row${dateError ? " filters-row-invalid" : ""}`}>
           <div className="filter-group filter-search">
             <label>Search</label>
             <div className="search-wrap">
@@ -430,7 +419,7 @@ export default function OperationsDashboard() {
           </div>
           <div className="filter-group date-filter">
             <label>Date</label>
-            <select value={draft.dateMode} onChange={(e) => { setDateHint(""); updateDraft("dateMode", e.target.value); }}>
+            <select value={draft.dateMode} onChange={(e) => updateDraft("dateMode", e.target.value)}>
               {DATE_FILTER_PRESETS.map((option) => (
                 <option key={option.key} value={option.key}>{option.label}</option>
               ))}
@@ -441,37 +430,27 @@ export default function OperationsDashboard() {
                 <input
                   type="date"
                   value={draft.fromDate}
-                  max={toISODate(new Date())}
-                  onChange={(e) => {
-                    // Same rejection as Analytics: the controlled input snaps
-                    // back to its previous date — say why instead of leaving
-                    // the user to guess.
-                    if (!notAfterToday(e.target.value)) {
-                      setDateHint("Dates can't be in the future");
-                      return;
-                    }
-                    updateCustomBound("from", e.target.value);
-                  }}
+                  max={fromMax}
+                  aria-invalid={dateError ? "true" : undefined}
+                  aria-describedby={dateError ? "ops-date-range-error" : undefined}
+                  onChange={(e) => updateDraft("fromDate", e.target.value)}
                   onKeyDown={handleFilterKeyDown}
                 />
                 <span>to</span>
                 <input
                   type="date"
                   value={draft.toDate}
+                  min={toMin}
                   max={toISODate(new Date())}
-                  onChange={(e) => {
-                    if (!notAfterToday(e.target.value)) {
-                      setDateHint("Dates can't be in the future");
-                      return;
-                    }
-                    updateCustomBound("to", e.target.value);
-                  }}
+                  aria-invalid={dateError ? "true" : undefined}
+                  aria-describedby={dateError ? "ops-date-range-error" : undefined}
+                  onChange={(e) => updateDraft("toDate", e.target.value)}
                   onKeyDown={handleFilterKeyDown}
                 />
               </div>
             )}
-            {draft.dateMode === "custom" && dateHint && (
-              <p className="date-range-hint" role="status">{dateHint}</p>
+            {dateError && (
+              <p className="date-range-error" id="ops-date-range-error" role="alert">{dateError}</p>
             )}
           </div>
           <div className="filter-actions">
@@ -479,7 +458,7 @@ export default function OperationsDashboard() {
               <input type="checkbox" checked={draft.overdue} onChange={(e) => updateDraft("overdue", e.target.checked)} onKeyDown={handleFilterKeyDown}/>
               Overdue only
             </label>
-            <button className="btn-apply" onClick={handleApplyFilters}><FilterIcon />Apply Filters</button><button className="btn-reset" onClick={reset}>Reset</button>
+            <button type="button" className="btn-apply" disabled={Boolean(dateError)} onClick={handleApplyFilters}><FilterIcon />Apply Filters</button><button className="btn-reset" onClick={reset}>Reset</button>
           </div>
         </div>
       </div>
