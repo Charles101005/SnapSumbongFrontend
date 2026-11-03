@@ -26,8 +26,7 @@ import "./DashboardHome.css";
 export default function DashboardHome() {
   const canAnalytics = useCanAnalytics();
   const canAudit = useCanAudit();
-  // Scope-aware dashboard: what's shown follows the user's permissions,
-  // never their role name (custom roles behave correctly automatically).
+  // Scope-aware dashboard: what's shown follows permissions, never the role name
   const { can, reportScope } = usePermissions();
   const canReadEmployees = can(PERMISSIONS.EMPLOYEE_READ_ALL);
   const canReadCitizens = can(PERMISSIONS.USER_READ_ALL);
@@ -40,21 +39,14 @@ export default function DashboardHome() {
   const [auditLogs, setAuditLogs] = useState([]);
   const [totalUsers, setTotalUsers] = useState(null);
   const [errors, setErrors] = useState({});
-  // Date scope for every report-derived widget (KPI cards, Recent Reports,
-  // Critical Alerts, Recent Activity). Defaults to Today; local state —
-  // nothing deep-links into the home dashboard. Total Users has no date
-  // filter in the users API and stays all-time (its hint says so while a
-  // range is active).
+  // Date scope for every report-derived widget; defaults to Today. Total Users
+  // has no date filter in the users API and stays all-time
   const [dateMode, setDateMode] = useState("today");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  // Custom-range standard — constrain → validate → block (see utils/dates.js).
-  // customRangeBounds makes impossible days unpickable, validateCustomRange
-  // reports anything typed/pasted past those bounds, and the fetch effect
-  // below skips while the pair is invalid so every widget keeps its last
-  // valid numbers. The inputs keep what the user entered — nothing is
-  // auto-corrected. Presets are always valid.
+  // Custom range: constrain → validate → block (see utils/dates.js). The fetch
+  // effect skips while the pair is invalid; presets are always valid
   const dateError = dateMode === "custom" ? validateCustomRange(dateFrom, dateTo) : "";
   const { fromMax, toMin } = customRangeBounds(dateFrom, dateTo);
   // A change that invalidates the range cancels any in-flight request at its
@@ -214,7 +206,7 @@ export default function DashboardHome() {
       : []),
     { key: "reports", icon: <ClipboardIcon />, tone: "indigo", hint: reportsHint, label: reportsLabel, value: display(total) },
     { key: "active", icon: <ActivityIcon />, tone: "cyan", hint: "Open reports", label: "Active Reports", value: display(active) },
-    { key: "resolved", icon: <CheckIcon />, tone: "green", hint: "Closed & verified", label: "Resolved", value: display(resolved) },
+    { key: "resolved", icon: <CheckIcon />, tone: "green", hint: "Closed & verified", label: "Resolved Reports", value: display(resolved) },
     { key: "invalid", icon: <FlagIcon />, tone: "purple", hint: "Flagged submissions", label: "Invalid Reports", value: display(invalid) },
     { key: "critical", icon: <AlertIcon />, tone: "red", hint: "Open P1 — P2", label: "Critical Alerts", value: display(criticalCount), accent: true },
   ];

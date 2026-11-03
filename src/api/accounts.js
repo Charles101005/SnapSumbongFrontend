@@ -1,8 +1,7 @@
 import api from "./axios";
 
 // Thrown when the request never reached the server (offline, DNS, timeout) —
-// keeps the { detail } contract pages already read instead of leaking a
-// TypeError from accessing error.response on a network failure.
+// keeps the { detail } contract pages read instead of leaking a TypeError.
 const networkError = () => ({ detail: "Can't reach the server. Check your connection and try again." });
 
 // GET /accounts/auth/user/

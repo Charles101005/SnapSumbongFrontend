@@ -78,8 +78,7 @@ const shortDay = (iso) =>
 // Server weekly buckets carry a Monday week_start; label the full span.
 const weekLabel = (iso) => `${shortDay(iso)} – ${shortDay(toISODate(addDays(new Date(`${iso}T00:00:00`), 6)))}`;
 
-// Inclusive FROM/TO bounds: the From day starts at 00:00:00.000 (>=) and the
-// To day runs through 23:59:59.999 (<=), so both endpoint days count in full.
+// Inclusive FROM/TO bounds: From starts at 00:00:00.000, To runs through 23:59:59.999.
 const rangeStart = (iso) => (iso ? new Date(`${iso}T00:00:00.000`) : null);
 const rangeEnd = (iso) => (iso ? new Date(`${iso}T23:59:59.999`) : null);
 

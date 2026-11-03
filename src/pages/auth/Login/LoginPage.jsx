@@ -64,8 +64,7 @@ export default function LoginPage() {
       const data = await loginUser(email, password);
       setAccessToken(data.access);
 
-      // The login response only establishes authentication. Fetch the current
-      // user so we can route staff and citizens to their respective portals.
+      // Login only authenticates; fetch the user to route to the right portal
       const currentUser = await getCurrentUser();
       setSession(currentUser);
 

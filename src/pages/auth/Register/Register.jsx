@@ -21,8 +21,7 @@ import {
 
 const policyPath = (slug) => CONSENT_POLICIES.find((policy) => policy.slug === slug)?.path ?? "/";
 
-// Opens a legal document in a new tab without toggling the checkbox it sits
-// inside (a click inside a <label> would otherwise activate the checkbox).
+// Opens in a new tab without toggling the checkbox (clicks inside a <label> would)
 function PolicyLink({ slug, children }) {
     return (
         <a
@@ -57,8 +56,7 @@ export default function Register() {
         email: email.trim(),
     });
 
-    // Drop a field's error (and stale server-side form error) as soon as the
-    // user starts editing it, so messages don't linger after a fix.
+    // Clear a field's error (and stale form error) as soon as the user edits it
     const clearFieldError = (field) => {
         setErrors((prev) => {
             if (!prev[field] && !prev.form) return prev;

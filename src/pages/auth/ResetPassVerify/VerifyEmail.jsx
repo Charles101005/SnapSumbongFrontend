@@ -31,8 +31,7 @@ export default function VerifyEmail() {
     const [resending, setResending] = useState(false);
     const inputRefs = useRef([]);
 
-    // Jump straight into the first box so the user can type the code without
-    // having to tap it first.
+    // Focus the first box so the user can type without tapping it first
     useEffect(() => {
         if (email) inputRefs.current[0]?.focus();
     }, [email]);
