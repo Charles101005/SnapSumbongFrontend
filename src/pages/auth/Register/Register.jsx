@@ -103,9 +103,14 @@ export default function Register() {
         setErrors({});
         setSubmitting(true);
         try {
-            await registerUser(mail, password, last, first, middle || null);
-            // account is created as "pending" until OTP verification
-            setAuthFlow({ email: mail, purpose: "register", otp: null });
+            const result = await registerUser(mail, password, last, first, middle || null);
+            // account is created as "pending" until OTP verification.
+            // Persist when a resend becomes allowed so VerifyEmail can start
+            // its countdown immediately (and survive a refresh).
+            const resendDeadline = Number.isFinite(result?.retry_after_seconds)
+                ? Date.now() + result.retry_after_seconds * 1000
+                : null;
+            setAuthFlow({ email: mail, purpose: "register", otp: null, resendDeadline });
             navigate("/verify-email", { state: { email: mail } });
         } catch (err) {
             // err is the response body, so map field errors from DRF

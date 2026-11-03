@@ -5,6 +5,8 @@ import {
   resendEmailChange,
 } from "../../../api/accounts";
 import { mapApiErrors } from "../../../utils/apiErrors";
+import { useResendCooldown } from "../../../hooks/useResendCooldown";
+import { formatCooldown } from "../../../utils/format";
 import "./EmailChangeModal.css";
 
 const EMAIL_RE = /\S+@\S+\.\S+/;
@@ -29,6 +31,8 @@ export default function EmailChangeModal({ isOpen, currentEmail, onClose, onVeri
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
   const inputRefs = useRef([]);
+
+  const { secondsLeft, isCoolingDown, start } = useResendCooldown();
 
   // Focus the first OTP box when the verification step appears.
   useEffect(() => {
@@ -96,11 +100,13 @@ export default function EmailChangeModal({ isOpen, currentEmail, onClose, onVeri
     setEmailError("");
     setInfo("");
     try {
-      await requestEmailChange(value);
+      const result = await requestEmailChange(value);
       setNewEmail(value);
       setDigits(["", "", "", ""]);
       setOtpError("");
       setOtpErrorCode("");
+      // Start the resend countdown straight away from the response.
+      start(result?.retry_after_seconds);
       setStep("otp");
     } catch (err) {
       // A code is already pending for this account (e.g. the user cancelled
@@ -112,6 +118,8 @@ export default function EmailChangeModal({ isOpen, currentEmail, onClose, onVeri
         setDigits(["", "", "", ""]);
         setOtpError("");
         setOtpErrorCode("");
+        // Server says how much of the pending code's cooldown is left.
+        start(err?.meta?.retry_after_seconds);
         setStep("otp");
       } else {
         const mapped = mapApiErrors(err, {
@@ -168,6 +176,9 @@ export default function EmailChangeModal({ isOpen, currentEmail, onClose, onVeri
   };
 
   const handleResend = async () => {
+    // Cooldown still running — don't hit the backend at all.
+    if (isCoolingDown) return;
+
     setResending(true);
     setOtpError("");
     setOtpErrorCode("");
@@ -175,6 +186,8 @@ export default function EmailChangeModal({ isOpen, currentEmail, onClose, onVeri
     try {
       const result = await resendEmailChange(newEmail);
       if (result?.email) setNewEmail(result.email);
+      // A fresh send restarts the full cooldown.
+      start(result?.retry_after_seconds);
       setInfo("A new code has been sent.");
       setDigits(["", "", "", ""]);
       inputRefs.current[0]?.focus();
@@ -189,7 +202,9 @@ export default function EmailChangeModal({ isOpen, currentEmail, onClose, onVeri
       let message = mapped.otp || mapped.form || "Couldn't resend the code. Try again.";
       const retryAfter = err?.meta?.retry_after_seconds;
       if (err?.error_code === "OTP_RESEND_COOLDOWN_ACTIVE" && typeof retryAfter === "number") {
-        message += ` Try again in ${retryAfter}s.`;
+        // Lost the race — seed the timer instead of just showing the number.
+        start(retryAfter);
+        message = `Please wait ${formatCooldown(retryAfter)} before requesting another code.`;
       }
       setOtpError(message);
       setOtpErrorCode(err?.error_code || "");
@@ -304,9 +319,13 @@ export default function EmailChangeModal({ isOpen, currentEmail, onClose, onVeri
                 type="button"
                 className="ecm-link-btn"
                 onClick={handleResend}
-                disabled={resending || verifying}
+                disabled={resending || verifying || isCoolingDown}
               >
-                {resending ? "Resending..." : "Resend Code"}
+                {resending
+                  ? "Resending..."
+                  : isCoolingDown
+                    ? `Resend code in ${formatCooldown(secondsLeft)}`
+                    : "Resend Code"}
               </button>
             </p>
 

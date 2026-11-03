@@ -47,7 +47,8 @@ export const updateProfile = async (payload) => {
 
 // POST /accounts/profile/email-change/request/ — starts the verified email
 // change: emails a 4-digit OTP to the NEW address.
-// payload: { new_email } -> { email, expires_at }
+// payload: { new_email } -> { email, expires_at, retry_after_seconds }
+// 409 VERIFICATION_IN_PROGRESS -> meta.retry_after_seconds (remaining).
 export const requestEmailChange = async (newEmail) => {
     try {
         const response = await api.post("accounts/profile/email-change/request/", {
@@ -77,7 +78,8 @@ export const verifyEmailChange = async (email, otp) => {
 };
 
 // POST /accounts/profile/email-change/resend/ — re-sends the OTP.
-// payload: { email } -> { email, expires_at }
+// payload: { email } -> { email, expires_at, retry_after_seconds }
+// 429 OTP_RESEND_COOLDOWN_ACTIVE -> meta.retry_after_seconds (remaining).
 export const resendEmailChange = async (email) => {
     try {
         const response = await api.post("accounts/profile/email-change/resend/", {

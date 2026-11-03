@@ -631,6 +631,8 @@
   font-weight: 600;
   color: #3b82f6;
   cursor: pointer;
+  /* keeps the mm:ss countdown from jittering as digits change */
+  font-variant-numeric: tabular-nums;
 }
 
 .auth-resend button:hover:not(:disabled) {

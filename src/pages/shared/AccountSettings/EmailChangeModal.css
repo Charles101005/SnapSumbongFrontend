@@ -224,6 +224,8 @@
   font-size: 0.85rem;
   cursor: pointer;
   padding: 0;
+  /* keeps the mm:ss countdown from jittering as digits change */
+  font-variant-numeric: tabular-nums;
 }
 
 .ecm-link-btn:hover:not(:disabled) {

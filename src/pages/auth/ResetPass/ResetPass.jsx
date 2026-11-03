@@ -37,8 +37,13 @@ export default function ResetPass() {
 
         setSubmitting(true);
         try {
-            await requestPasswordReset(email);
-            setAuthFlow({ email, purpose: "reset-password", otp: null });
+            const result = await requestPasswordReset(email);
+            // Persist when a resend becomes allowed so VerifyEmail can start
+            // its countdown immediately (and survive a refresh).
+            const resendDeadline = Number.isFinite(result?.retry_after_seconds)
+                ? Date.now() + result.retry_after_seconds * 1000
+                : null;
+            setAuthFlow({ email, purpose: "reset-password", otp: null, resendDeadline });
             navigate("/verify-email", { state: { email, purpose: "reset-password" } });
         } catch (err) {
             setErrors({ form: err?.detail || err?.message || "Couldn't send the reset code. Try again." });

@@ -1,5 +1,9 @@
 import api from "./axios";
 
+// POST /accounts/forgot-password/ — emails a 4-digit reset code.
+// payload: { email } -> { detail, email, retry_after_seconds }
+// (identical body whether or not the email exists; retry_after seeds the
+// resend countdown immediately)
 export const requestPasswordReset = async (email) => {
     try {
         const response = await api.post("accounts/forgot-password/", {
@@ -25,6 +29,9 @@ export const verifyResetPasswordCode = async (email, otp) => {
     }
 }
 
+// POST /accounts/forgot-password/resend/ — re-sends the reset code.
+// payload: { email } -> { email, expires_at, retry_after_seconds }
+// 429 OTP_RESEND_COOLDOWN_ACTIVE -> meta.retry_after_seconds (remaining).
 export const resendResetPasswordCode = async (email) => {
     try {
         const response = await api.post("accounts/forgot-password/resend/", {

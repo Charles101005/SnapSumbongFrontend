@@ -48,3 +48,12 @@ export const pctOf = (part, whole) =>
 
 // One-decimal rounding used by averages/ratios (5.34 -> 5.3).
 export const round1 = (value) => Math.round(value * 10) / 10;
+
+// Formats a wait/cooldown in seconds as an mm:ss clock ("4:59", "0:05").
+// Raw seconds (290) are hard to read at a glance; a countdown is not.
+export const formatCooldown = (totalSeconds) => {
+    const seconds = Math.max(0, Math.floor(totalSeconds));
+    const minutes = Math.floor(seconds / 60);
+
+    return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+};

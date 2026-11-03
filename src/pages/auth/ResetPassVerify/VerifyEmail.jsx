@@ -6,6 +6,8 @@ import { getCurrentUser } from "../../../api/accounts"
 import { setAccessToken } from "../../../api/authToken"
 import { useAuth, homePathFor } from "../../../context/authContext"
 import { getAuthFlow, setAuthFlow, clearAuthFlow } from "../../../shared/authFlowStorage"
+import { useResendCooldown } from "../../../hooks/useResendCooldown"
+import { formatCooldown } from "../../../utils/format"
 import AuthShell from "../../../components/shared/AuthShell"
 import {
     AlertIcon,
@@ -13,6 +15,14 @@ import {
     CheckIcon,
     SpinnerIcon,
 } from "../../../components/shared/icons"
+
+// Remaining seconds of a cooldown stored in the auth flow by Register /
+// ResetPass (epoch ms). Recomputed on mount so a refresh mid-countdown
+// picks up where it left off instead of restarting the timer.
+const remainingSeconds = (deadline) =>
+    typeof deadline === "number" && deadline > Date.now()
+        ? Math.ceil((deadline - Date.now()) / 1000)
+        : 0;
 
 export default function VerifyEmail() {
     const navigate = useNavigate();
@@ -30,6 +40,10 @@ export default function VerifyEmail() {
     const [submitting, setSubmitting] = useState(false);
     const [resending, setResending] = useState(false);
     const inputRefs = useRef([]);
+
+    const { secondsLeft, isCoolingDown, start } = useResendCooldown(
+        remainingSeconds(flow?.resendDeadline)
+    );
 
     // Focus the first box so the user can type without tapping it first
     useEffect(() => {
@@ -133,19 +147,35 @@ export default function VerifyEmail() {
     };
 
     const handleResend = async () => {
+        // Cooldown still running — don't hit the backend at all.
+        if (isCoolingDown) return;
+
         setResending(true);
         setError("");
         setNotice("");
         try {
+            let result;
             if (isPasswordReset) {
-                await resendResetPasswordCode(email);
+                result = await resendResetPasswordCode(email);
             } else {
-                await resendOTP(email);
+                result = await resendOTP(email);
             }
+            // A fresh send restarts the full cooldown.
+            start(result?.retry_after_seconds);
+            setAuthFlow({ resendDeadline: Date.now() + (result?.retry_after_seconds ?? 0) * 1000 });
             setNotice("A new verification code has been sent to your email.");
             inputRefs.current[0]?.focus();
         } catch (err) {
-            setError(err?.message || err?.detail || "Couldn't resend the code. Try again.");
+            // Lost the race (e.g. countdown expired a moment ago) — seed the
+            // timer from the server's remaining cooldown instead.
+            const retryAfter = err?.meta?.retry_after_seconds;
+            if (err?.error_code === "OTP_RESEND_COOLDOWN_ACTIVE" && typeof retryAfter === "number") {
+                start(retryAfter);
+                setAuthFlow({ resendDeadline: Date.now() + retryAfter * 1000 });
+                setError(`Please wait ${formatCooldown(retryAfter)} before requesting another code.`);
+            } else {
+                setError(err?.message || err?.detail || "Couldn't resend the code. Try again.");
+            }
         } finally {
             setResending(false);
         }
@@ -223,9 +253,13 @@ export default function VerifyEmail() {
                     <button
                         type="button"
                         onClick={handleResend}
-                        disabled={resending || submitting}
+                        disabled={resending || submitting || isCoolingDown}
                     >
-                        {resending ? "Sending..." : "Resend code"}
+                        {resending
+                            ? "Sending..."
+                            : isCoolingDown
+                                ? `Resend code in ${formatCooldown(secondsLeft)}`
+                                : "Resend code"}
                     </button>
                 </p>
             </section>
