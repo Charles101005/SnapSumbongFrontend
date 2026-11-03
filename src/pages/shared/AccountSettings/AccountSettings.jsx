@@ -5,6 +5,7 @@ import DeactivateAccount from "./DeactivateAccount";
 import { getProfile, updateProfile } from "../../../api/accounts";
 import { resolveAddressLabels } from "../../../hooks/usePsgcAddress";
 import { formatDate } from "../../../utils/format";
+import { LEGAL_POLICIES } from "../../legal/policies";
 import Toast from "../../../components/shared/Toast";
 import "./AccountSettings.css";
 
@@ -378,7 +379,69 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
           </section>
         )}
 
-        {/* 4. Danger Zone — staff accounts are deactivated by admins via
+        {/* 4. Legal & Policies — shared by staff and citizens. Each policy
+            opens in a new tab so the user keeps their place in Settings. */}
+        <section className="settings-card">
+          <div className="card-header">
+            <svg
+              className="card-icon blue-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <line x1="10" y1="9" x2="8" y2="9" />
+            </svg>
+            <h2>Legal &amp; Policies</h2>
+          </div>
+
+          <div className="card-body policy-body">
+            <p className="policy-intro">
+              Review the documents that apply to your use of SnapSumbong. Each one opens in a new
+              tab.
+            </p>
+            <ul className="policy-list">
+              {LEGAL_POLICIES.map((policy) => (
+                <li key={policy.slug}>
+                  <a
+                    className="policy-link"
+                    href={policy.path}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <span className="policy-link-text">
+                      <span className="policy-link-label">{policy.label}</span>
+                      <span className="policy-link-desc">{policy.description}</span>
+                    </span>
+                    <svg
+                      className="policy-link-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                      <polyline points="15 3 21 3 21 9" />
+                      <line x1="10" y1="14" x2="21" y2="3" />
+                    </svg>
+                    <span className="sr-only"> (opens in a new tab)</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        {/* 5. Danger Zone — staff accounts are deactivated by admins via
             User Management, so this self-service block is citizen-only. */}
         {!isStaff && (
           <section className="settings-card danger-card">

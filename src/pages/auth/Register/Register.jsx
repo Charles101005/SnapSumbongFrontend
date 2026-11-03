@@ -6,9 +6,11 @@ import { mapApiErrors } from "../../../utils/apiErrors";
 import { validatePassword } from "../../../utils/passwordValidation";
 import AuthShell from "../../../components/shared/AuthShell";
 import PasswordChecklist from "../../../components/shared/PasswordChecklist";
+import { CONSENT_POLICIES } from "../../legal/policies";
 import {
     AlertIcon,
     ArrowRightIcon,
+    CheckIcon,
     EyeIcon,
     EyeOffIcon,
     LockIcon,
@@ -16,6 +18,23 @@ import {
     MailIcon,
     SpinnerIcon,
 } from "../../../components/shared/icons";
+
+const policyPath = (slug) => CONSENT_POLICIES.find((policy) => policy.slug === slug)?.path ?? "/";
+
+// Opens a legal document in a new tab without toggling the checkbox it sits
+// inside (a click inside a <label> would otherwise activate the checkbox).
+function PolicyLink({ slug, children }) {
+    return (
+        <a
+            href={policyPath(slug)}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(event) => event.stopPropagation()}
+        >
+            {children}
+        </a>
+    );
+}
 
 export default function Register() {
     const navigate = useNavigate();
@@ -25,6 +44,8 @@ export default function Register() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [agreedTerms, setAgreedTerms] = useState(false);
+    const [agreedPrivacy, setAgreedPrivacy] = useState(false);
     const [errors, setErrors] = useState({});
     const [submitting, setSubmitting] = useState(false);
 
@@ -59,6 +80,12 @@ export default function Register() {
         else {
             const passwordError = validatePassword(password, { email: mail, firstName: first, lastName: last });
             if (passwordError) newErrors.password = passwordError;
+        }
+        if (!agreedTerms) {
+            newErrors.terms = "Please agree to the Terms and Conditions and Acceptable Use and Reporting Policy.";
+        }
+        if (!agreedPrivacy) {
+            newErrors.privacy = "Please agree to the Privacy Policy.";
         }
         return newErrors;
     };
@@ -247,6 +274,67 @@ export default function Register() {
                                 lastName: lastName.trim(),
                             }}
                         />
+                    </div>
+
+                    <div className="auth-consent" role="group" aria-label="Agreements">
+                        <p className="auth-consent-title">Before you continue</p>
+
+                        <div className="auth-consent-item">
+                            <label className="auth-check">
+                                <input
+                                    type="checkbox"
+                                    checked={agreedTerms}
+                                    onChange={(e) => {
+                                        setAgreedTerms(e.target.checked);
+                                        clearFieldError("terms");
+                                    }}
+                                    aria-invalid={Boolean(errors.terms)}
+                                    aria-describedby={errors.terms ? "terms-error" : undefined}
+                                />
+                                <span
+                                    className={`auth-check-box ${errors.terms ? "auth-check-box--error" : ""}`}
+                                    aria-hidden="true"
+                                >
+                                    <CheckIcon size={12} />
+                                </span>
+                                <span className="auth-check-text">
+                                    I have read and agree to the{" "}
+                                    <PolicyLink slug="terms-and-conditions">Terms and Conditions</PolicyLink>{" "}
+                                    and the{" "}
+                                    <PolicyLink slug="acceptable-use-policy">
+                                        Acceptable Use and Reporting Policy
+                                    </PolicyLink>
+                                    .
+                                </span>
+                            </label>
+                            {errors.terms && <p id="terms-error" className="auth-error">{errors.terms}</p>}
+                        </div>
+
+                        <div className="auth-consent-item">
+                            <label className="auth-check">
+                                <input
+                                    type="checkbox"
+                                    checked={agreedPrivacy}
+                                    onChange={(e) => {
+                                        setAgreedPrivacy(e.target.checked);
+                                        clearFieldError("privacy");
+                                    }}
+                                    aria-invalid={Boolean(errors.privacy)}
+                                    aria-describedby={errors.privacy ? "privacy-error" : undefined}
+                                />
+                                <span
+                                    className={`auth-check-box ${errors.privacy ? "auth-check-box--error" : ""}`}
+                                    aria-hidden="true"
+                                >
+                                    <CheckIcon size={12} />
+                                </span>
+                                <span className="auth-check-text">
+                                    I have read and agree to the{" "}
+                                    <PolicyLink slug="privacy-policy">Privacy Policy</PolicyLink>.
+                                </span>
+                            </label>
+                            {errors.privacy && <p id="privacy-error" className="auth-error">{errors.privacy}</p>}
+                        </div>
                     </div>
 
                     <button type="submit" className="auth-submit" disabled={submitting}>

@@ -319,6 +319,117 @@
   margin-top: 0.75rem;
 }
 
+/* ===== CONSENT CHECKBOXES ===== */
+.auth-consent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background-color: #f8fafc;
+}
+
+.auth-consent-title {
+  margin: 0 0 0.1rem;
+  color: #94a3b8;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.auth-consent-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-check {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  cursor: pointer;
+}
+
+/* Keep the native input focusable/accessible but render a custom box. */
+.auth-check input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+}
+
+.auth-check-box {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 5px;
+  background-color: #ffffff;
+  color: #ffffff;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.auth-check-box svg {
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.auth-check:hover .auth-check-box {
+  border-color: #93c5fd;
+}
+
+.auth-check input:checked + .auth-check-box {
+  border-color: #2563eb;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.auth-check input:checked + .auth-check-box svg {
+  opacity: 1;
+  transform: none;
+}
+
+.auth-check input:focus-visible + .auth-check-box {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+.auth-check-box--error {
+  border-color: #ef4444;
+}
+
+.auth-check-text {
+  color: #475569;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.auth-check-text a {
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.auth-check-text a:hover {
+  color: #1d4ed8;
+}
+
+.auth-consent .auth-error {
+  margin-top: 0.3rem;
+  margin-left: calc(18px + 0.55rem);
+}
+
 /* ===== BUTTONS ===== */
 .auth-submit {
   width: 100%;
@@ -593,7 +704,8 @@
 .auth-secondary:focus-visible,
 .auth-back:focus-visible,
 .auth-notice-dismiss:focus-visible,
-.auth-resend button:focus-visible {
+.auth-resend button:focus-visible,
+.auth-check-text a:focus-visible {
   outline: 2px solid #60a5fa;
   outline-offset: 2px;
 }
@@ -638,6 +750,11 @@
   .auth-secondary,
   .auth-back,
   .auth-rule {
+    transition: none;
+  }
+
+  .auth-check-box,
+  .auth-check-box svg {
     transition: none;
   }
 

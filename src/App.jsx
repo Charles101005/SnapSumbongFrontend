@@ -10,6 +10,11 @@ import Register from "./pages/auth/Register/Register";
 import ResetPass from "./pages/auth/ResetPass/ResetPass";
 import VerifyEmail from "./pages/auth/ResetPassVerify/VerifyEmail";
 import NewPass from "./pages/auth/NewPass/NewPass";
+import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
+import TermsAndConditions from "./pages/legal/TermsAndConditions";
+import AcceptableUsePolicy from "./pages/legal/AcceptableUsePolicy";
+import DataRetentionPolicy from "./pages/legal/DataRetentionPolicy";
+import DataSecurityPolicy from "./pages/legal/DataSecurityPolicy";
 import OperationsDashboard from "./pages/dashboard/Operations/OperationsDashboard";
 import Analytics from "./pages/dashboard/Operations/Analytics";
 import RoleManagement from "./pages/dashboard/RoleManagement/RoleManagement";
@@ -54,6 +59,14 @@ function AppRoutes() {
             <Route path="/forgot-password" element={<ResetPass />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/new-password" element={<NewPass />} />
+
+            {/* Public legal documents — linked from the auth footer and the
+                registration consent checkboxes. */}
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+            <Route path="/acceptable-use-policy" element={<AcceptableUsePolicy />} />
+            <Route path="/data-retention-policy" element={<DataRetentionPolicy />} />
+            <Route path="/data-security-policy" element={<DataSecurityPolicy />} />
 
             {/* Citizen portal: requires a logged-in citizen */}
             <Route element={<RequireAuth role="citizen" />}>
