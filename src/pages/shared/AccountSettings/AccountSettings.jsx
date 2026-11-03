@@ -403,8 +403,7 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
 
           <div className="card-body policy-body">
             <p className="policy-intro">
-              Review the documents that apply to your use of SnapSumbong. Each one opens in a new
-              tab.
+              Review the documents that apply to your use of SnapSumbong.
             </p>
             <ul className="policy-list">
               {LEGAL_POLICIES.map((policy) => (

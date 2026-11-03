@@ -111,7 +111,7 @@ export default function ResetPass() {
                 </div>
 
                 <Link to="/" className="auth-secondary">
-                    Back to log in
+                    Back
                     <LogInIcon size={16} />
                 </Link>
             </section>
