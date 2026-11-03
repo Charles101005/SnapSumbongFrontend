@@ -3,12 +3,12 @@ import { Link } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import KpiCard from "../../../components/shared/KpiCard";
 import {
+  ActivityIcon,
   AlertIcon,
   CheckIcon,
   ClipboardIcon,
   DiamondIcon,
-  DispatchIcon,
-  EyeIcon,
+  FlagIcon,
   UsersIcon,
 } from "../../../components/shared/icons";
 import { getReports } from "../../../api/reports";
@@ -157,10 +157,30 @@ export default function DashboardHome() {
   const counts = metrics?.count_by_status || {};
   const total = metrics?.total_count ?? null;
   const resolved = Number(counts.resolved || 0) + Number(counts.closed || 0);
-  const underReview = Number(counts.under_review || 0);
-  const dispatched = Number(counts.dispatched || 0);
+  // Active = every open report, the same definition the Operations summary
+  // bar uses (New through Ongoing — not yet Resolved, Closed, or Invalid).
+  const active = ["new", "assigned", "under_review", "on_hold", "dispatched", "ongoing"]
+    .reduce((sum, key) => sum + Number(counts[key] || 0), 0);
+  const invalid = Number(counts.invalid || 0);
 
   const display = (value) => (busy ? "—" : (value ?? "—"));
+
+  // Per-report deep link: Operations reads ?report= and opens that report's
+  // detail dialog (or its Update dialog when action=manage and the user may
+  // edit). The current date range is carried over so the table behind the
+  // dialog matches the numbers the user was just looking at.
+  const reportHref = (reportNumber, action) => {
+    const params = new URLSearchParams({ report: String(reportNumber) });
+    if (action) params.set("action", action);
+    if (dateMode === "custom") {
+      params.set("range", "custom");
+      if (dateFrom) params.set("from", dateFrom);
+      if (dateTo) params.set("to", dateTo);
+    } else if (dateMode !== "today") {
+      params.set("range", dateMode);
+    }
+    return `/dashboard/operations?${params.toString()}`;
+  };
   const bannerError = errors.metrics || errors.recent;
   // Resolved at render for the toolbar note; requests re-resolve at fetch
   // time, so a "Today" selection stays correct after a day/month boundary.
@@ -193,9 +213,9 @@ export default function DashboardHome() {
         }]
       : []),
     { key: "reports", icon: <ClipboardIcon />, tone: "indigo", hint: reportsHint, label: reportsLabel, value: display(total) },
-    { key: "under-review", icon: <EyeIcon />, tone: "purple", hint: "Awaiting assessment", label: "Under Review", value: display(underReview) },
-    { key: "dispatched", icon: <DispatchIcon />, tone: "cyan", hint: "Teams deployed", label: "Dispatched", value: display(dispatched) },
+    { key: "active", icon: <ActivityIcon />, tone: "cyan", hint: "Open reports", label: "Active Reports", value: display(active) },
     { key: "resolved", icon: <CheckIcon />, tone: "green", hint: "Closed & verified", label: "Resolved", value: display(resolved) },
+    { key: "invalid", icon: <FlagIcon />, tone: "purple", hint: "Flagged submissions", label: "Invalid Reports", value: display(invalid) },
     { key: "critical", icon: <AlertIcon />, tone: "red", hint: "Open P1 — P2", label: "Critical Alerts", value: display(criticalCount), accent: true },
   ];
 
@@ -270,23 +290,29 @@ export default function DashboardHome() {
                   {busy ? (
                     <tr><td colSpan="6" className="dh-empty">Loading reports...</td></tr>
                   ) : recent.length ? (
-                    recent.map((report) => (
-                      <tr key={report.report_number}>
-                        <td className="dh-report-id">{report.report_number}</td>
-                        <td>{report.category}</td>
-                        <td>{report.created_at ? new Date(report.created_at).toLocaleDateString() : "—"}</td>
-                        <td><span className={`status-badge status-${normalizeStatusKey(report.status)}`}>{prettifyStatus(report.status)}</span></td>
-                        <td><span className={`severity-badge severity-${String(report.severity || "").toLowerCase()}`}>{report.severity || "—"}</span></td>
-                        <td>
-                          <Link
-                            to="/dashboard/operations"
-                            className="dh-action-link"
-                          >
-                            Manage
-                          </Link>
-                        </td>
-                      </tr>
-                    ))
+                    recent.map((report) => {
+                      // Closed/Invalid reports have no Update action on the
+                      // Operations page, so send those to the read-only detail
+                      // dialog (which still offers moderation for Invalid).
+                      const terminal = ["closed", "invalid"].includes(normalizeStatusKey(report.status));
+                      return (
+                        <tr key={report.report_number}>
+                          <td className="dh-report-id">{report.report_number}</td>
+                          <td>{report.category}</td>
+                          <td>{report.created_at ? new Date(report.created_at).toLocaleDateString() : "—"}</td>
+                          <td><span className={`status-badge status-${normalizeStatusKey(report.status)}`}>{prettifyStatus(report.status)}</span></td>
+                          <td><span className={`severity-badge severity-${String(report.severity || "").toLowerCase()}`}>{report.severity || "—"}</span></td>
+                          <td>
+                            <Link
+                              to={reportHref(report.report_number, terminal ? undefined : "manage")}
+                              className="dh-action-link"
+                            >
+                              Manage
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr><td colSpan="6" className="dh-empty">No reports found.</td></tr>
                   )}
@@ -309,7 +335,7 @@ export default function DashboardHome() {
                       <span>{alert.address || "Location unavailable"}</span>
                     </div>
                     <Link
-                      to="/dashboard/operations"
+                      to={reportHref(alert.report_number)}
                       className="dh-alert-view"
                     >
                       View

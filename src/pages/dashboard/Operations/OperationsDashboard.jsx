@@ -83,6 +83,14 @@ export default function OperationsDashboard() {
   // resolves the very same URL with the very same rule, so the badge counts
   // and this table always describe the same window.
   const urlDateMode = urlRange || (urlFrom || urlTo ? "custom" : "today");
+  // Per-report deep link (?report=…&action=manage). Dashboard rows link here
+  // so "Manage"/"View" open the exact report instead of dumping the user on
+  // the unfiltered overview. `action=manage` asks for the Update dialog, but
+  // only when the viewer actually has edit permission — otherwise it falls
+  // back to the read-only detail dialog.
+  const urlReport = (searchParams.get("report") || "").trim();
+  const urlReportAction = (searchParams.get("action") || "").trim().toLowerCase();
+  const openInEditor = Boolean(urlReport) && urlReportAction === "manage" && canEdit;
   // Status Views (?status=…) pre-filter the table via the URL. The compact
   // summary bar stays visible in both modes; only the page header adapts.
   const isStatusView = Boolean(urlStatus);
@@ -100,12 +108,15 @@ export default function OperationsDashboard() {
   // — the same refreshTick pattern MyReport uses, which keeps the loader out
   // of the effect's dependency list.
   const [refreshTick, setRefreshTick] = useState(0);
-  // Report number whose Update modal is open, or null when closed.
-  const [editingReport, setEditingReport] = useState(null);
+  // Report number whose Update modal is open, or null when closed. Seeded
+  // from ?report= so a deep link opens on the first render too.
+  const [editingReport, setEditingReport] = useState(openInEditor ? urlReport : null);
   // Report number whose Moderation dialog is open (Invalid rows only), or null.
   const [moderatingReport, setModeratingReport] = useState(null);
   // Report number whose read-only detail dialog is open, or null when closed.
-  const [viewingReport, setViewingReport] = useState(null);
+  const [viewingReport, setViewingReport] = useState(
+    urlReport && !openInEditor ? urlReport : null
+  );
 
   // Shared status counts: the sidebar Status Views badges and the summary
   // chips below read one store (see StatusCountsProvider), so the two can
@@ -130,10 +141,10 @@ export default function OperationsDashboard() {
   // drill-down, or browser navigation) — see react.dev "adjusting some state
   // when a prop changes". Only the fields whose URL value actually changed are
   // applied, so a plain ?status= navigation leaves the other filters alone.
-  const deepLink = `${urlStatus}|${urlSeverity}|${urlOverdue ? "1" : "0"}|${urlRange}|${urlFrom}|${urlTo}`;
+  const deepLink = `${urlStatus}|${urlSeverity}|${urlOverdue ? "1" : "0"}|${urlRange}|${urlFrom}|${urlTo}|${urlReport}|${urlReportAction}`;
   const [prevDeepLink, setPrevDeepLink] = useState(deepLink);
   if (prevDeepLink !== deepLink) {
-    const [prevStatus, prevSeverity, prevOverdue, prevRange, prevFrom, prevTo] = prevDeepLink.split("|");
+    const [prevStatus, prevSeverity, prevOverdue, prevRange, prevFrom, prevTo, prevReport, prevReportAction] = prevDeepLink.split("|");
     setPrevDeepLink(deepLink);
     setPage(1);
     const dateChanged = `${urlRange}|${urlFrom}|${urlTo}` !== `${prevRange}|${prevFrom}|${prevTo}`;
@@ -153,7 +164,32 @@ export default function OperationsDashboard() {
     };
     setFilters(applyUrl);
     setDraft(applyUrl);
+    // The report deep link opens/retargets the matching dialog; clearing it
+    // (close handler or browser back) closes whichever dialog is open.
+    if (`${urlReport}|${urlReportAction}` !== `${prevReport}|${prevReportAction}`) {
+      if (urlReport) {
+        setEditingReport(openInEditor ? urlReport : null);
+        setViewingReport(openInEditor ? null : urlReport);
+      } else {
+        setEditingReport(null);
+        setViewingReport(null);
+      }
+    }
   }
+
+  // Close a report dialog opened via ?report= and drop the now-stale params,
+  // so the URL doesn't claim a dialog is open when it isn't (and re-opening
+  // the same link works).
+  const closeReport = () => {
+    setEditingReport(null);
+    setViewingReport(null);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("report");
+      next.delete("action");
+      return next;
+    }, { replace: true });
+  };
 
   // Fetch the rows for the current page and filters. The body is inlined into
   // an async IIFE — the shape every list page in this codebase uses (MyReport,
@@ -534,7 +570,7 @@ export default function OperationsDashboard() {
         <ReportManagementModal
           reportNumber={editingReport}
           lookups={lookups}
-          onClose={() => setEditingReport(null)}
+          onClose={closeReport}
           onSaved={reloadAll}
         />
       )}
@@ -550,7 +586,7 @@ export default function OperationsDashboard() {
       {viewingReport && (
         <ReportDetail
           reportNumber={viewingReport}
-          onClose={() => setViewingReport(null)}
+          onClose={closeReport}
           onChanged={reloadAll}
         />
       )}
