@@ -69,8 +69,10 @@ export default function ManageCitizens() {
   const [managing, setManaging] = useState(null); // { userNumber, mode }
   const [draftSearch, setDraftSearch] = useState("");
   const [draftStatus, setDraftStatus] = useState("");
+  const [draftBanEligible, setDraftBanEligible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(""); // "true" | "false" | ""
+  const [banEligibleFilter, setBanEligibleFilter] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,6 +83,7 @@ export default function ManageCitizens() {
         const data = await getCitizens({
           q: searchQuery || undefined,
           is_active: statusFilter || undefined,
+          ban_eligible: banEligibleFilter ? "true" : undefined,
           page: currentPage,
           page_size: ROWS_PER_PAGE,
         });
@@ -108,11 +111,12 @@ export default function ManageCitizens() {
     return () => {
       cancelled = true;
     };
-  }, [searchQuery, statusFilter, currentPage, refreshKey]);
+  }, [searchQuery, statusFilter, banEligibleFilter, currentPage, refreshKey]);
 
   const handleApplyFilters = () => {
     setSearchQuery(draftSearch.trim());
     setStatusFilter(draftStatus);
+    setBanEligibleFilter(draftBanEligible);
     setCurrentPage(1);
   };
 
@@ -126,8 +130,10 @@ export default function ManageCitizens() {
   const handleReset = () => {
     setDraftSearch("");
     setDraftStatus("");
+    setDraftBanEligible(false);
     setSearchQuery("");
     setStatusFilter("");
+    setBanEligibleFilter(false);
     setCurrentPage(1);
   };
 
@@ -174,6 +180,21 @@ export default function ManageCitizens() {
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
+            </div>
+            <div className="filter-field">
+              <span className="filter-label">Ban Eligibility</span>
+              <label
+                className="filter-checkbox"
+                title="Show only citizens eligible to be banned."
+              >
+                <input
+                  type="checkbox"
+                  checked={draftBanEligible}
+                  onChange={(e) => setDraftBanEligible(e.target.checked)}
+                  onKeyDown={handleFilterKeyDown}
+                />
+                Show eligible for ban only
+              </label>
             </div>
             <div className="filter-buttons">
               <button className="btn-filter-apply" onClick={handleApplyFilters}>

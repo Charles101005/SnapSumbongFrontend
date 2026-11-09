@@ -88,14 +88,14 @@ export const updateEmployee = async (userNumber, payload) => {
 // ===== CITIZENS (is_staff=false) =====
 
 // GET /accounts/citizens/
-// query: q, is_active, page, page_size
+// query: q, is_active, ban_eligible, page, page_size
 // -> { count, total_pages, current_page, next, previous,
 //      results: [{ user_number, full_name, email, is_active, last_active }] }
 // requires permission: user:read_all
-export const getCitizens = async ({ q, is_active, page, page_size } = {}) => {
+export const getCitizens = async ({ q, is_active, ban_eligible, page, page_size } = {}) => {
     try {
         const response = await api.get("accounts/citizens/", {
-            params: { q, is_active, page, page_size },
+            params: { q, is_active, ban_eligible, page, page_size },
         });
         return response.data;
     } catch (error) {

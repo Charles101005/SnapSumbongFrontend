@@ -421,9 +421,9 @@ export default function OperationsDashboard() {
         <div className={`filters-row${dateError ? " filters-row-invalid" : ""}`}>
           <div className="filter-group filter-search">
             <label>Search</label>
-            <div className="search-wrap">
+            <div className="filter-search-wrap">
               <SearchIcon size={16} />
-              <input placeholder="Search by id, category, or location" 
+              <input className="filter-input" placeholder="Search by id or category" 
                 value={draft.search} 
                 onChange={(e) => updateDraft("search", e.target.value)} 
                 onKeyDown={handleFilterKeyDown} 
