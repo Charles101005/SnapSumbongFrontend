@@ -423,7 +423,7 @@ export default function OperationsDashboard() {
             <label>Search</label>
             <div className="filter-search-wrap">
               <SearchIcon size={16} />
-              <input className="filter-input" placeholder="Search by id or category" 
+              <input className="filter-input" placeholder="Search by id, category, or location" 
                 value={draft.search} 
                 onChange={(e) => updateDraft("search", e.target.value)} 
                 onKeyDown={handleFilterKeyDown} 
