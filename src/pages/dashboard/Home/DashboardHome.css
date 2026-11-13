@@ -92,7 +92,7 @@
 }
 
 /* ===== Row 1: KPI cards (styling lives in components/shared/KpiCard.css) =====
-   data-count mirrors the number of cards rendered (6 for admins, 5 when the
+   data-count mirrors the number of cards rendered (7 for admins, 6 when the
    permission-gated "Total Users" card is hidden) so a missing card never
    leaves an empty slot. Card-count rules below keep every row full and every
    card the same size; leftover cards on a partial row are centered. */
@@ -103,6 +103,31 @@
 }
 .dh-kpi-grid[data-count="5"] {
   grid-template-columns: repeat(5, 1fr);
+}
+/* Long card hints must never widen a grid track past the viewport. */
+.dh-kpi-grid .kpi-card {
+  min-width: 0;
+}
+/* ===== 7-card layout (admins) =====
+   One roomy row on very wide screens. From 1399px down the row becomes
+   3 + 3 + 1, with the orphan card centered in the middle column; the tighter
+   padding above keeps seven cards legible when they do share one row. */
+.dh-kpi-grid[data-count="7"] {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+@media (min-width: 1400px) {
+  .dh-kpi-grid[data-count="7"] .kpi-card { padding: 0.85rem; }
+  .dh-kpi-grid[data-count="7"] .kpi-value { font-size: 1.35rem; }
+  .dh-kpi-grid[data-count="7"] .kpi-hint { font-size: 0.55rem; }
+}
+@media (max-width: 1399px) {
+  .dh-kpi-grid[data-count="7"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .dh-kpi-grid[data-count="7"] > :nth-child(7) {
+    grid-column: 2;
+    grid-row: 3;
+  }
 }
 
 /* ===== Panels ===== */
@@ -123,7 +148,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
   margin-bottom: 1rem;
 }
 .dh-panel-title {
@@ -156,6 +182,64 @@
   margin: 0;
   font-size: 0.75rem;
   color: var(--color-text-muted);
+}
+
+/* ===== Open Past SLA panel ===== */
+.dh-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  min-width: 0;
+}
+.dh-panel-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.dh-panel-heading-text {
+  min-width: 0;
+}
+.dh-panel-sub {
+  margin: 0.18rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+/* `max-width` is ignored on <td> in auto table layout, so the truncation
+   lives on an inner block-level span (same approach as Analytics). */
+.dh-cell-truncate {
+  display: block;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dh-nowrap {
+  white-space: nowrap;
+}
+.dh-table-foot {
+  margin: 0.6rem 0 0;
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+}
+.dh-table-foot a {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+.dh-table-foot a:hover {
+  text-decoration: underline;
+}
+/* .dh-empty forces a muted colour — the all-clear state overrides it. */
+.dh-empty-good {
+  color: var(--color-success-text) !important;
+  background: var(--color-success-bg);
 }
 
 /* ===== Recent reports table ===== */
@@ -373,14 +457,44 @@
     grid-column: 2 / span 2;
     grid-row: 3;
   }
+  /* 7 cards on a 4-track grid: two 2-track cards per row, the lone seventh
+     centered on tracks 2-3 of the last row. */
+  .dh-kpi-grid[data-count="7"] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .dh-kpi-grid[data-count="7"] > :nth-child(n) {
+    grid-column: span 2;
+  }
+  .dh-kpi-grid[data-count="7"] > :nth-child(7) {
+    grid-column: 2 / span 2;
+    grid-row: 4;
+  }
+  .dh-cell-truncate {
+    max-width: 110px;
+  }
 }
 @media (max-width: 480px) {
   .dh-kpi-grid,
-  .dh-kpi-grid[data-count="5"] {
+  .dh-kpi-grid[data-count="5"],
+  .dh-kpi-grid[data-count="7"] {
     grid-template-columns: 1fr;
   }
-  .dh-kpi-grid[data-count="5"] > :nth-child(n) {
+  .dh-kpi-grid[data-count="5"] > :nth-child(n),
+  .dh-kpi-grid[data-count="7"] > :nth-child(n) {
     grid-column: auto;
     grid-row: auto;
+  }
+  .dh-overdue-panel {
+    padding: 1rem 0.85rem;
+  }
+  .dh-overdue-panel .dh-panel-title {
+    font-size: 0.95rem;
+  }
+  .dh-overdue-panel .dh-table th,
+  .dh-overdue-panel .dh-table td {
+    padding: 0.55rem 0.45rem;
+  }
+  .dh-cell-truncate {
+    max-width: 90px;
   }
 }

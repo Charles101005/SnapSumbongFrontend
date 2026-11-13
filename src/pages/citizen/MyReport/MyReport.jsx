@@ -8,7 +8,7 @@ import { getReports, getReportDetail, getHazardCategories, confirmReportResoluti
 import { getReportMetrics } from '../../../api/analytics';
 import { hazardMarkerIcon } from '../../../utils/leafletHelpers';
 import { toISODate, validateCustomRange } from '../../../utils/dates';
-import { formatDueDate, slaBadge } from '../../../utils/sla';
+import { formatDueDateLong, slaBadge } from '../../../utils/sla';
 
 const ROWS_PER_PAGE = 5; // Matches the backend's SmallListPagination page size.
 
@@ -327,6 +327,9 @@ export default function MyReport() {
     const timelineEntries = selectedReportDetail?.status_timeline || [];
     const currentStatus = selectedReportDetail?.status;
     const currentStep = STATUS_TO_STEP[normalizeStatus(currentStatus)] ?? 0;
+    // SLA state for the status card's expected-resolution row. Null while the
+    // detail is still loading (the card only renders with the detail anyway).
+    const sla = selectedReportDetail ? slaBadge(selectedReportDetail) : null;
     const steps = TIMELINE_STEPS.map((step, idx) => {
       // Entries are chronological (backend orders audit logs by created_at).
       const phaseEntries = timelineEntries.filter(
@@ -373,6 +376,12 @@ export default function MyReport() {
             <div className="detail-main-column">
               {/* Status Header Card */}
               <div className="card report-status-card">
+                <div className="status-card-top">
+                  <span className="status-card-caption">Report Status</span>
+                  <span className={getStatusBadgeClass(selectedReportDetail.status)}>
+                    {getStatusLabel(selectedReportDetail.status)}
+                  </span>
+                </div>
                 <div className="status-header-info">
                   <div className="status-icon-circle">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -386,22 +395,28 @@ export default function MyReport() {
                     <h2>{getStatusLabel(selectedReportDetail.status)}</h2>
                   </div>
                 </div>
-                <div className="status-header-right">
-                  <span className={getStatusBadgeClass(selectedReportDetail.status)}>
-                    {getStatusLabel(selectedReportDetail.status)}
-                  </span>
-                  {(() => {
-                    const sla = slaBadge(selectedReportDetail);
-                    if (sla.tone === 'none') return null;
-                    return (
-                      <span className={`citizen-sla citizen-sla-${sla.tone}`} title={selectedReportDetail.due_at ? `Expected resolution by ${formatDueDate(selectedReportDetail.due_at)}` : ''}>
-                        {sla.tone === 'overdue'
-                          ? `Resolution overdue — was due ${formatDueDate(selectedReportDetail.due_at)}`
-                          : `Expected resolution by ${formatDueDate(selectedReportDetail.due_at)}`}
-                      </span>
-                    );
-                  })()}
-                </div>
+
+                {/* Expected resolution: its own row so the SLA date reads at a
+                    glance instead of hiding in a pill beside the badge. */}
+                {selectedReportDetail.due_at && sla && (
+                  <div className={`resolution-sla resolution-sla-${sla.tone}`}>
+                    <span className="resolution-sla-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                      </svg>
+                    </span>
+                    <span className="resolution-sla-copy">
+                      <span className="resolution-sla-label">Expected Resolution Date</span>
+                      <span className="resolution-sla-date">{formatDueDateLong(selectedReportDetail.due_at)}</span>
+                    </span>
+                    {sla.tone !== 'none' && (
+                      <span className="resolution-sla-chip">{sla.text}</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Resolution Timeline */}

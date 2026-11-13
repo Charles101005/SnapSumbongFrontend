@@ -23,6 +23,16 @@ export const formatDueDate = (dueAt) => {
     return due.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 };
 
+// Long-month variant for the prominent "Expected Resolution Date" display
+// (e.g. "November 13, 2026"). Kept separate so the compact short format above
+// stays the default in tables and badges.
+export const formatDueDateLong = (dueAt) => {
+    if (!dueAt) return "—";
+    const due = new Date(dueAt);
+    if (Number.isNaN(due.getTime())) return "—";
+    return due.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+};
+
 // Severity derived from a category's response-time SLA. Buckets follow the
 // seeded response times (3, 7, 10, 15, 30 days):
 //   <=3 days -> P1, 4-7 -> P2, 8-14 -> P3, 15-29 -> P4, >=30 -> P5

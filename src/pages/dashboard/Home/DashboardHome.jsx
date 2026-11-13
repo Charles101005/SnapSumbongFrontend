@@ -7,6 +7,7 @@ import {
   AlertIcon,
   CheckIcon,
   ClipboardIcon,
+  ClockIcon,
   DiamondIcon,
   FlagIcon,
   UsersIcon,
@@ -20,8 +21,12 @@ import { useCanAudit } from "../../../hooks/useCanAudit";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { PERMISSIONS } from "../../../shared/constants";
 import { formatDate, formatLastActive, normalizeStatusKey, prettifyStatus } from "../../../utils/format";
+import { formatDueDate, slaBadge } from "../../../utils/sla";
 import { DATE_FILTER_PRESETS, customRangeBounds, formatRange, resolveRange, toISODate, validateCustomRange } from "../../../utils/dates";
 import "./DashboardHome.css";
+
+// One page of the live Open Past SLA list (staff-only filter server-side).
+const OVERDUE_LIMIT = 6;
 
 export default function DashboardHome() {
   const canAnalytics = useCanAnalytics();
@@ -36,6 +41,10 @@ export default function DashboardHome() {
   const [recent, setRecent] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [criticalCount, setCriticalCount] = useState(null);
+  // Live SLA backlog: deliberately outside the Date filter (see the fetch
+  // below), so the card and panel read the same as-of-now number as the
+  // Operations summary and Analytics.
+  const [overdue, setOverdue] = useState({ rows: [], count: 0, error: "" });
   const [auditLogs, setAuditLogs] = useState([]);
   const [totalUsers, setTotalUsers] = useState(null);
   const [errors, setErrors] = useState({});
@@ -67,7 +76,7 @@ export default function DashboardHome() {
       // refetches; "custom" uses the From/to inputs as-is ("" = unbounded).
       const { from, to } = resolveRange(dateMode, new Date(), { from: dateFrom, to: dateTo });
       const dateParams = { from_date: from || undefined, to_date: to || undefined };
-      const [metricsRes, recentRes, p1Res, p2Res, auditRes, employeesRes, citizensRes] = await Promise.allSettled([
+      const [metricsRes, recentRes, p1Res, p2Res, overdueRes, auditRes, employeesRes, citizensRes] = await Promise.allSettled([
         // The overview endpoint is the date-scoped twin of hazard-report
         // metrics (same three permissions): intake = reports FILED in the
         // range, grouped by their current status — the same date semantics
@@ -76,6 +85,11 @@ export default function DashboardHome() {
         getReports({ page_size: 5, ...dateParams }),
         getReports({ severity: "P1", exclude_closed: true, page_size: 4, ...dateParams }),
         getReports({ severity: "P2", exclude_closed: true, page_size: 4, ...dateParams }),
+        // Overdue is an as-of-now SLA figure, so it intentionally ignores the
+        // Date filter — the same rule StatusCountsProvider follows, keeping
+        // this card/panel aligned with the Operations and Analytics numbers.
+        // `overdue=true` is staff-only server-side; this route is staff-only.
+        getReports({ overdue: true, exclude_closed: false, page: 1, page_size: OVERDUE_LIMIT }),
         canAudit ? getAuditLogs({ page_size: 3, ...dateParams }) : Promise.resolve(null),
         canReadEmployees ? getEmployees({ page_size: 1 }) : Promise.resolve(null),
         canReadCitizens ? getCitizens({ page_size: 1 }) : Promise.resolve(null),
@@ -118,6 +132,15 @@ export default function DashboardHome() {
         setCriticalCount(null);
         setAlerts([]);
         errs.alerts = "Live alerts unavailable.";
+      }
+
+      // Overdue failure is reported inside the panel/card, not the page
+      // banner, so one unavailable widget can't hide the rest of the page.
+      if (overdueRes.status === "fulfilled") {
+        const payload = overdueRes.value || {};
+        setOverdue({ rows: payload.results || [], count: payload.count ?? 0, error: "" });
+      } else {
+        setOverdue({ rows: [], count: 0, error: "Overdue reports could not be loaded." });
       }
 
       if (canAudit) {
@@ -192,7 +215,8 @@ export default function DashboardHome() {
   const reportsHint = reportScope === "assigned" ? "Your current queue" : "All submissions";
 
   // KPI tiles as data so the grid always knows how many cards it renders
-  // (Total Users is permission-gated, so roles see 6 or 5 cards).
+  // (Total Users is permission-gated, so admins see 7 cards and other staff
+  // see 6 — DashboardHome.css has matching data-count rules for both).
   const kpiCards = [
     ...(canViewUsers
       ? [{
@@ -209,6 +233,17 @@ export default function DashboardHome() {
     { key: "resolved", icon: <CheckIcon />, tone: "green", hint: "Closed & verified", label: "Resolved Reports", value: display(resolved) },
     { key: "invalid", icon: <FlagIcon />, tone: "purple", hint: "Flagged submissions", label: "Invalid Reports", value: display(invalid) },
     { key: "critical", icon: <AlertIcon />, tone: "red", hint: "Open P1 — P2", label: "Critical Alerts", value: display(criticalCount), accent: true },
+    // Live SLA backlog — independent of the Date filter by design. An error
+    // shows "—" rather than a fabricated 0.
+    {
+      key: "overdue",
+      icon: <ClockIcon />,
+      tone: "red",
+      hint: "Live · past due",
+      label: "Overdue (SLA)",
+      value: display(overdue.error ? null : overdue.count),
+      accent: true,
+    },
   ];
 
   return (
@@ -342,6 +377,70 @@ export default function DashboardHome() {
             </div>
           </aside>
         </div>
+
+        {/* Open Past SLA — live backlog, deliberately independent of the
+            Date filter (overdue is an as-of-now SLA figure). */}
+        <section className="dh-panel dh-overdue-panel">
+          <div className="dh-panel-head">
+            <div className="dh-panel-heading">
+              <span className="dh-panel-icon"><ClockIcon /></span>
+              <div className="dh-panel-heading-text">
+                <h2 className="dh-panel-title">Open Past SLA</h2>
+                <p className="dh-panel-sub">
+                  Open reports past their due dates — current backlog, not limited to the selected date range.
+                </p>
+              </div>
+            </div>
+            <Link to="/dashboard/operations?overdue=true" className="dh-panel-link">
+              View all overdue →
+            </Link>
+          </div>
+          <div className="dh-table-wrap">
+            <table className="dh-table dh-overdue-table">
+              <thead>
+                <tr><th>REPORT</th><th>CATEGORY</th><th>SEV</th><th>DUE</th><th>SLA</th></tr>
+              </thead>
+              <tbody>
+                {busy ? (
+                  <tr><td colSpan="5" className="dh-empty">Loading overdue reports...</td></tr>
+                ) : overdue.error ? (
+                  <tr><td colSpan="5" className="dh-empty">{overdue.error}</td></tr>
+                ) : overdue.rows.length ? (
+                  overdue.rows.map((report) => {
+                    const sla = slaBadge(report);
+                    return (
+                      <tr key={report.report_number}>
+                        <td className="dh-report-id" title={report.report_number}>{report.report_number}</td>
+                        <td title={report.category || ""}>
+                          <span className="dh-cell-truncate">{report.category}</span>
+                        </td>
+                        <td>
+                          <span className={`severity-badge severity-${String(report.severity || "").toLowerCase()}`}>
+                            {report.severity || "—"}
+                          </span>
+                        </td>
+                        <td className="dh-nowrap">{formatDueDate(report.due_at)}</td>
+                        <td>
+                          <span className={`sla-badge sla-${sla.tone}`} title={`Due ${formatDueDate(report.due_at)}`}>
+                            {sla.text}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr><td colSpan="5" className="dh-empty dh-empty-good">All open reports are within their due dates.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          {!busy && !overdue.error && overdue.count > overdue.rows.length && (
+            <p className="dh-table-foot">
+              +{overdue.count - overdue.rows.length} more overdue —{" "}
+              <Link to="/dashboard/operations?overdue=true">view all</Link>
+            </p>
+          )}
+        </section>
 
         {canAudit && (
           <section className="dh-panel">

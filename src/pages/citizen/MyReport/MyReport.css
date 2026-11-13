@@ -350,8 +350,26 @@
 
 .report-status-card {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Caption + badge row: mirrors a section header so the card reads as a
+   status summary rather than a loose badge floating on the right. */
+.status-card-top {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.status-card-caption {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #94a3b8;
 }
 
 .status-header-info {
@@ -385,24 +403,79 @@
   font-weight: 800;
 }
 
-.status-header-right {
+/* Expected resolution row (citizen detail view): a dedicated, full-width
+   strip inside the status card so the due date is immediately visible
+   instead of a small pill tucked under the status badge. */
+.resolution-sla {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
 }
 
-/* SLA note (citizen detail view) */
-.citizen-sla {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 999px;
-  white-space: nowrap;
+.resolution-sla-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
-.citizen-sla-ok { background: #f1f5f9; color: #475569; }
-.citizen-sla-soon { background: #fef3c7; color: #b45309; }
-.citizen-sla-overdue { background: #fee2e2; color: #b91c1c; }
+
+.resolution-sla-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.resolution-sla-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.resolution-sla-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.resolution-sla-date {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #0f172a;
+}
+
+.resolution-sla-chip {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* Due within two days */
+.resolution-sla-soon .resolution-sla-icon { background: #fef3c7; color: #b45309; }
+.resolution-sla-soon .resolution-sla-date { color: #b45309; }
+.resolution-sla-soon .resolution-sla-chip { background: #fef3c7; color: #b45309; }
+
+/* Past the target date */
+.resolution-sla-overdue { border-top-color: #fecaca; }
+.resolution-sla-overdue .resolution-sla-icon { background: #fee2e2; color: #b91c1c; }
+.resolution-sla-overdue .resolution-sla-date { color: #b91c1c; }
+.resolution-sla-overdue .resolution-sla-chip { background: #fee2e2; color: #b91c1c; }
 
 /* Timeline */
 .timeline-card h3,
@@ -1185,9 +1258,16 @@
   }
 
   .report-status-card {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    gap: 10px;
+  }
+
+  /* The SLA row wraps rather than squeezing the date and chip onto one line. */
+  .resolution-sla {
+    gap: 10px;
+  }
+
+  .resolution-sla-date {
+    font-size: 16px;
   }
 }
 
