@@ -40,7 +40,7 @@
 
 /* Title & Subtitle Styling */
 .success-title {
-  font-size: 1.75rem;
+  font-size: calc(1.75rem * var(--font-scale));
   font-weight: 800;
   color: #0f172a;
   margin: 0 0 10px 0;
@@ -48,7 +48,7 @@
 }
 
 .success-subtitle {
-  font-size: 0.95rem;
+  font-size: calc(0.95rem * var(--font-scale));
   color: #64748b;
   margin: 0 0 28px 0;
   font-weight: 400;
@@ -67,7 +67,7 @@
 }
 
 .info-description {
-  font-size: 0.875rem;
+  font-size: calc(0.875rem * var(--font-scale));
   color: #475569;
   line-height: 1.5;
   margin: 0 0 20px 0;
@@ -85,14 +85,14 @@
 }
 
 .reference-label {
-  font-size: 0.75rem;
+  font-size: calc(0.75rem * var(--font-scale));
   font-weight: 600;
   color: #64748b;
   letter-spacing: 0.05em;
 }
 
 .reference-number {
-  font-size: 1.5rem;
+  font-size: calc(1.5rem * var(--font-scale));
   font-weight: 800;
   color: #1d82f5;
   letter-spacing: 0.02em;
@@ -112,7 +112,7 @@
   color: #ffffff;
   border: none;
   border-radius: 10px;
-  font-size: 0.875rem;
+  font-size: calc(0.875rem * var(--font-scale));
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s ease;
@@ -129,7 +129,7 @@
   color: #1e293b;
   border: none;
   border-radius: 10px;
-  font-size: 0.875rem;
+  font-size: calc(0.875rem * var(--font-scale));
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s ease;
@@ -151,12 +151,12 @@
     padding: 16px;
   }
   .success-title {
-    font-size: 1.4rem;
+    font-size: calc(1.4rem * var(--font-scale));
   }
   .success-subtitle {
-    font-size: 0.85rem;
+    font-size: calc(0.85rem * var(--font-scale));
   }
   .reference-number {
-    font-size: 1.25rem;
+    font-size: calc(1.25rem * var(--font-scale));
   }
 }

@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthProvider";
+import { FontScaleProvider } from "./context/FontScaleProvider";
 import { StatusCountsProvider } from "./context/StatusCountsProvider";
 import { useAuth } from "./context/authContext";
 import RequireAuth from "./components/guards/RequireAuth";
@@ -142,15 +143,20 @@ function AppRoutes() {
 
 function App() {
     return (
-        <AuthProvider>
-            {/* Shared status-count store — mounted above the routes so the
-                sidebar badges and summary chips keep their data across
-                navigation instead of re-fetching (and flashing "—") on every
-                page change. */}
-            <StatusCountsProvider>
-                <AppRoutes />
-            </StatusCountsProvider>
-        </AuthProvider>
+        /* Text size is a device-local display preference, so it wraps the
+           whole app (including the auth/loading screens) rather than just
+           the settings page. */
+        <FontScaleProvider>
+            <AuthProvider>
+                {/* Shared status-count store — mounted above the routes so the
+                    sidebar badges and summary chips keep their data across
+                    navigation instead of re-fetching (and flashing "—") on every
+                    page change. */}
+                <StatusCountsProvider>
+                    <AppRoutes />
+                </StatusCountsProvider>
+            </AuthProvider>
+        </FontScaleProvider>
     );
 }
 

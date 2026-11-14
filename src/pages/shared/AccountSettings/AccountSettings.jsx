@@ -3,6 +3,13 @@ import PersonalDetails from "./PersonalDetails";
 import ChangePassword from "./ChangePassword";
 import DeactivateAccount from "./DeactivateAccount";
 import { getProfile, updateProfile } from "../../../api/accounts";
+import {
+  DEFAULT_FONT_SCALE,
+  FONT_SCALE_PERCENT_MAX,
+  FONT_SCALE_PERCENT_MIN,
+  FONT_SCALE_PERCENT_STEP,
+  useFontScale,
+} from "../../../context/fontScaleContext";
 import { resolveAddressLabels } from "../../../hooks/usePsgcAddress";
 import { formatDate } from "../../../utils/format";
 import { LEGAL_POLICIES } from "../../legal/policies";
@@ -21,6 +28,18 @@ import "./AccountSettings.css";
 export default function AccountSettings({ onUpdateUser, variant = "citizen", role }) {
   const isStaff = variant === "staff";
   const [currentView, setCurrentView] = useState("settings"); // 'settings' | 'personal-details' | 'change-password' | 'deactivate'
+
+  // Device-local text size. `scale` is the saved (applied) value; the slider
+  // edits `draftScale` so the preview updates instantly while the rest of the
+  // app only changes when the user presses Save.
+  const { scale, saveScale } = useFontScale();
+  const [draftScale, setDraftScale] = useState(scale);
+  const scaleIsDirty = draftScale !== scale;
+  const draftPercent = Math.round(draftScale * 100);
+  // 0 → 1 position of the slider thumb, used to keep the % bubble above it.
+  const sliderProgress =
+    (draftPercent - FONT_SCALE_PERCENT_MIN) /
+    (FONT_SCALE_PERCENT_MAX - FONT_SCALE_PERCENT_MIN);
 
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -111,6 +130,13 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
     }
   };
 
+  // Persists the device-local text size and confirms it with a toast.
+  const handleSaveFontScale = () => {
+    if (!scaleIsDirty) return;
+    saveScale(draftScale);
+    setFlash("Text size saved.");
+  };
+
   if (currentView === "personal-details") {
     return (
       <PersonalDetails
@@ -150,7 +176,7 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
           <div className="skeleton sk-subtitle" />
         </div>
         <div className="settings-cards-list" aria-hidden="true">
-          {[0, 1, 2].map((index) => (
+          {[0, 1, 2, 3].map((index) => (
             <div className="settings-card skeleton-card" key={index}>
               <div className="card-header">
                 <div className="skeleton sk-icon" />
@@ -195,7 +221,7 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
       <div className="settings-header">
         <h1>Account Settings</h1>
         <p className="settings-subtitle">
-          Manage your identity, security, and notification preferences.
+          Manage your identity, security, and preferences.
         </p>
       </div>
 
@@ -379,7 +405,120 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
           </section>
         )}
 
-        {/* 4. Legal & Policies — shared by staff and citizens. Each policy
+        {/* 4. Appearance — device-local display preference, shared by staff
+            and citizens. The slider edits a draft; Save persists it to
+            localStorage and applies it app-wide (see FontScaleProvider). */}
+        <section className="settings-card">
+          <div className="card-header">
+            <svg
+              className="card-icon blue-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="4 7 4 4 20 4 20 7" />
+              <line x1="9" y1="20" x2="15" y2="20" />
+              <line x1="12" y1="4" x2="12" y2="20" />
+            </svg>
+            <h2>Appearance</h2>
+          </div>
+
+          <div className="card-body appearance-body">
+            <div>
+              <div className="setting-title" id="text-size-label">
+                Text Size
+              </div>
+              <div className="setting-desc">
+                Adjust how large text appears across SnapSumbong.
+              </div>
+            </div>
+
+            <div className="text-size-control">
+              <span className="text-size-glyph text-size-glyph-small" aria-hidden="true">
+                A
+              </span>
+              <div
+                className="text-size-slider-wrap"
+                style={{ "--slider-progress": sliderProgress }}
+              >
+                <input
+                  id="text-size-slider"
+                  type="range"
+                  className="text-size-slider"
+                  min={FONT_SCALE_PERCENT_MIN}
+                  max={FONT_SCALE_PERCENT_MAX}
+                  step={FONT_SCALE_PERCENT_STEP}
+                  value={draftPercent}
+                  onChange={(event) => setDraftScale(Number(event.target.value) / 100)}
+                  aria-labelledby="text-size-label"
+                  aria-valuetext={`${draftPercent}%`}
+                />
+                <span className="text-size-bubble" aria-hidden="true">
+                  {draftPercent}%
+                </span>
+              </div>
+              <span className="text-size-glyph text-size-glyph-large" aria-hidden="true">
+                A
+              </span>
+              <button
+                type="button"
+                className="text-size-reset"
+                onClick={() => setDraftScale(DEFAULT_FONT_SCALE)}
+                disabled={draftScale === DEFAULT_FONT_SCALE}
+                aria-label="Reset text size to 100%"
+                title="Reset to 100%"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M3 12a9 9 0 1 0 3-6.7" />
+                  <polyline points="3 4 3 10 9 10" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="text-size-preview">
+              <span className="text-size-preview-label">Preview</span>
+              <p
+                className="text-size-preview-line"
+                style={{ fontSize: `${16 * draftScale}px` }}
+              >
+                The quick brown fox jumps over the lazy dog.
+              </p>
+              <p
+                className="text-size-preview-meta"
+                style={{ fontSize: `${12 * draftScale}px` }}
+              >
+                REPORT #SS-2026-00412 &middot; PENDING REVIEW
+              </p>
+            </div>
+
+            <div className="appearance-footer">
+              <span className="setting-desc">Saved on this device only.</span>
+              <div className="appearance-actions">
+                <button
+                  type="button"
+                  className="btn-save"
+                  onClick={handleSaveFontScale}
+                  disabled={!scaleIsDirty}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 5. Legal & Policies — shared by staff and citizens. Each policy
             opens in a new tab so the user keeps their place in Settings. */}
         <section className="settings-card">
           <div className="card-header">
@@ -440,7 +579,7 @@ export default function AccountSettings({ onUpdateUser, variant = "citizen", rol
           </div>
         </section>
 
-        {/* 5. Danger Zone — staff accounts are deactivated by admins via
+        {/* 6. Danger Zone — staff accounts are deactivated by admins via
             User Management, so this self-service block is citizen-only. */}
         {!isStaff && (
           <section className="settings-card danger-card">

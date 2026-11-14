@@ -32,7 +32,7 @@
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  font-size: 0.72rem;
+  font-size: calc(0.72rem * var(--font-scale));
   font-weight: 600;
   color: var(--color-text-muted);
 }
@@ -42,7 +42,7 @@
   border-radius: 8px;
   background: #fff;
   padding: 0.5rem 1.9rem 0.5rem 0.75rem;
-  font-size: 0.76rem;
+  font-size: calc(0.76rem * var(--font-scale));
   color: var(--color-text-body);
   cursor: pointer;
   appearance: none;
@@ -65,7 +65,7 @@
 }
 
 .an-range-custom span {
-  font-size: 0.62rem;
+  font-size: calc(0.62rem * var(--font-scale));
   font-weight: 600;
   color: var(--color-text-muted);
 }
@@ -76,7 +76,7 @@
   border-radius: 8px;
   background: #fff;
   padding: 0.45rem 0.6rem;
-  font-size: 0.72rem;
+  font-size: calc(0.72rem * var(--font-scale));
   font-family: inherit;
   color: var(--color-text-body);
 }
@@ -102,7 +102,7 @@
   background: #fff;
   border-radius: 8px;
   padding: 0.5rem 0.8rem;
-  font-size: 0.72rem;
+  font-size: calc(0.72rem * var(--font-scale));
   font-weight: 600;
   color: var(--color-text-body);
   cursor: pointer;
@@ -133,12 +133,12 @@
   border: 1px solid #fecaca;
   padding: 0.6rem 0.85rem;
   border-radius: 8px;
-  font-size: 0.74rem;
+  font-size: calc(0.74rem * var(--font-scale));
 }
 
 .an-note {
   margin: -0.4rem 0 0;
-  font-size: 0.68rem;
+  font-size: calc(0.68rem * var(--font-scale));
   color: var(--color-text-muted);
 }
 
@@ -154,14 +154,14 @@
 
 .an-volume-total {
   margin: 0;
-  font-size: 0.86rem;
+  font-size: calc(0.86rem * var(--font-scale));
   font-weight: 600;
   color: var(--color-text);
 }
 
 .an-volume-delta {
   margin: 0.15rem 0 0;
-  font-size: 0.74rem;
+  font-size: calc(0.74rem * var(--font-scale));
   color: var(--color-text-muted);
 }
 
@@ -213,7 +213,7 @@
 }
 
 .an-kpi-label {
-  font-size: 0.72rem;
+  font-size: calc(0.72rem * var(--font-scale));
   font-weight: 600;
   color: var(--color-text-muted);
 }
@@ -226,7 +226,7 @@
 }
 
 .an-kpi-value {
-  font-size: 1.45rem;
+  font-size: calc(1.45rem * var(--font-scale));
   font-weight: 700;
   color: var(--color-text-dark);
   line-height: 1.15;
@@ -235,10 +235,10 @@
 .an-value-good { color: var(--color-success-text); }
 .an-value-warn { color: var(--color-warning-text); }
 .an-value-bad { color: #dc2626; }
-.an-value-muted { font-size: 1.15rem; color: var(--color-text-muted); }
+.an-value-muted { font-size: calc(1.15rem * var(--font-scale)); color: var(--color-text-muted); }
 
 .an-kpi-hint {
-  font-size: 0.62rem;
+  font-size: calc(0.62rem * var(--font-scale));
   color: var(--color-text-placeholder);
   line-height: 1.35;
 }
@@ -249,7 +249,7 @@
   align-items: center;
   padding: 0.12rem 0.42rem;
   border-radius: 999px;
-  font-size: 0.62rem;
+  font-size: calc(0.62rem * var(--font-scale));
   font-weight: 700;
   white-space: nowrap;
 }
@@ -272,7 +272,7 @@
   padding: 0.24rem 0.5rem;
   border-radius: 999px;
   border: 1px solid transparent;
-  font-size: 0.66rem;
+  font-size: calc(0.66rem * var(--font-scale));
   font-weight: 600;
   text-decoration: none;
   transition: transform 0.12s, box-shadow 0.12s;
@@ -351,20 +351,20 @@
 
 .an-panel-title {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: calc(0.95rem * var(--font-scale));
   font-weight: 700;
   color: var(--color-text-dark);
 }
 
 .an-panel-sub {
   margin: 0.18rem 0 0;
-  font-size: 0.68rem;
+  font-size: calc(0.68rem * var(--font-scale));
   color: var(--color-text-muted);
   line-height: 1.45;
 }
 
 .an-panel-link {
-  font-size: 0.72rem;
+  font-size: calc(0.72rem * var(--font-scale));
   font-weight: 600;
   color: var(--color-primary);
   text-decoration: none;
@@ -389,13 +389,13 @@
   border-radius: 8px;
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1);
   padding: 0.5rem 0.65rem;
-  font-size: 0.7rem;
+  font-size: calc(0.7rem * var(--font-scale));
   color: var(--color-text-body);
 }
 
 .an-tooltip strong {
   color: var(--color-text-dark);
-  font-size: 0.7rem;
+  font-size: calc(0.7rem * var(--font-scale));
 }
 
 .an-tooltip b {
@@ -405,7 +405,7 @@
 .an-tooltip em {
   font-style: normal;
   color: #dc2626;
-  font-size: 0.64rem;
+  font-size: calc(0.64rem * var(--font-scale));
   font-weight: 600;
 }
 
@@ -427,7 +427,7 @@
   margin: 0;
   padding: 1.1rem 0.6rem;
   text-align: center;
-  font-size: 0.74rem;
+  font-size: calc(0.74rem * var(--font-scale));
   color: var(--color-text-muted);
   background: var(--color-bg-page);
   border: 1px dashed var(--color-border);
@@ -481,17 +481,17 @@
 }
 
 .an-spike-body strong {
-  font-size: 0.74rem;
+  font-size: calc(0.74rem * var(--font-scale));
   color: var(--color-text-dark);
 }
 
 .an-spike-body span {
-  font-size: 0.66rem;
+  font-size: calc(0.66rem * var(--font-scale));
   color: var(--color-text-muted);
 }
 
 .an-spike-link {
-  font-size: 0.7rem;
+  font-size: calc(0.7rem * var(--font-scale));
   font-weight: 600;
   color: var(--color-primary);
   text-decoration: none;
@@ -516,7 +516,7 @@
   padding: 0.55rem 0.65rem;
   text-align: left;
   border-bottom: 1px solid var(--color-border);
-  font-size: 0.6rem;
+  font-size: calc(0.6rem * var(--font-scale));
   color: #8490a1;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -527,7 +527,7 @@
 .an-table td {
   padding: 0.62rem 0.65rem;
   border-bottom: 1px solid #eef1f5;
-  font-size: 0.72rem;
+  font-size: calc(0.72rem * var(--font-scale));
   color: #4c5667;
 }
 
@@ -542,7 +542,9 @@
 .an-report-no {
   color: #2584df;
   font-weight: 600;
-  max-width: 135px;
+  /* em (not px) so the visible character count stays the same as the text
+     size grows; a fixed 135px started cutting digits off report numbers. */
+  max-width: 12em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -552,7 +554,7 @@
    layout, so the truncation must live on the span, not the cell. */
 .an-cell-truncate {
   display: block;
-  max-width: 160px;
+  max-width: 14em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -565,7 +567,7 @@
 
 .an-table-foot {
   margin: 0.6rem 0 0;
-  font-size: 0.68rem;
+  font-size: calc(0.68rem * var(--font-scale));
   color: var(--color-text-muted);
 }
 
@@ -600,7 +602,7 @@
 .workload-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.72rem;
+  font-size: calc(0.72rem * var(--font-scale));
 }
 
 .workload-table th,
@@ -619,7 +621,7 @@
   color: var(--color-text-muted);
   font-weight: 600;
   text-transform: uppercase;
-  font-size: 0.68rem;
+  font-size: calc(0.68rem * var(--font-scale));
   letter-spacing: 0.04em;
 }
 
@@ -654,7 +656,7 @@
   display: flex;
   gap: 1rem;
   margin: 0 0 0.5rem;
-  font-size: 0.68rem;
+  font-size: calc(0.68rem * var(--font-scale));
   color: var(--color-text-muted);
 }
 

@@ -10,7 +10,7 @@
   border: 1px solid #fecaca;
   padding: 0.6rem 0.8rem;
   border-radius: 8px;
-  font-size: 0.72rem;
+  font-size: calc(0.72rem * var(--font-scale));
 }
 .dh-error:empty {
   display: none;
@@ -29,7 +29,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 0.45rem;
-  font-size: 0.72rem;
+  font-size: calc(0.72rem * var(--font-scale));
   font-weight: 600;
   color: var(--color-text-muted);
 }
@@ -38,7 +38,7 @@
   border-radius: 8px;
   background: #fff;
   padding: 0.5rem 1.9rem 0.5rem 0.75rem;
-  font-size: 0.76rem;
+  font-size: calc(0.76rem * var(--font-scale));
   font-family: inherit;
   color: var(--color-text-body);
   cursor: pointer;
@@ -59,7 +59,7 @@
   gap: 0.45rem;
 }
 .dh-date-range span {
-  font-size: 0.62rem;
+  font-size: calc(0.62rem * var(--font-scale));
   font-weight: 600;
   color: var(--color-text-muted);
 }
@@ -69,7 +69,7 @@
   border-radius: 8px;
   background: #fff;
   padding: 0.45rem 0.6rem;
-  font-size: 0.72rem;
+  font-size: calc(0.72rem * var(--font-scale));
   font-family: inherit;
   color: var(--color-text-body);
 }
@@ -79,7 +79,7 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 .dh-range-note {
-  font-size: 0.7rem;
+  font-size: calc(0.7rem * var(--font-scale));
   font-weight: 600;
   color: var(--color-text-muted);
   white-space: nowrap;
@@ -104,6 +104,13 @@
 .dh-kpi-grid[data-count="5"] {
   grid-template-columns: repeat(5, 1fr);
 }
+/* Text-only scaling: six cards abreast stop fitting once the type grows
+   (hints and labels wrap, values drop below them), so use the same 3 × 2
+   arrangement as the 7-card layout. */
+html[data-text-scale="lg"] .dh-kpi-grid[data-count="6"],
+html[data-text-scale="xl"] .dh-kpi-grid[data-count="6"] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 /* Long card hints must never widen a grid track past the viewport. */
 .dh-kpi-grid .kpi-card {
   min-width: 0;
@@ -117,8 +124,8 @@
 }
 @media (min-width: 1400px) {
   .dh-kpi-grid[data-count="7"] .kpi-card { padding: 0.85rem; }
-  .dh-kpi-grid[data-count="7"] .kpi-value { font-size: 1.35rem; }
-  .dh-kpi-grid[data-count="7"] .kpi-hint { font-size: 0.55rem; }
+  .dh-kpi-grid[data-count="7"] .kpi-value { font-size: calc(1.35rem * var(--font-scale)); }
+  .dh-kpi-grid[data-count="7"] .kpi-hint { font-size: calc(0.55rem * var(--font-scale)); }
 }
 @media (max-width: 1399px) {
   .dh-kpi-grid[data-count="7"] {
@@ -137,6 +144,11 @@
   gap: 1.25rem;
   align-items: start;
 }
+/* At the largest text size the two-up row is too tight: the Recent Reports
+   table would have to scroll inside half the page. Stack the panels instead. */
+html[data-text-scale="xl"] .dh-bottom-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
 .dh-panel {
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
@@ -154,7 +166,7 @@
 }
 .dh-panel-title {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: calc(1.05rem * var(--font-scale));
   font-weight: 700;
   color: var(--color-text-dark);
 }
@@ -164,7 +176,7 @@
   gap: 1rem;
 }
 .dh-panel-link {
-  font-size: 0.78rem;
+  font-size: calc(0.78rem * var(--font-scale));
   font-weight: 600;
   color: var(--color-primary);
   text-decoration: none;
@@ -175,12 +187,12 @@
 }
 .dh-chart-note {
   margin: 0.5rem 0 0;
-  font-size: 0.66rem;
+  font-size: calc(0.66rem * var(--font-scale));
   color: var(--color-text-placeholder);
 }
 .dh-muted {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--color-text-muted);
 }
 
@@ -207,7 +219,7 @@
 }
 .dh-panel-sub {
   margin: 0.18rem 0 0;
-  font-size: 0.68rem;
+  font-size: calc(0.68rem * var(--font-scale));
   line-height: 1.45;
   color: var(--color-text-muted);
 }
@@ -215,7 +227,8 @@
    lives on an inner block-level span (same approach as Analytics). */
 .dh-cell-truncate {
   display: block;
-  max-width: 160px;
+  /* em keeps the visible character count constant as text size grows. */
+  max-width: 14em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -225,7 +238,7 @@
 }
 .dh-table-foot {
   margin: 0.6rem 0 0;
-  font-size: 0.68rem;
+  font-size: calc(0.68rem * var(--font-scale));
   color: var(--color-text-muted);
 }
 .dh-table-foot a {
@@ -257,7 +270,7 @@
   padding: 0.6rem 0.7rem;
   border-bottom: 1px solid #e7ebf0;
   text-align: left;
-  font-size: 0.58rem;
+  font-size: calc(0.58rem * var(--font-scale));
   color: #8490a1;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -266,7 +279,7 @@
 .dh-table td {
   padding: 0.7rem;
   border-bottom: 1px solid #eef1f5;
-  font-size: 0.7rem;
+  font-size: calc(0.7rem * var(--font-scale));
   color: #4c5667;
 }
 .dh-table tbody tr:last-child td {
@@ -301,7 +314,7 @@
   justify-content: center;
   border-radius: 999px;
   padding: 0.16rem 0.48rem;
-  font-size: 0.55rem;
+  font-size: calc(0.55rem * var(--font-scale));
   font-weight: 700;
   text-transform: uppercase;
   white-space: nowrap;
@@ -321,7 +334,7 @@
 .dash-home .severity-badge {
   border-radius: 6px;
   padding: 0.22rem 0.5rem;
-  font-size: 0.6rem;
+  font-size: calc(0.6rem * var(--font-scale));
 }
 .dash-home .severity-p1 { background: #ffe1e1; color: #dc4b4b; }
 .dash-home .severity-p2 { background: #ffe9b8; color: #d08b00; }
@@ -343,7 +356,7 @@
   background: #ef4444;
   color: #fff;
   padding: 0.85rem 1.1rem;
-  font-size: 0.78rem;
+  font-size: calc(0.78rem * var(--font-scale));
   font-weight: 700;
   letter-spacing: 0.05em;
 }
@@ -370,18 +383,18 @@
   gap: 0.15rem;
 }
 .dh-alert-info strong {
-  font-size: 0.72rem;
+  font-size: calc(0.72rem * var(--font-scale));
   color: var(--color-text-dark);
 }
 .dh-alert-info span {
-  font-size: 0.66rem;
+  font-size: calc(0.66rem * var(--font-scale));
   color: var(--color-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .dh-alert-view {
-  font-size: 0.68rem;
+  font-size: calc(0.68rem * var(--font-scale));
   font-weight: 600;
   color: #dc2626;
   text-decoration: none;
@@ -488,7 +501,7 @@
     padding: 1rem 0.85rem;
   }
   .dh-overdue-panel .dh-panel-title {
-    font-size: 0.95rem;
+    font-size: calc(0.95rem * var(--font-scale));
   }
   .dh-overdue-panel .dh-table th,
   .dh-overdue-panel .dh-table td {

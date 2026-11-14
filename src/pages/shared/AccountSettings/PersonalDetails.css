@@ -14,7 +14,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.825rem;
+  font-size: calc(0.825rem * var(--font-scale));
   color: #64748b;
   margin-bottom: 0.75rem; /* Reduced bottom margin */
 }
@@ -56,7 +56,7 @@
 }
 
 .page-header h1 {
-  font-size: 1.6rem; /* Slightly smaller header */
+  font-size: calc(1.6rem * var(--font-scale)); /* Slightly smaller header */
   font-weight: 700;
   color: #0f172a;
   margin: 0 0 0.2rem 0;
@@ -65,7 +65,7 @@
 
 .page-subtitle {
   color: #64748b;
-  font-size: 0.875rem;
+  font-size: calc(0.875rem * var(--font-scale));
   margin: 0;
 }
 
@@ -142,14 +142,14 @@
 }
 
 .section-title {
-  font-size: 1rem;
+  font-size: calc(1rem * var(--font-scale));
   font-weight: 600;
   margin: 0 0 0.15rem 0;
   color: #0f172a;
 }
 
 .section-subtitle {
-  font-size: 0.825rem;
+  font-size: calc(0.825rem * var(--font-scale));
   color: #64748b;
   margin: 0 0 0.625rem 0;
 }
@@ -161,7 +161,7 @@
 }
 
 .photo-staged-hint {
-  font-size: 0.775rem;
+  font-size: calc(0.775rem * var(--font-scale));
   color: #2563eb;
   margin: 0.375rem 0 0;
 }
@@ -172,7 +172,7 @@
   border: none;
   padding: 0.35rem 0.75rem;
   border-radius: 6px;
-  font-size: 0.8rem;
+  font-size: calc(0.8rem * var(--font-scale));
   font-weight: 500;
   cursor: pointer;
 }
@@ -187,7 +187,7 @@
   border: none;
   padding: 0.35rem 0.75rem;
   border-radius: 6px;
-  font-size: 0.8rem;
+  font-size: calc(0.8rem * var(--font-scale));
   font-weight: 500;
   cursor: pointer;
 }
@@ -216,7 +216,7 @@
 }
 
 .form-group label {
-  font-size: 0.825rem;
+  font-size: calc(0.825rem * var(--font-scale));
   font-weight: 600;
   color: #334155;
 }
@@ -243,7 +243,7 @@
   padding: 0.5rem 0.75rem 0.5rem 2.25rem; /* Reduced height/padding on inputs */
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  font-size: 0.875rem;
+  font-size: calc(0.875rem * var(--font-scale));
   color: #0f172a;
   background-color: #ffffff;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -282,7 +282,7 @@
   padding: 0.5rem 0.75rem;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  font-size: 0.875rem;
+  font-size: calc(0.875rem * var(--font-scale));
   color: #0f172a;
   background-color: #ffffff;
   box-sizing: border-box;
@@ -381,7 +381,7 @@
   color: #475569;
   padding: 0.5rem 1.125rem;
   border-radius: 8px;
-  font-size: 0.85rem;
+  font-size: calc(0.85rem * var(--font-scale));
   font-weight: 500;
   cursor: pointer;
 }
@@ -396,7 +396,7 @@
   color: #ffffff;
   padding: 0.5rem 1.25rem;
   border-radius: 8px;
-  font-size: 0.85rem;
+  font-size: calc(0.85rem * var(--font-scale));
   font-weight: 500;
   cursor: pointer;
 }

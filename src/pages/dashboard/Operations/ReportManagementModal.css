@@ -109,7 +109,7 @@
   border: 1px dashed var(--color-border-light);
   border-radius: var(--radius-md);
   color: var(--color-text-muted);
-  font-size: 0.72rem;
+  font-size: calc(0.72rem * var(--font-scale));
   line-height: 1.5;
   /* Preserve the officer's original line breaks; long tokens wrap
      (body overflow-wrap floor). */
@@ -120,7 +120,7 @@
   display: block;
   margin-bottom: 0.2rem;
   color: var(--color-text-placeholder);
-  font-size: 0.64rem;
+  font-size: calc(0.64rem * var(--font-scale));
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -508,7 +508,7 @@
 }
 
 .mgmt-map-frame .leaflet-control-attribution {
-  font-size: 9px;
+  font-size: calc(0.5625rem * var(--font-scale));
 }
 
 .mgmt-map-unavailable {
@@ -590,7 +590,7 @@
   border-radius: 50%;
   background: var(--color-bg-page);
   color: var(--color-text-muted);
-  font-size: 1.4rem;
+  font-size: calc(1.4rem * var(--font-scale));
   line-height: 1;
   cursor: pointer;
 }
@@ -1059,7 +1059,7 @@
   color: #b45309;
   border: 1px solid #fde68a;
   border-radius: 6px;
-  font-size: 0.64rem;
+  font-size: calc(0.64rem * var(--font-scale));
   line-height: 1.4;
 }
 
@@ -1072,7 +1072,7 @@
   color: #475569;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
-  font-size: 0.64rem;
+  font-size: calc(0.64rem * var(--font-scale));
   line-height: 1.4;
 }
 
@@ -1089,7 +1089,7 @@
   border: 1px solid #fca5a5;
   border-radius: 8px;
   color: #b91c1c;
-  font-size: 0.68rem;
+  font-size: calc(0.68rem * var(--font-scale));
   line-height: 1.4;
 }
 

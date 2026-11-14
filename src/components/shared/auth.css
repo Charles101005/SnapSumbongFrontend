@@ -84,7 +84,7 @@
 }
 
 .auth-title {
-  font-size: 1.5rem;
+  font-size: calc(1.5rem * var(--font-scale));
   font-weight: 700;
   letter-spacing: -0.02em;
   color: #0f172a;
@@ -92,7 +92,7 @@
 }
 
 .auth-subtitle {
-  font-size: 0.875rem;
+  font-size: calc(0.875rem * var(--font-scale));
   color: #64748b;
   margin: 0.3rem 0 0;
   text-align: center;
@@ -116,14 +116,14 @@
 }
 
 .auth-card-title {
-  font-size: 1.125rem;
+  font-size: calc(1.125rem * var(--font-scale));
   font-weight: 700;
   color: #0f172a;
   margin: 0;
 }
 
 .auth-card-subtitle {
-  font-size: 0.85rem;
+  font-size: calc(0.85rem * var(--font-scale));
   color: #64748b;
   margin: 0.3rem 0 0;
   line-height: 1.5;
@@ -155,7 +155,7 @@
 }
 
 .auth-label {
-  font-size: 0.85rem;
+  font-size: calc(0.85rem * var(--font-scale));
   font-weight: 600;
   color: #334155;
   margin-bottom: 0.375rem;
@@ -205,7 +205,7 @@
   border-radius: 10px;
   background-color: #f8fafc;
   border: 1px solid #e2e8f0;
-  font-size: 0.875rem;
+  font-size: calc(0.875rem * var(--font-scale));
   color: #0f172a;
   box-sizing: border-box;
   transition:
@@ -279,19 +279,19 @@
 }
 
 .auth-link--small {
-  font-size: 0.78rem;
+  font-size: calc(0.78rem * var(--font-scale));
   white-space: nowrap;
 }
 
 .auth-error {
   color: #ef4444;
-  font-size: 0.8rem;
+  font-size: calc(0.8rem * var(--font-scale));
   margin: 0.35rem 0 0;
 }
 
 .auth-hint {
   color: #94a3b8;
-  font-size: 0.75rem;
+  font-size: calc(0.75rem * var(--font-scale));
   line-height: 1.45;
   margin: 0.4rem 0 0;
 }
@@ -306,7 +306,7 @@
   border-radius: 8px;
   background-color: #fef2f2;
   color: #b91c1c;
-  font-size: 0.8rem;
+  font-size: calc(0.8rem * var(--font-scale));
   line-height: 1.45;
 }
 
@@ -333,7 +333,7 @@
 .auth-consent-title {
   margin: 0 0 0.1rem;
   color: #94a3b8;
-  font-size: 0.68rem;
+  font-size: calc(0.68rem * var(--font-scale));
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -410,7 +410,7 @@
 
 .auth-check-text {
   color: #475569;
-  font-size: 0.78rem;
+  font-size: calc(0.78rem * var(--font-scale));
   line-height: 1.5;
 }
 
@@ -441,7 +441,7 @@
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: #ffffff;
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: calc(0.875rem * var(--font-scale));
   padding: 0.75rem;
   border: none;
   border-radius: 10px;
@@ -481,7 +481,7 @@
   background-color: #ffffff;
   color: #334155;
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: calc(0.875rem * var(--font-scale));
   text-decoration: none;
   transition:
     border-color 0.15s ease,
@@ -506,7 +506,7 @@
   gap: 0.75rem;
   margin: 1.35rem 0 1rem;
   color: #94a3b8;
-  font-size: 0.75rem;
+  font-size: calc(0.75rem * var(--font-scale));
   text-align: center;
 }
 
@@ -525,7 +525,7 @@
   padding: 0.25rem 0.35rem 0.25rem 0;
   margin-bottom: 1rem;
   border-radius: 6px;
-  font-size: 0.8rem;
+  font-size: calc(0.8rem * var(--font-scale));
   font-weight: 600;
   color: #64748b;
   text-decoration: none;
@@ -547,7 +547,7 @@
   border: 1px solid #bbf7d0;
   background-color: #dcfce7;
   color: #15803d;
-  font-size: 0.85rem;
+  font-size: calc(0.85rem * var(--font-scale));
   line-height: 1.4;
   position: relative;
 }
@@ -564,7 +564,7 @@
   border: none;
   background: transparent;
   color: #15803d;
-  font-size: 1.1rem;
+  font-size: calc(1.1rem * var(--font-scale));
   line-height: 1;
   cursor: pointer;
   padding: 0.15rem 0.35rem;
@@ -587,7 +587,7 @@
   width: 52px;
   height: 58px;
   text-align: center;
-  font-size: 1.25rem;
+  font-size: calc(1.25rem * var(--font-scale));
   font-weight: 600;
   color: #0f172a;
   border-radius: 12px;
@@ -619,7 +619,7 @@
 .auth-resend {
   margin: 1.25rem 0 0;
   text-align: center;
-  font-size: 0.85rem;
+  font-size: calc(0.85rem * var(--font-scale));
   color: #64748b;
 }
 
@@ -662,7 +662,7 @@
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  font-size: 0.78rem;
+  font-size: calc(0.78rem * var(--font-scale));
   color: #94a3b8;
   transition: color 0.15s ease;
 }
@@ -740,7 +740,7 @@
   .auth-otp-box {
     width: 46px;
     height: 54px;
-    font-size: 1.15rem;
+    font-size: calc(1.15rem * var(--font-scale));
   }
 }
 

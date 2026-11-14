@@ -45,14 +45,14 @@
 }
 
 .upload-modal-title {
-  font-size: 1.25rem;
+  font-size: calc(1.25rem * var(--font-scale));
   font-weight: 700;
   color: #0f172a;
   margin: 0 0 4px 0;
 }
 
 .upload-modal-subtitle {
-  font-size: 0.85rem;
+  font-size: calc(0.85rem * var(--font-scale));
   color: #64748b;
   margin: 0;
 }
@@ -60,7 +60,7 @@
 .upload-modal-close {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: calc(1.5rem * var(--font-scale));
   color: #94a3b8;
   cursor: pointer;
   padding: 0;
@@ -110,14 +110,14 @@
 }
 
 .dropzone-text-primary {
-  font-size: 0.95rem;
+  font-size: calc(0.95rem * var(--font-scale));
   font-weight: 600;
   color: #1e293b;
   margin-bottom: 4px;
 }
 
 .dropzone-text-or {
-  font-size: 0.8rem;
+  font-size: calc(0.8rem * var(--font-scale));
   color: #94a3b8;
   margin-bottom: 12px;
 }
@@ -127,7 +127,7 @@
   border: 1px solid #cbd5e1;
   color: #334155;
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: calc(0.85rem * var(--font-scale));
   padding: 8px 18px;
   border-radius: 8px;
   cursor: pointer;
@@ -141,7 +141,7 @@
 }
 
 .dropzone-hint {
-  font-size: 0.75rem;
+  font-size: calc(0.75rem * var(--font-scale));
   color: #94a3b8;
   margin-top: 14px;
 }
@@ -224,7 +224,7 @@
 }
 
 .upload-error-text {
-  font-size: 0.8rem;
+  font-size: calc(0.8rem * var(--font-scale));
   color: #dc2626;
   margin: 10px 0 0;
 }
@@ -233,7 +233,7 @@
   background-color: #ffffff;
   border: 1px solid #cbd5e1;
   color: #334155;
-  font-size: 0.8rem;
+  font-size: calc(0.8rem * var(--font-scale));
   font-weight: 600;
   padding: 6px 14px;
   border-radius: 6px;
@@ -252,7 +252,7 @@
   background-color: #f1f5f9;
   border: none;
   color: #475569;
-  font-size: 0.875rem;
+  font-size: calc(0.875rem * var(--font-scale));
   font-weight: 600;
   padding: 10px 20px;
   border-radius: 8px;
@@ -268,7 +268,7 @@
   background-color: #2563eb;
   border: none;
   color: #ffffff;
-  font-size: 0.875rem;
+  font-size: calc(0.875rem * var(--font-scale));
   font-weight: 600;
   padding: 10px 24px;
   border-radius: 8px;

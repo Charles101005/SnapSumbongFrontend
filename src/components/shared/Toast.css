@@ -23,7 +23,7 @@
   color: #f8fafc;
   border-radius: 10px;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
-  font-size: 0.875rem;
+  font-size: calc(0.875rem * var(--font-scale));
   font-weight: 500;
   line-height: 1.4;
   animation: toastIn 0.25s ease;
@@ -60,7 +60,7 @@
   background: none;
   border: none;
   color: #94a3b8;
-  font-size: 1.25rem;
+  font-size: calc(1.25rem * var(--font-scale));
   line-height: 1;
   padding: 2px 6px;
   border-radius: 6px;

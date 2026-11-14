@@ -75,7 +75,7 @@
 }
 
 .profile-name {
-  font-size: 1.375rem;
+  font-size: calc(1.375rem * var(--font-scale));
   font-weight: 700;
   color: var(--color-text-dark);
   margin: 0;
@@ -243,7 +243,7 @@
 }
 
 .activity-stat-value {
-  font-size: 1.75rem;
+  font-size: calc(1.75rem * var(--font-scale));
   font-weight: 700;
   color: var(--color-primary);
 }
