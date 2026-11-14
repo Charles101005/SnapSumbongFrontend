@@ -2,13 +2,13 @@
   margin-bottom:.1rem
 }
 .section-title {
-  font-size:1.25rem;
+  font-size:calc(1.25rem * var(--font-scale));
   font-weight:700;
   color:var(--color-text-dark);
   margin:0
 }
 .section-subtitle {
-  font-size:.78rem;
+  font-size:calc(.78rem * var(--font-scale));
   color:var(--color-text-muted);
   margin:.25rem 0 0
 }
@@ -96,13 +96,13 @@
   white-space:nowrap
 }
 .summary-label {
-  font-size:.5rem;
+  font-size:calc(.5rem * var(--font-scale));
   font-weight:700;
   color:#8a94a6;
   letter-spacing:.04em
 }
 .summary-text strong {
-  font-size:.95rem;
+  font-size:calc(.95rem * var(--font-scale));
   color:#172033;
   margin-top:.05rem
 }
@@ -110,7 +110,7 @@
   display:flex;
   align-items:center;
   gap:.4rem;
-  font-size:.72rem;
+  font-size:calc(.72rem * var(--font-scale));
   color:#475569;
   cursor:pointer;
   user-select:none;
@@ -157,7 +157,7 @@
   width:100%
 }
 .filter-group label {
-  font-size:.58rem;
+  font-size:calc(.58rem * var(--font-scale));
   font-weight:600;
   color:#5f6b7a
 }
@@ -166,7 +166,7 @@
   border-radius:6px;
   background:#fff;
   padding:.5rem .65rem;
-  font-size:.7rem;
+  font-size:calc(.7rem * var(--font-scale));
   line-height:1.3;
   color:#344054;
   min-width:0;
@@ -212,10 +212,14 @@
 }
 .date-filter {
   flex:0 0 auto;
-  width:fit-content
+  /* Was width:fit-content, which clamped to the leftover space but left the
+     fixed 220px select hanging outside the filters panel. Match the two so the
+     group wraps as a unit instead of overflowing. */
+  width:220px;
+  max-width:100%
 }
 .date-filter select {
-  width:220px
+  width:100%
 }
 .date-filter .date-range {
   margin-top:.2rem
@@ -226,7 +230,7 @@
   gap:.45rem
 }
 .date-range span {
-  font-size:.62rem;
+  font-size:calc(.62rem * var(--font-scale));
   color:#8791a1
 }
 .date-range input {
@@ -245,7 +249,7 @@
   height:32px;
   padding:0 .85rem;
   border-radius:6px;
-  font-size:.66rem;
+  font-size:calc(.66rem * var(--font-scale));
   font-weight:600;
   cursor:pointer
 }
@@ -271,7 +275,8 @@
   background:#fff;
   border:1px solid var(--color-border);
   border-radius:9px;
-  overflow:hidden
+  /* Scroll rather than clip when larger text widens the table. */
+  overflow-x:auto
 }
 .reports-table {
   width:100%;
@@ -284,7 +289,7 @@
   padding:.62rem .7rem;
   border-bottom:1px solid #e7ebf0;
   text-align:left;
-  font-size:.5rem;
+  font-size:calc(.5rem * var(--font-scale));
   color:#8490a1;
   font-weight:700;
   letter-spacing:.04em;
@@ -293,7 +298,7 @@
 .reports-table td {
   padding:.65rem .7rem;
   border-bottom:1px solid #eef1f5;
-  font-size:.63rem;
+  font-size:calc(.63rem * var(--font-scale));
   color:#4c5667
 }
 .reports-table tbody tr:hover {
@@ -301,7 +306,10 @@
 }
 .report-number {
   color:#2584df;
-  font-weight:600
+  font-weight:600;
+  /* Report IDs should stay on one line; the table container scrolls sideways
+     when larger text widens it. */
+  white-space:nowrap
 }
 /* Long category/location text truncates with a native title tooltip.
    The truncation lives on an inner block-level span: `max-width` is
@@ -309,7 +317,8 @@
    ordinary long addresses widen the table and clip the ACTION column. */
 .cell-truncate {
   display: block;
-  max-width: 220px;
+  /* em keeps the visible character count constant as text size grows. */
+  max-width: 22em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis
@@ -344,7 +353,7 @@
   justify-content:center;
   border-radius:999px;
   padding:.16rem .48rem;
-  font-size:.48rem;
+  font-size:calc(.48rem * var(--font-scale));
   font-weight:700;
   text-transform:uppercase;
   white-space:nowrap
@@ -388,7 +397,7 @@
 .severity-badge {
   border-radius:6px;
   padding:.22rem .5rem;
-  font-size:.66rem
+  font-size:calc(.66rem * var(--font-scale))
 }
 .severity-p1 {
   background:#ffe1e1;
@@ -418,7 +427,7 @@
   border:1px solid #fecdd3;
   padding:.6rem .75rem;
   border-radius:7px;
-  font-size:.68rem
+  font-size:calc(.68rem * var(--font-scale))
 }
 @media(max-width:900px) {
   .summary-bar {

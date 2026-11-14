@@ -52,7 +52,7 @@
 
 .drm-modal-title {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: calc(1.25rem * var(--font-scale));
   font-weight: 700;
   color: var(--color-text-dark);
 }

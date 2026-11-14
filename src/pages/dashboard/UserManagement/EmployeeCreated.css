@@ -30,7 +30,7 @@
 
 /* ===== SUCCESS TEXT ===== */
 .success-title {
-  font-size: 1.5rem;
+  font-size: calc(1.5rem * var(--font-scale));
   font-weight: 700;
   color: var(--color-text-dark);
   margin: 0 0 0.5rem;

@@ -24,7 +24,7 @@
   top: 50%;
   transform: translateY(-50%);
   color: var(--color-text-muted);
-  font-size: 0.75rem;
+  font-size: calc(0.75rem * var(--font-scale));
   line-height: 1;
   pointer-events: none;
 }
@@ -38,7 +38,7 @@
   border: none;
   background: transparent;
   color: var(--color-text-muted);
-  font-size: 1rem;
+  font-size: calc(1rem * var(--font-scale));
   line-height: 1;
   padding: 0 0.15rem;
   cursor: pointer;

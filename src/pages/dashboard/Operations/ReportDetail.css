@@ -52,7 +52,7 @@
   border: 0;
   background: transparent;
   color: var(--color-text-muted);
-  font-size: 1.6rem;
+  font-size: calc(1.6rem * var(--font-scale));
   line-height: 1;
   cursor: pointer;
 }
@@ -177,7 +177,7 @@
   display: inline-block;
   padding: .2rem .55rem;
   border-radius: 999px;
-  font-size: .72rem;
+  font-size: calc(.72rem * var(--font-scale));
   font-weight: 600;
 }
 .report-sla-badge.sla-ok { background: #f1f5f9; color: #475569; }
@@ -218,7 +218,7 @@
 
 .photolog-group-label {
   margin: 0;
-  font-size: 0.7rem;
+  font-size: calc(0.7rem * var(--font-scale));
   font-weight: 600;
   color: #64748b;
   text-transform: uppercase;
@@ -400,7 +400,7 @@
   border: 0;
   background: transparent;
   color: var(--color-text-muted);
-  font-size: 1.5rem;
+  font-size: calc(1.5rem * var(--font-scale));
   line-height: 1;
   cursor: pointer;
 }
@@ -425,7 +425,7 @@
 
 .activity-field-label {
   color: var(--color-text-muted);
-  font-size: 0.68rem;
+  font-size: calc(0.68rem * var(--font-scale));
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -450,7 +450,7 @@
   border-radius: 999px;
   background: #dbeafe;
   color: #2563eb;
-  font-size: 0.65rem;
+  font-size: calc(0.65rem * var(--font-scale));
   font-weight: 700;
 }
 
@@ -600,7 +600,7 @@
   border: 0;
   background: transparent;
   color: #fff;
-  font-size: 2rem;
+  font-size: calc(2rem * var(--font-scale));
   cursor: pointer;
 }
 

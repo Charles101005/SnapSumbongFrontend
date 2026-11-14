@@ -34,7 +34,7 @@
 .as-option {
   padding: 0.5rem 0.7rem;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   font-weight: 500;
   color: var(--color-text-dark);
   cursor: pointer;
@@ -50,6 +50,6 @@
 
 .as-status {
   padding: 0.5rem 0.7rem;
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--color-text-muted);
 }

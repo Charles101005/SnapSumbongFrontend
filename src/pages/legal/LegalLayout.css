@@ -64,7 +64,7 @@
   align-items: center;
   gap: 0.6rem;
   color: #0f172a;
-  font-size: 1rem;
+  font-size: calc(1rem * var(--font-scale));
   font-weight: 700;
   letter-spacing: -0.01em;
   text-decoration: none;
@@ -99,7 +99,7 @@
 .legal-title {
   margin: 0;
   color: #0f172a;
-  font-size: clamp(1.75rem, 4vw, 2.4rem);
+  font-size: calc(clamp(1.75rem, 4vw, 2.4rem) * var(--font-scale));
   font-weight: 700;
   line-height: 1.15;
   letter-spacing: -0.025em;
@@ -108,14 +108,14 @@
 .legal-description {
   margin: 0.75rem 0 0;
   color: #475569;
-  font-size: 1rem;
+  font-size: calc(1rem * var(--font-scale));
   line-height: 1.6;
 }
 
 .legal-updated {
   margin: 0.9rem 0 0;
   color: #94a3b8;
-  font-size: 0.78rem;
+  font-size: calc(0.78rem * var(--font-scale));
 }
 
 /* ===== TWO-COLUMN DOCUMENT LAYOUT ===== */
@@ -147,7 +147,7 @@
 .legal-related-title {
   margin: 0 0 0.6rem;
   color: #94a3b8;
-  font-size: 0.68rem;
+  font-size: calc(0.68rem * var(--font-scale));
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -170,7 +170,7 @@
   padding: 0.38rem 0.5rem;
   border-radius: 8px;
   color: #475569;
-  font-size: 0.8rem;
+  font-size: calc(0.8rem * var(--font-scale));
   line-height: 1.35;
   text-decoration: none;
   transition: background-color 0.15s ease, color 0.15s ease;
@@ -180,7 +180,7 @@
   flex: none;
   min-width: 1rem;
   color: #94a3b8;
-  font-size: 0.68rem;
+  font-size: calc(0.68rem * var(--font-scale));
   font-weight: 700;
 }
 
@@ -198,7 +198,7 @@
   padding: 0.42rem 0.5rem;
   border-radius: 8px;
   color: #475569;
-  font-size: 0.8rem;
+  font-size: calc(0.8rem * var(--font-scale));
   line-height: 1.35;
   text-decoration: none;
   transition: background-color 0.15s ease, color 0.15s ease;
@@ -243,7 +243,7 @@
   gap: 0.65rem;
   margin: 0 0 0.85rem;
   color: #0f172a;
-  font-size: 1.15rem;
+  font-size: calc(1.15rem * var(--font-scale));
   font-weight: 700;
   line-height: 1.3;
   letter-spacing: -0.01em;
@@ -259,14 +259,14 @@
   border-radius: 8px;
   background-color: #eff6ff;
   color: #1d4ed8;
-  font-size: 0.78rem;
+  font-size: calc(0.78rem * var(--font-scale));
   font-weight: 700;
 }
 
 .legal-section-body p {
   margin: 0 0 0.8rem;
   color: #475569;
-  font-size: 0.92rem;
+  font-size: calc(0.92rem * var(--font-scale));
   line-height: 1.7;
 }
 
@@ -291,7 +291,7 @@
   position: relative;
   padding-left: 1.3rem;
   color: #475569;
-  font-size: 0.92rem;
+  font-size: calc(0.92rem * var(--font-scale));
   line-height: 1.6;
 }
 
@@ -328,7 +328,7 @@
 .legal-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.88rem;
+  font-size: calc(0.88rem * var(--font-scale));
 }
 
 .legal-table thead {
@@ -345,7 +345,7 @@
 
 .legal-table thead th {
   color: #94a3b8;
-  font-size: 0.68rem;
+  font-size: calc(0.68rem * var(--font-scale));
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -354,7 +354,7 @@
 .legal-table tbody th {
   width: 55%;
   color: #334155;
-  font-size: 0.88rem;
+  font-size: calc(0.88rem * var(--font-scale));
   font-weight: 600;
 }
 
@@ -382,7 +382,7 @@
   border-radius: 10px;
   background-color: #fff7ed;
   color: #9a3412;
-  font-size: 0.87rem;
+  font-size: calc(0.87rem * var(--font-scale));
   line-height: 1.6;
 }
 
@@ -430,7 +430,7 @@
     border: 1px solid #e2e8f0;
     border-radius: 999px;
     background-color: #f8fafc;
-    font-size: 0.75rem;
+    font-size: calc(0.75rem * var(--font-scale));
   }
 
   .legal-toc a:hover {
@@ -457,11 +457,11 @@
   }
 
   .legal-title {
-    font-size: clamp(1.55rem, 7vw, 2rem);
+    font-size: calc(clamp(1.55rem, 7vw, 2rem) * var(--font-scale));
   }
 
   .legal-description {
-    font-size: 0.92rem;
+    font-size: calc(0.92rem * var(--font-scale));
   }
 
   .legal-card {
@@ -475,23 +475,23 @@
   }
 
   .legal-section-title {
-    font-size: 1.05rem;
+    font-size: calc(1.05rem * var(--font-scale));
   }
 
   .legal-section-body p,
   .legal-section-body li {
-    font-size: 0.88rem;
+    font-size: calc(0.88rem * var(--font-scale));
   }
 
   .legal-table th,
   .legal-table td {
     padding: 0.6rem 0.65rem;
-    font-size: 0.82rem;
+    font-size: calc(0.82rem * var(--font-scale));
   }
 
   .legal-table tbody th {
     width: 52%;
-    font-size: 0.82rem;
+    font-size: calc(0.82rem * var(--font-scale));
   }
 }
 

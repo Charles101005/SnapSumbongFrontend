@@ -75,7 +75,7 @@
 
 .cat-info-title {
   margin: 0 0 6px;
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   font-weight: 700;
   color: #1e293b;
   line-height: 1.25;
@@ -83,7 +83,7 @@
 
 .cat-info-text {
   margin: 0;
-  font-size: 12.5px;
+  font-size: calc(0.78125rem * var(--font-scale));
   font-weight: 400;
   color: #475569;
   line-height: 1.45;

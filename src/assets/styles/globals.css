@@ -19,6 +19,10 @@ html, body, #root {
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /* Font sizes opt into the device-local text size individually via
+     calc(…rem * var(--font-scale)) and the --text-* tokens. The root stays at
+     16px so layout spacing and widths do NOT scale with the text. */
+  font-size: 16px;
 }
 
 /* iOS/Android zoom the viewport when a focused form control is smaller than
@@ -73,7 +77,10 @@ body {
 
 .sidebar-top {
   padding: 1.25rem 0;
+  /* The rail is a fixed width while text can grow (Appearance > Text Size), so
+     the nav must scroll vertically and never spawn a horizontal scrollbar. */
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sidebar-brand {
@@ -82,6 +89,7 @@ body {
   gap: 0.625rem;
   padding: 0 1.25rem;
   margin-bottom: 1.5rem;
+  min-width: 0;
 }
 
 .sidebar-logo {
@@ -107,12 +115,19 @@ body {
   display: flex;
   flex-direction: column;
   line-height: 1.2;
+  /* Let the text block shrink inside the fixed rail so the tagline wraps
+     instead of pushing the brand past the sidebar edge at 150% text size. */
+  min-width: 0;
 }
 
 .sidebar-brand-name {
-  font-size: var(--text-lg);
+  /* Wordmark: capped so the single unbreakable word can never outgrow the
+     fixed-width rail. It is branding, not body copy, so it stays legible
+     without following the full text-size setting. */
+  font-size: min(var(--text-lg), 1.0625rem);
   font-weight: 700;
   color: var(--color-text-dark);
+  white-space: nowrap;
 }
 
 .sidebar-brand-tagline {
@@ -121,6 +136,7 @@ body {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-text-placeholder);
+  overflow-wrap: anywhere;
 }
 
 .sidebar-nav {
@@ -386,7 +402,7 @@ body {
 }
 
 .section-title {
-  font-size: 1.375rem;
+  font-size: calc(1.375rem * var(--font-scale));
   font-weight: 700;
   color: var(--color-text-dark);
   margin: 0;
@@ -442,7 +458,7 @@ body {
 
 .error-text {
   color: var(--color-error);
-  font-size: 0.8rem;
+  font-size: calc(0.8rem * var(--font-scale));
   margin: 0.35rem 0 0;
 }
 
@@ -591,7 +607,7 @@ body {
   display: inline-block;
   padding: 0.2rem 0.5rem;
   border-radius: 999px;
-  font-size: 0.68rem;
+  font-size: calc(0.68rem * var(--font-scale));
   font-weight: 600;
   white-space: nowrap;
 }
@@ -843,7 +859,9 @@ body {
   background-color: var(--color-bg-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  /* Larger text can make the table wider than the panel. Scroll it sideways
+     instead of clipping the last column (Appearance > Text Size). */
+  overflow-x: auto;
 }
 
 .reports-table {
@@ -974,7 +992,7 @@ body {
   margin-left: 0.6rem;
   padding: 0.18rem 0.55rem;
   border-radius: 999px;
-  font-size: 0.68rem;
+  font-size: calc(0.68rem * var(--font-scale));
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
