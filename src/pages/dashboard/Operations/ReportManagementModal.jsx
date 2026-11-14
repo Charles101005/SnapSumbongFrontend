@@ -4,6 +4,14 @@ import "leaflet/dist/leaflet.css";
 import MapAutoResize from "../../../components/shared/MapAutoResize";
 import { hazardMarkerIcon } from "../../../utils/leafletHelpers";
 import { getReportDetail, updateReport, uploadResolutionImages } from "../../../api/reports";
+import AiScreeningNotice, { AiImageFlagBadge } from "../../../components/shared/AiScreeningNotice";
+import { AlertIcon, CheckIcon, FlagIcon } from "../../../components/shared/icons";
+import {
+  AI_FLAG_DECISION,
+  isAiFlagPending,
+  isAiFlagReviewRequiredFor,
+  mapImageAiFlags,
+} from "../../../utils/aiFlags";
 import { severityFromSla, slaDaysForReport } from "../../../utils/sla";
 import "./ReportManagementModal.css";
 
@@ -195,6 +203,11 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   const [photosError, setPhotosError] = useState("");
   const [validatorError, setValidatorError] = useState("");
   const [remarksError, setRemarksError] = useState("");
+  // Officer's answer to a pending AI screening flag: CLEARED (valid) or
+  // CONFIRMED (invalid). Required when a flagged report leaves triage, and
+  // sent as ai_flag_decision; the original AI reasons are never overwritten.
+  const [aiFlagDecision, setAiFlagDecision] = useState("");
+  const [aiFlagError, setAiFlagError] = useState("");
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [mapExpanded, setMapExpanded] = useState(false);
 
@@ -213,6 +226,8 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
     setPhotosError("");
     setValidatorError("");
     setRemarksError("");
+    setAiFlagDecision("");
+    setAiFlagError("");
     setCategory("");
     setCategorySlaPreview(null);
     setRemarks("");
@@ -310,6 +325,8 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         setPhotosError("");
         setValidatorError("");
         setRemarksError("");
+        setAiFlagDecision("");
+        setAiFlagError("");
         setLoadingDetail(false);
       })
       .catch((err) => {
@@ -410,6 +427,30 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         return;
       }
 
+      // AI screening flags are advisory, but the officer must answer the
+      // review question whenever a flagged report leaves triage. CONFIRMED
+      // only pairs with Invalid; CLEARED cannot accompany an Invalid verdict.
+      const aiFlagReviewRequired =
+        isAiFlagPending(report) && statusChanged && isAiFlagReviewRequiredFor(status);
+      if (aiFlagReviewRequired && !aiFlagDecision) {
+        setError("");
+        setAiFlagError("Answer whether this report is valid before changing its status.");
+        setSaving(false);
+        return;
+      }
+      if (aiFlagDecision === AI_FLAG_DECISION.CONFIRMED && status !== "INVALID") {
+        setError("");
+        setAiFlagError("Confirming the AI flag requires marking the report Invalid.");
+        setSaving(false);
+        return;
+      }
+      if (aiFlagDecision === AI_FLAG_DECISION.CLEARED && status === "INVALID") {
+        setError("");
+        setAiFlagError("A report marked Invalid must confirm the AI flag, not clear it.");
+        setSaving(false);
+        return;
+      }
+
       // The backend (MandatoryRemarksStatusError) requires a detailed remark
       // when moving a report to On-Hold, Closed, or Invalid — surface that
       // as a single inline alert above the Remarks field.
@@ -452,6 +493,9 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         if (remarks) payload.remarks = remarks;
         if (resolving) payload.validated_by_name = validatorName.trim();
       }
+      // The review decision rides with the status change; the backend keeps
+      // the raw screening reasons and records the decision in the audit trail.
+      if (aiFlagDecision) payload.ai_flag_decision = aiFlagDecision;
 
       let resolutionImages;
       // Photos are only sent on the -> Resolved transition; stale selections
@@ -499,6 +543,16 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
       if (err?.error_code === "CATEGORY_CHANGE_NOT_PERMITTED") {
         setCategoryError(err.detail || "The hazard category can only be changed while the report is Under Review.");
         setError("");
+      } else if (
+        ["AI_FLAG_REVIEW_REQUIRED", "AI_FLAG_DECISION_STATUS_MISMATCH", "INVALID_AI_FLAG_DECISION"].includes(err?.error_code)
+      ) {
+        setAiFlagError(err.detail || "Answer whether this report is valid before saving.");
+        setError("");
+      } else if (err?.error_code === "AI_FLAG_REVIEW_UNAVAILABLE") {
+        // The flag was already reviewed elsewhere — the modal's copy is stale.
+        // Ask the officer to reopen the report rather than retrying blind.
+        setAiFlagError("");
+        setError(err.detail || "This AI screening flag was already reviewed. Close and reopen the report to see its current state.");
       } else {
         setError(err?.detail || err?.message || "Unable to save report updates.");
       }
@@ -548,8 +602,59 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   // On-Hold transfers, staff force-closes).
   const isResolvingTransition = status === "RESOLVED" && statusToValue(report?.status) !== "RESOLVED";
 
+  // Pending AI flag + a chosen status that leaves triage = mandatory review.
+  // Moving back to Under Review leaves the flag PENDING and needs no answer.
+  const aiFlagPending = isAiFlagPending(report);
+  const aiFlagReviewRequired =
+    aiFlagPending &&
+    Boolean(status) &&
+    status !== statusToValue(report?.status) &&
+    isAiFlagReviewRequiredFor(status);
+  // Invalid isn't offered from every stage (e.g. Ongoing must resolve or be
+  // put on hold first). Mirror the status dropdown exactly so the review can
+  // never select a target the workflow doesn't allow.
+  const aiInvalidAvailable = statusOptions.some(
+    (item) => statusValue(item) === "INVALID"
+  );
+
+  // One short, state-aware line under the Yes/No choices instead of stacking
+  // several hint boxes. Keeps the review panel compact.
+  let aiReviewNote = "Your answer is recorded in the report timeline.";
+  if (!aiInvalidAvailable) {
+    aiReviewNote = "Invalid is not available from this stage, so the flag can only be cleared.";
+  } else if (status === "INVALID") {
+    aiReviewNote = "Saving marks the report Invalid and records the flag as confirmed. A remark is still required.";
+  } else if (aiFlagDecision === AI_FLAG_DECISION.CLEARED) {
+    aiReviewNote = "Saving clears the flag and keeps the report in its normal workflow.";
+  } else if (aiFlagDecision === AI_FLAG_DECISION.CONFIRMED) {
+    aiReviewNote = "Saving sets the report to Invalid and records the flag as confirmed.";
+  }
+
+  const chooseAiFlagValid = () => {
+    setAiFlagDecision(AI_FLAG_DECISION.CLEARED);
+    setAiFlagError("");
+    setError("");
+    setSuccess("");
+  };
+
+  const chooseAiFlagInvalid = () => {
+    setAiFlagDecision(AI_FLAG_DECISION.CONFIRMED);
+    setStatus("INVALID");
+    setAiFlagError("");
+    setSeverityError("");
+    setStatusError("");
+    setPhotosError("");
+    setValidatorError("");
+    setRemarksError("");
+    setError("");
+    setSuccess("");
+  };
+
   const shortLocation = report?.address ? report.address.split(",")[0].trim() : "";
   const cardTitle = report ? [report.category, shortLocation].filter(Boolean).join(" - ") : "";
+  // Per-image AI verdicts keyed by URL; only the BEFORE (original evidence)
+  // photos are screened, so these map directly onto report.image_urls.
+  const imageAiFlags = mapImageAiFlags(report?.image_ai_flags);
 
   if (!reportNumber) return null;
 
@@ -582,6 +687,14 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
           </div>
         ) : (
           <>
+            {aiFlagPending && (
+              <AiScreeningNotice
+                reasons={report.ai_flag_reasons}
+                imageFlags={report.image_ai_flags}
+                totalImages={(report.image_urls || []).length}
+              />
+            )}
+
             <div className="mgmt-header">
               <div>
                 <h3 className="mgmt-title">{cardTitle}</h3>
@@ -730,9 +843,27 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                       style={{ backgroundColor: statusColor.bg, color: statusColor.text }}
                       value={status}
                       onChange={(e) => {
+                        const nextStatus = e.target.value;
                         // Every save rule depends on the chosen status —
                         // switching it clears all inline feedback.
-                        setStatus(e.target.value);
+                        setStatus(nextStatus);
+                        // Keep the AI review answer paired with the target:
+                        // Invalid implies CONFIRMED, every other leaving-triage
+                        // target can be either answer, and a target that keeps
+                        // the report in triage needs no answer at all.
+                        if (aiFlagPending) {
+                          const nextRequired =
+                            nextStatus !== statusToValue(report.status) &&
+                            isAiFlagReviewRequiredFor(nextStatus);
+                          setAiFlagDecision((current) => {
+                            if (!nextRequired) return "";
+                            if (nextStatus === "INVALID") return AI_FLAG_DECISION.CONFIRMED;
+                            return current === AI_FLAG_DECISION.CONFIRMED ? "" : current;
+                          });
+                        } else {
+                          setAiFlagDecision("");
+                        }
+                        setAiFlagError("");
                         // Reaching Under Review (or a later stage) pre-fills
                         // an empty severity with the SLA-derived verdict.
                         if (
@@ -772,6 +903,12 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                         when warning or banning the reporter.
                       </p>
                     )}
+                    {aiFlagPending && !aiFlagReviewRequired && (
+                      <p className="mgmt-info-hint">
+                        This report has a pending AI screening flag — answer
+                        "Is this report valid?" before it leaves triage.
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -780,14 +917,22 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                 <span className="mgmt-label">Original Report</span>
                 {report.image_urls?.length ? (
                   <div className="mgmt-image-grid">
-                    {report.image_urls.map((src, i) => (
-                      <img
-                        key={i}
-                        src={src}
-                        alt={`Original report ${i + 1}`}
-                        onClick={() => setLightboxSrc(src)}
-                      />
-                    ))}
+                    {report.image_urls.map((src, i) => {
+                      const flag = imageAiFlags.get(src);
+                      return (
+                        <div
+                          className={`mgmt-image-item${flag?.is_ai_flagged ? " mgmt-image-item--ai" : ""}`}
+                          key={`${src}-${i}`}
+                        >
+                          <img
+                            src={src}
+                            alt={`Original report ${i + 1}`}
+                            onClick={() => setLightboxSrc(src)}
+                          />
+                          {flag?.is_ai_flagged && <AiImageFlagBadge compact />}
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="mgmt-image-frame">
@@ -796,6 +941,54 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                 )}
               </div>
             </div>
+
+            {aiFlagPending && aiFlagReviewRequired && (
+              <section className="mgmt-ai-review" aria-label="AI screening review">
+                <div className="mgmt-ai-review-head">
+                  <div className="mgmt-ai-review-heading">
+                    <span className="mgmt-ai-review-flag" aria-hidden="true">
+                      <FlagIcon size={12} />
+                    </span>
+                    <span className="mgmt-ai-review-title">AI screening review</span>
+                  </div>
+                  <span className="mgmt-ai-review-required">Answer required</span>
+                </div>
+
+                <p className="mgmt-ai-review-question">Is this report valid?</p>
+
+                <div
+                  className="mgmt-ai-review-actions"
+                  role="group"
+                  aria-label="Is this report valid?"
+                >
+                  <button
+                    type="button"
+                    className={`mgmt-ai-choice${aiFlagDecision === AI_FLAG_DECISION.CLEARED ? " mgmt-ai-choice--selected" : ""}`}
+                    aria-pressed={aiFlagDecision === AI_FLAG_DECISION.CLEARED}
+                    disabled={status === "INVALID"}
+                    onClick={chooseAiFlagValid}
+                  >
+                    <CheckIcon size={14} />
+                    <span>Yes, it&rsquo;s valid</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`mgmt-ai-choice mgmt-ai-choice--danger${aiFlagDecision === AI_FLAG_DECISION.CONFIRMED ? " mgmt-ai-choice--selected" : ""}`}
+                    aria-pressed={aiFlagDecision === AI_FLAG_DECISION.CONFIRMED}
+                    disabled={!aiInvalidAvailable}
+                    title={!aiInvalidAvailable ? "Invalid is not a legal status from the report's current stage." : undefined}
+                    onClick={chooseAiFlagInvalid}
+                  >
+                    <AlertIcon size={14} />
+                    <span>No, mark Invalid</span>
+                  </button>
+                </div>
+
+                {aiFlagError && <FieldAlert message={aiFlagError} />}
+
+                <p className="mgmt-ai-review-note">{aiReviewNote}</p>
+              </section>
+            )}
 
             <section className="mgmt-location-section" aria-label="Reported location">
               <div className="mgmt-location-details">

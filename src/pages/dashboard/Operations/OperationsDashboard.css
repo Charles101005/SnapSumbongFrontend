@@ -303,6 +303,24 @@
   color:#2584df;
   font-weight:600
 }
+/* AI-screened rows: red rail + tint so a possible invalid report is obvious
+   at a glance. The pill itself lives in the shared AiScreeningNotice styles. */
+.reports-table tbody tr.report-row-ai-flagged td {
+  background:#fff7f7
+}
+.reports-table tbody tr.report-row-ai-flagged:hover td {
+  background:#fef2f2
+}
+.reports-table tbody tr.report-row-ai-flagged td:first-child {
+  box-shadow:inset 3px 0 0 #dc2626
+}
+.report-number-cell {
+  display:inline-flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:.35rem;
+  min-width:0
+}
 /* Long category/location text truncates with a native title tooltip.
    The truncation lives on an inner block-level span: `max-width` is
    ignored on <td> in auto table layout, so applying it to the cell let

@@ -233,6 +233,7 @@
 }
 
 .media-thumbnail {
+  position: relative;
   width: 104px;
   height: 64px;
   flex: 0 0 auto;
@@ -242,6 +243,14 @@
   border-radius: var(--radius-sm);
   background: var(--color-bg-page);
   cursor: zoom-in;
+}
+
+/* AI-screened evidence photo: red ring keeps the flag obvious at thumbnail
+   size; the corner badge (shared AiScreeningNotice styles) names the reason
+   in its tooltip. */
+.media-thumbnail--ai {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px #fecaca;
 }
 
 .media-thumbnail img {
@@ -285,6 +294,13 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 0.35rem;
+  /* Same box geometry on every entry — the border is transparent on plain
+     status steps — so the step numbers line up in every timeline row whether
+     or not the entry is drawn as an AI card. */
+  padding: 0.5rem 0.6rem;
+  border: 1px solid transparent;
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-md);
   color: var(--color-text-muted);
   font-size: var(--text-xs);
 }
@@ -317,6 +333,39 @@
   font-size: var(--text-xs);
 }
 
+/* AI screening history: detection is the alert that explains why the report
+   was held back, so it keeps the red card. The later officer review is a
+   quieter, neutral note — visibly its own event without competing with the
+   workflow status entries. */
+.report-timeline-entry--ai {
+  border-color: #fecaca;
+  border-left-color: #dc2626;
+  background: #fef2f2;
+}
+
+.report-timeline-entry--ai-review {
+  border-color: var(--color-border);
+  border-left-color: #cbd5e1;
+  background: var(--color-bg-page);
+}
+
+.timeline-action-badge {
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.timeline-action-badge--review {
+  border: 1px solid var(--color-border);
+  background: #f1f5f9;
+  color: #475569;
+}
+
 .timeline-view-details {
   padding: 0;
   border: 0;
@@ -326,6 +375,9 @@
   font-size: var(--text-xs);
   font-weight: 600;
   cursor: pointer;
+  /* Grid rows stretch every entry to the tallest card; this pins the action
+     to the bottom so the buttons line up across the row. */
+  margin-top: auto;
 }
 
 .timeline-view-details:hover {

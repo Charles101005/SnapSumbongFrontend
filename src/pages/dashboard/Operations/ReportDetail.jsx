@@ -3,6 +3,8 @@ import { getReportDetail, getReportHistoryDetail } from "../../../api/reports";
 import { formatDueDate, slaBadge } from "../../../utils/sla";
 import { PERMISSIONS } from "../../../shared/constants";
 import { usePermissions } from "../../../hooks/usePermissions";
+import AiScreeningNotice, { AiImageFlagBadge } from "../../../components/shared/AiScreeningNotice";
+import { mapImageAiFlags } from "../../../utils/aiFlags";
 import ReportModerationModal from "./ReportModerationModal";
 import TransferReportModal from "./TransferReportModal";
 import "./ReportDetail.css";
@@ -103,6 +105,10 @@ export default function ReportDetail({ reportNumber, onClose, onChanged }) {
   // reports can be transferred to another officer.
   const isClosed = ["resolved", "closed", "invalid"].includes(normalizeStatus(report?.status));
   const sla = report ? slaBadge(report) : null;
+  // Per-image AI verdicts keyed by URL (screening only covers the BEFORE
+  // evidence photos, so the photolog's before group is the one that can
+  // carry a flag).
+  const imageAiFlags = mapImageAiFlags(report?.image_ai_flags);
 
   return (
     <div className="report-detail-modal-overlay" onClick={onClose}>
@@ -146,6 +152,13 @@ export default function ReportDetail({ reportNumber, onClose, onChanged }) {
           <div className="report-detail-modal-message"><p>Loading report...</p></div>
         ) : (
           <div className="report-detail-modal-body">
+            {report.is_ai_flagged && (
+              <AiScreeningNotice
+                reasons={report.ai_flag_reasons}
+                imageFlags={report.image_ai_flags}
+                totalImages={(report.image_urls || []).length}
+              />
+            )}
             <div className="report-detail-fields">
               <DetailField label="Location" value={report.address || "—"} />
               <DetailField label="Reported Severity" value={report.severity || "—"} />
@@ -198,17 +211,21 @@ export default function ReportDetail({ reportNumber, onClose, onChanged }) {
                   <div className="photolog-group" key={group.key}>
                     <h4 className="photolog-group-label">{group.label}</h4>
                     <div className="attached-media-grid">
-                      {group.urls.map((src, idx) => (
-                        <button
-                          key={`${group.key}-${src}-${idx}`}
-                          className="media-thumbnail"
-                          type="button"
-                          onClick={() => setLightboxSrc(src)}
-                          aria-label={`View ${group.key} photo ${idx + 1}`}
-                        >
-                          <img src={src} alt={`${group.key} photolog ${idx + 1}`} />
-                        </button>
-                      ))}
+                      {group.urls.map((src, idx) => {
+                        const flag = group.key === "before" ? imageAiFlags.get(src) : null;
+                        return (
+                          <button
+                            key={`${group.key}-${src}-${idx}`}
+                            className={`media-thumbnail${flag?.is_ai_flagged ? " media-thumbnail--ai" : ""}`}
+                            type="button"
+                            onClick={() => setLightboxSrc(src)}
+                            aria-label={`View ${group.key} photo ${idx + 1}${flag?.is_ai_flagged ? " (AI flagged)" : ""}`}
+                          >
+                            <img src={src} alt={`${group.key} photolog ${idx + 1}`} />
+                            {flag?.is_ai_flagged && <AiImageFlagBadge compact />}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 ));
@@ -216,18 +233,42 @@ export default function ReportDetail({ reportNumber, onClose, onChanged }) {
             </section>
 
             <section className="report-detail-timeline-section">
-              <h3 className="timeline-heading">Timeline of Status Changes</h3>
+              <h3 className="timeline-heading">Report Timeline</h3>
               {timelineError ? (
-                <p className="report-detail-empty">Unable to load status history.</p>
+                <p className="report-detail-empty">Unable to load report history.</p>
               ) : report.status_timeline?.length ? (
                 <ol className="report-status-timeline">
                   {report.status_timeline.map((step, index) => {
                     const stepStatus = normalizeStatus(step.status);
                     const stepClass = STATUS_COLORS[stepStatus] || "unknown";
+                    // AI screening detection/review entries are audit events,
+                    // not workflow statuses: show the action on the card and
+                    // leave the full description for the "View Details"
+                    // dialog, so the timeline stays compact. The detection
+                    // card stays prominent; the later review is a quieter
+                    // note so it doesn't compete with status changes.
+                    const aiActionCode = String(step.action_code || "");
+                    const isAiDetected = aiActionCode === "AI_FLAG_DETECTED";
+                    const isAiReview = aiActionCode === "AI_FLAG_REVIEW";
+                    const isAiAction = isAiDetected || isAiReview;
+                    const aiEntryClass = isAiDetected
+                      ? " report-timeline-entry--ai"
+                      : isAiReview
+                        ? " report-timeline-entry--ai-review"
+                        : "";
                     return (
-                      <li className="report-timeline-entry" key={`${step.status}-${step.created_at}-${index}`}>
+                      <li
+                        className={`report-timeline-entry${aiEntryClass}`}
+                        key={`${step.action_code || step.status}-${step.created_at}-${index}`}
+                      >
                         <span className={`timeline-step-number status-step-${stepClass}`}>{index + 1}</span>
-                        <span className={`timeline-status-badge status-${stepClass}`}>{step.status}</span>
+                        {isAiAction ? (
+                          <span className={`timeline-action-badge${isAiReview ? " timeline-action-badge--review" : ""}`}>
+                            {step.action}
+                          </span>
+                        ) : (
+                          <span className={`timeline-status-badge status-${stepClass}`}>{step.status}</span>
+                        )}
                         <time dateTime={step.created_at}>{formatDateTime(step.created_at)}</time>
                         {step.performed_by && (
                           <span className="timeline-performed-by">
@@ -246,7 +287,7 @@ export default function ReportDetail({ reportNumber, onClose, onChanged }) {
                   })}
                 </ol>
               ) : (
-                <p className="report-detail-empty">No status history has been recorded for this report.</p>
+                <p className="report-detail-empty">No history has been recorded for this report.</p>
               )}
             </section>
           </div>
@@ -326,7 +367,7 @@ function TimelineActivityModal({ event, reportNumber, onClose }) {
   const logId = rawLogId
     ? (String(rawLogId).startsWith("LOG-") ? `#${rawLogId}` : `#LOG-${rawLogId}`)
     : "Unavailable";
-  const primaryAction = event.primary_action || `Updated report status #${reportNumber}`;
+  const primaryAction = event.action || `Updated report status #${reportNumber}`;
   const description = event.description || `Status changed to ${event.status || "Unknown"}.`;
 
   // Long audit descriptions (the embedded citizen/officer remark can run to

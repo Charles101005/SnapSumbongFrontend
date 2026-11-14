@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import DashboardLayout from "../../../components/DashboardLayout/DashboardLayout";
 import Pagination from "../../../components/shared/Pagination";
+import { AiFlagBadge } from "../../../components/shared/AiScreeningNotice";
 import {
   ActivityIcon,
   CheckIcon,
@@ -19,6 +20,7 @@ import { REPORT_STATUSES, STATUS_VIEWS, useStatusCounts } from "../../../context
 import { formatDueDate, slaBadge } from "../../../utils/sla";
 import { DATE_FILTER_PRESETS, customRangeBounds, resolveRange, sanitizeDateBounds, toISODate, validateCustomRange } from "../../../utils/dates";
 import { normalizeStatusKey as normalize, prettifyStatus } from "../../../utils/format";
+import { aiFlagReasonLabel, isAiFlagPending } from "../../../utils/aiFlags";
 import { PERMISSIONS } from "../../../shared/constants";
 import { usePermissions } from "../../../hooks/usePermissions";
 import ReportManagementModal from "./ReportManagementModal";
@@ -45,6 +47,15 @@ const displayStatus = (status, statuses = []) => {
 };
 
 const statusClass = (status) => normalize(status);
+
+// Tooltip copy for the table's AI flag pill. The backend sends raw reason
+// codes, so they are resolved to human labels here. Says "advisory" on
+// purpose: screening never marks a report Invalid on its own.
+const aiFlagTitle = (report) => {
+  const reasons = (report.ai_flag_reasons || []).map(aiFlagReasonLabel);
+  const detail = reasons.length ? ` Reasons: ${reasons.join(", ")}.` : "";
+  return `Automatic AI screening flagged this report as a possible invalid report.${detail} Advisory only — a staff member must review it in Manage Report before it leaves triage.`;
+};
 
 export default function OperationsDashboard() {
   const { can, reportScope } = usePermissions();
@@ -508,9 +519,23 @@ export default function OperationsDashboard() {
             {loading ? <tr><td colSpan="8" className="empty-table-message">Loading reports...</td></tr> : reports.length ? reports.map((report) => {
               const sla = slaBadge(report);
               const statusKey = normalize(report.status);
+              // Only a still-pending flag earns the red row emphasis. A
+              // reviewed flag is cleared by the backend, so the row goes back
+              // to looking like a normal report.
+              const aiPending = isAiFlagPending(report);
               return (
-              <tr key={report.report_number}>
-                <td className="report-number">{report.report_number}</td>
+              <tr
+                key={report.report_number}
+                className={aiPending ? "report-row-ai-flagged" : undefined}
+              >
+                <td className="report-number">
+                  <span className="report-number-cell">
+                    <span>{report.report_number}</span>
+                    {aiPending && (
+                      <AiFlagBadge title={aiFlagTitle(report)} />
+                    )}
+                  </span>
+                </td>
                 <td title={report.category || ""}><span className="cell-truncate">{report.category}</span></td>
                 <td title={report.address || ""}><span className="cell-truncate">{report.address || "—"}</span></td>
                 <td>{new Date(report.created_at).toLocaleDateString()}</td>
