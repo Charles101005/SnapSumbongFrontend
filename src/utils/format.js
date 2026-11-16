@@ -29,12 +29,12 @@ export const formatDate = (iso) => {
     return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 };
 
-// The list API returns status as a display label ("Under Review"); the app's
-// filters and badge classes use the raw value (under_review).
+// The list API returns status as a display label ("In Progress"); the app's
+// filters and badge classes use the raw value (in_progress).
 export const normalizeStatusKey = (value) =>
     String(value || "").toLowerCase().replace(/[\s-]+/g, "_");
 
-// "under_review" -> "Under Review" (with the product's "On-Hold" spelling).
+// "in_progress" -> "In Progress" (with the product's "On-Hold" spelling).
 export const prettifyStatus = (value) =>
     normalizeStatusKey(value)
         .split("_")

@@ -321,16 +321,12 @@ html[data-text-scale="xl"] .dh-bottom-grid {
 }
 .dash-home .status-new { background: #e0f2fe; color: #0369a1; }
 .dash-home .status-assigned { background: #e0e7ff; color: #4338ca; }
-.dash-home .status-under_review { background: #f3e8ff; color: #7e22ce; }
-.dash-home .status-on_hold { background: #fef3c7; color: #b45309; }
-.dash-home .status-dispatched { background: #cffafe; color: #0e7490; }
+.dash-home .status-in-progress { background: #dbeafe; color: #1d4ed4; }
+.dash-home .status-on-hold { background: #fef3c7; color: #b45309; }
 .dash-home .status-resolved { background: #d9f5e5; color: #24975d; }
 .dash-home .status-closed { background: #e2e8f0; color: #334155; }
 
 .dash-home .status-invalid { background: #ffe4e6; color: #9f1239; }
-.dash-home .status-pending,
-.dash-home .status-in_progress { background: #fef3c7; color: #b45309; }
-.dash-home .status-ongoing { background: #dbeafe; color: #1d4ed4; }
 .dash-home .severity-badge {
   border-radius: 6px;
   padding: 0.22rem 0.5rem;

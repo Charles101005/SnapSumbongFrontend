@@ -1,4 +1,9 @@
 import { createContext, useContext } from "react";
+import {
+  REPORT_STATUS_KEYS,
+  REPORT_STATUS_META,
+  REPORT_STATUS_ORDER,
+} from "../shared/reportStatuses";
 
 // Sidebar "Status Views" entries. `status` is the API status value from
 // HazardReports.Status (lowercase — the reports filter is case-insensitive)
@@ -6,19 +11,13 @@ import { createContext, useContext } from "react";
 // `key` is the field name both count payloads use
 // (GET analytics/hazard-report/ -> count_by_status,
 //  GET analytics/overview/      -> intake.by_status).
-export const REPORT_STATUSES = ["new", "assigned", "under_review", "on_hold", "dispatched", "ongoing", "resolved", "closed", "invalid"];
+export const REPORT_STATUSES = REPORT_STATUS_KEYS;
 
-export const STATUS_VIEWS = [
-  { key: "new", label: "New", status: "new" },
-  { key: "assigned", label: "Assigned", status: "assigned" },
-  { key: "under_review", label: "Under Review", status: "under_review" },
-  { key: "on_hold", label: "On-Hold", status: "on_hold" },
-  { key: "dispatched", label: "Dispatched", status: "dispatched" },
-  { key: "ongoing", label: "Ongoing", status: "ongoing" },
-  { key: "resolved", label: "Resolved", status: "resolved" },
-  { key: "closed", label: "Closed", status: "closed" },
-  { key: "invalid", label: "Invalid", status: "invalid" },
-];
+export const STATUS_VIEWS = REPORT_STATUS_ORDER.map((status) => ({
+  key: status.toLowerCase(),
+  label: REPORT_STATUS_META[status].label,
+  status: status.toLowerCase(),
+}));
 
 // One shared store for every status count in the staff dashboard. The sidebar
 // badges and the Operations summary chips used to fetch their own copies from

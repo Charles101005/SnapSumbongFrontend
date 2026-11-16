@@ -20,7 +20,13 @@ import { useCanAnalytics } from "../../../hooks/useCanAnalytics";
 import { useCanAudit } from "../../../hooks/useCanAudit";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { PERMISSIONS } from "../../../shared/constants";
-import { formatDate, formatLastActive, normalizeStatusKey, prettifyStatus } from "../../../utils/format";
+import {
+  ACTIVE_STATUS_KEYS,
+  isTerminalStatus,
+  statusBadgeClass,
+  statusLabel,
+} from "../../../shared/reportStatuses";
+import { formatDate, formatLastActive } from "../../../utils/format";
 import { formatDueDate, slaBadge } from "../../../utils/sla";
 import { DATE_FILTER_PRESETS, customRangeBounds, formatRange, resolveRange, toISODate, validateCustomRange } from "../../../utils/dates";
 import "./DashboardHome.css";
@@ -173,8 +179,8 @@ export default function DashboardHome() {
   const total = metrics?.total_count ?? null;
   const resolved = Number(counts.resolved || 0) + Number(counts.closed || 0);
   // Active = every open report, the same definition the Operations summary
-  // bar uses (New through Ongoing — not yet Resolved, Closed, or Invalid).
-  const active = ["new", "assigned", "under_review", "on_hold", "dispatched", "ongoing"]
+  // bar uses (New through On-Hold — not yet Resolved, Closed, or Invalid).
+  const active = ACTIVE_STATUS_KEYS
     .reduce((sum, key) => sum + Number(counts[key] || 0), 0);
   const invalid = Number(counts.invalid || 0);
 
@@ -321,13 +327,13 @@ export default function DashboardHome() {
                       // Closed/Invalid reports have no Update action on the
                       // Operations page, so send those to the read-only detail
                       // dialog (which still offers moderation for Invalid).
-                      const terminal = ["closed", "invalid"].includes(normalizeStatusKey(report.status));
+                      const terminal = isTerminalStatus(report.status);
                       return (
                         <tr key={report.report_number}>
                           <td className="dh-report-id">{report.report_number}</td>
                           <td>{report.category}</td>
                           <td>{report.created_at ? new Date(report.created_at).toLocaleDateString() : "—"}</td>
-                          <td><span className={`status-badge status-${normalizeStatusKey(report.status)}`}>{prettifyStatus(report.status)}</span></td>
+                          <td><span className={statusBadgeClass(report.status)}>{statusLabel(report.status)}</span></td>
                           <td><span className={`severity-badge severity-${String(report.severity || "").toLowerCase()}`}>{report.severity || "—"}</span></td>
                           <td>
                             <Link

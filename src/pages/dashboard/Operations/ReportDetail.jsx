@@ -2,26 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import { getReportDetail, getReportHistoryDetail } from "../../../api/reports";
 import { formatDueDate, slaBadge } from "../../../utils/sla";
 import { PERMISSIONS } from "../../../shared/constants";
+import {
+  activityLabel,
+  normalizeStatus,
+  statusBadgeClass,
+  statusLabel,
+} from "../../../shared/reportStatuses";
 import { usePermissions } from "../../../hooks/usePermissions";
 import AiScreeningNotice, { AiImageFlagBadge } from "../../../components/shared/AiScreeningNotice";
+import ReportTimeline from "../../../components/shared/ReportTimeline";
 import { mapImageAiFlags } from "../../../utils/aiFlags";
 import ReportModerationModal from "./ReportModerationModal";
 import TransferReportModal from "./TransferReportModal";
 import "./ReportDetail.css";
 
-const STATUS_COLORS = {
-  new: "new",
-  assigned: "assigned",
-  under_review: "under-review",
-  on_hold: "on-hold",
-  dispatched: "dispatched",
-  ongoing: "ongoing",
-  resolved: "resolved",
-  closed: "closed",
-  invalid: "invalid",
-};
-
-const normalizeStatus = (status) => String(status || "").toLowerCase().replace(/[\s-]+/g, "_");
 const formatDateTime = (value) => {
   if (!value) return "Date unavailable";
   const date = new Date(value);
@@ -99,11 +93,11 @@ export default function ReportDetail({ reportNumber, onClose, onChanged }) {
 
   if (!reportNumber) return null;
 
-  const statusClass = STATUS_COLORS[normalizeStatus(report?.status)] || "unknown";
-  const isInvalid = normalizeStatus(report?.status) === "invalid";
+  const statusClass = statusBadgeClass(report?.status);
+  const isInvalid = normalizeStatus(report?.status) === "INVALID";
   // Phase-4 statuses (Resolved/Closed/Invalid) are finished; only open
   // reports can be transferred to another officer.
-  const isClosed = ["resolved", "closed", "invalid"].includes(normalizeStatus(report?.status));
+  const isClosed = ["RESOLVED", "CLOSED", "INVALID"].includes(normalizeStatus(report?.status));
   const sla = report ? slaBadge(report) : null;
   // Per-image AI verdicts keyed by URL (screening only covers the BEFORE
   // evidence photos, so the photolog's before group is the one that can
@@ -167,7 +161,7 @@ export default function ReportDetail({ reportNumber, onClose, onChanged }) {
               <div className="detail-field">
                 <label className="detail-field-label">Status</label>
                 <div className="detail-field-value">
-                  <span className={`report-status-badge status-${statusClass}`}>{report.status || "Unknown"}</span>
+                  <span className={`report-status-badge ${statusClass}`}>{statusLabel(report.status)}</span>
                 </div>
               </div>
               <DetailField label="Date Reported" value={formatDateTime(report.created_at)} />
@@ -233,14 +227,21 @@ export default function ReportDetail({ reportNumber, onClose, onChanged }) {
             </section>
 
             <section className="report-detail-timeline-section">
-              <h3 className="timeline-heading">Report Timeline</h3>
+              <h3 className="timeline-heading">Resolution Timeline</h3>
+              <ReportTimeline
+                status={report.status}
+                entries={report.status_timeline || []}
+                createdAt={report.created_at}
+              />
+              <h4 className="timeline-subheading">Activity History</h4>
               {timelineError ? (
                 <p className="report-detail-empty">Unable to load report history.</p>
               ) : report.status_timeline?.length ? (
                 <ol className="report-status-timeline">
                   {report.status_timeline.map((step, index) => {
                     const stepStatus = normalizeStatus(step.status);
-                    const stepClass = STATUS_COLORS[stepStatus] || "unknown";
+                    const stepKey = stepStatus.toLowerCase();
+                    const stepBadge = statusBadgeClass(step.status);
                     // AI screening detection/review entries are audit events,
                     // not workflow statuses: show the action on the card and
                     // leave the full description for the "View Details"
@@ -251,23 +252,34 @@ export default function ReportDetail({ reportNumber, onClose, onChanged }) {
                     const isAiDetected = aiActionCode === "AI_FLAG_DETECTED";
                     const isAiReview = aiActionCode === "AI_FLAG_REVIEW";
                     const isAiAction = isAiDetected || isAiReview;
+                    // Activity notes and legacy statuses (Under Review /
+                    // Dispatched / Ongoing) are handling updates inside In
+                    // Progress, not ticket status changes.
+                    const isActivity =
+                      aiActionCode === "ACTIVITY_NOTE" || Boolean(step.is_activity);
                     const aiEntryClass = isAiDetected
                       ? " report-timeline-entry--ai"
                       : isAiReview
                         ? " report-timeline-entry--ai-review"
-                        : "";
+                        : isActivity
+                          ? " report-timeline-entry--activity"
+                          : "";
                     return (
                       <li
                         className={`report-timeline-entry${aiEntryClass}`}
                         key={`${step.action_code || step.status}-${step.created_at}-${index}`}
                       >
-                        <span className={`timeline-step-number status-step-${stepClass}`}>{index + 1}</span>
+                        <span className={`timeline-step-number status-step-${stepKey}`}>{index + 1}</span>
                         {isAiAction ? (
                           <span className={`timeline-action-badge${isAiReview ? " timeline-action-badge--review" : ""}`}>
                             {step.action}
                           </span>
+                        ) : isActivity ? (
+                          <span className="timeline-status-badge timeline-activity-badge">
+                            {step.activity_label || activityLabel(step) || step.status}
+                          </span>
                         ) : (
-                          <span className={`timeline-status-badge status-${stepClass}`}>{step.status}</span>
+                          <span className={`timeline-status-badge ${stepBadge}`}>{statusLabel(step.status)}</span>
                         )}
                         <time dateTime={step.created_at}>{formatDateTime(step.created_at)}</time>
                         {step.performed_by && (
@@ -368,7 +380,9 @@ function TimelineActivityModal({ event, reportNumber, onClose }) {
     ? (String(rawLogId).startsWith("LOG-") ? `#${rawLogId}` : `#LOG-${rawLogId}`)
     : "Unavailable";
   const primaryAction = event.action || `Updated report status #${reportNumber}`;
-  const description = event.description || `Status changed to ${event.status || "Unknown"}.`;
+  const description = event.activity_label
+    ? `${event.activity_label}${event.remarks ? ` — ${event.remarks}` : ''}`
+    : (event.description || `Status changed to ${event.status || "Unknown"}.`);
 
   // Long audit descriptions (the embedded citizen/officer remark can run to
   // hundreds of characters) collapse to a few lines. The "See more" toggle

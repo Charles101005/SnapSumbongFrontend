@@ -1,0 +1,247 @@
+.report-timeline {
+  width: 100%;
+}
+
+.report-timeline-stepper {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  margin: 0 0 18px;
+}
+
+.report-timeline-stepper::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: #e2e8f0;
+  z-index: 1;
+}
+
+/* Blue progress segment from the first node to the current milestone. */
+.report-timeline-stepper::after {
+  content: "";
+  position: absolute;
+  top: 14px;
+  left: 10%;
+  height: 2px;
+  background: #2563eb;
+  z-index: 1;
+  width: calc(var(--rt-progress, 0) * 20%);
+}
+
+.report-timeline-step {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+}
+
+.report-timeline-node {
+  width: 28px;
+  height: 28px;
+  margin: 0 auto 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #cbd5e1;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.report-timeline-node svg {
+  width: 14px;
+  height: 14px;
+}
+
+.report-timeline-step.completed .report-timeline-node {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+/* Current milestone: a ring, not a checkmark, so In Progress never looks done. */
+.report-timeline-step.current .report-timeline-node {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+/* On-Hold keeps the In Progress milestone in place but marks it paused. */
+.report-timeline-step.paused .report-timeline-node {
+  background: #fffbeb;
+  border-color: #f59e0b;
+  color: #b45309;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.14);
+}
+
+.report-timeline-step.paused .report-timeline-date {
+  color: #b45309;
+  font-weight: 700;
+  font-style: normal;
+}
+
+/* Invalid short-circuits the track: later milestones were never reached. */
+.report-timeline-step.halted .report-timeline-node {
+  background: #fff1f2;
+  border-style: dashed;
+  border-color: #fda4af;
+  color: #be123c;
+}
+
+.report-timeline-step.halted .report-timeline-label,
+.report-timeline-step.halted .report-timeline-date {
+  color: #be123c;
+  font-style: italic;
+}
+
+.report-timeline-step.upcoming .report-timeline-node {
+  color: #cbd5e1;
+}
+
+.report-timeline-step.upcoming .report-timeline-label {
+  color: #94a3b8;
+}
+
+.report-timeline-step.upcoming .report-timeline-date {
+  font-style: italic;
+}
+
+.report-timeline-step.skipped .report-timeline-node {
+  background: #f8fafc;
+  border-style: dashed;
+  border-color: #cbd5e1;
+  color: #94a3b8;
+}
+
+.report-timeline-step.skipped .report-timeline-label {
+  color: #94a3b8;
+}
+
+.report-timeline-step.skipped .report-timeline-date {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.report-timeline-label {
+  display: block;
+  font-size: calc(0.75rem * var(--font-scale));
+  font-weight: 600;
+  color: #334155;
+  line-height: 1.25;
+}
+
+.report-timeline-date {
+  display: block;
+  margin-top: 2px;
+  font-size: calc(0.6875rem * var(--font-scale));
+  color: #94a3b8;
+  line-height: 1.3;
+}
+
+.report-timeline-step.clickable {
+  cursor: pointer;
+}
+
+.report-timeline-step.clickable .report-timeline-node,
+.report-timeline-step.clickable .report-timeline-label,
+.report-timeline-step.clickable .report-timeline-hint {
+  transition: color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.report-timeline-step.clickable:hover .report-timeline-node {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.report-timeline-step.clickable:hover .report-timeline-label,
+.report-timeline-step.clickable:hover .report-timeline-hint {
+  color: #2563eb;
+}
+
+.report-timeline-step.clickable:focus-visible {
+  outline: none;
+}
+
+.report-timeline-step.clickable:focus-visible .report-timeline-node {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
+}
+
+.report-timeline-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: calc(0.625rem * var(--font-scale));
+  font-weight: 600;
+  color: #64748b;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Temporary pause notice: On-Hold is an off-track state, not a milestone. */
+.report-timeline-pause {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.report-timeline-pause-icon {
+  flex-shrink: 0;
+  color: #b45309;
+}
+
+.report-timeline-pause-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.report-timeline-pause-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: calc(0.8125rem * var(--font-scale));
+  line-height: 1.45;
+}
+
+.report-timeline-pause-copy strong {
+  color: #92400e;
+}
+
+.report-timeline-pause-date {
+  font-size: calc(0.6875rem * var(--font-scale));
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #b45309;
+}
+
+@media (max-width: 720px) {
+  .report-timeline-stepper {
+    flex-wrap: wrap;
+    gap: 14px 0;
+  }
+
+  .report-timeline-stepper::before,
+  .report-timeline-stepper::after {
+    display: none;
+  }
+
+  .report-timeline-step {
+    flex: 1 1 45%;
+  }
+}

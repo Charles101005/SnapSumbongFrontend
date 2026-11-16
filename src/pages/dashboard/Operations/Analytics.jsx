@@ -50,10 +50,8 @@ const SEVERITY_COLORS = { P1: "#dc2626", P2: "#f97316", P3: "#ef4444", P4: "#3b8
 const STATUS_COLORS = {
   new: "#0369a1",
   assigned: "#4338ca",
-  under_review: "#7e22ce",
+  in_progress: "#1d4ed4",
   on_hold: "#b45309",
-  dispatched: "#0e7490",
-  ongoing: "#1d4ed4",
   resolved: "#15803d",
   closed: "#334155",
   invalid: "#9f1239",
@@ -61,10 +59,8 @@ const STATUS_COLORS = {
 const STATUS_LABELS = {
   new: "New",
   assigned: "Assigned",
-  under_review: "Under Review",
+  in_progress: "In Progress",
   on_hold: "On-Hold",
-  dispatched: "Dispatched",
-  ongoing: "Ongoing",
   resolved: "Resolved",
   closed: "Closed",
   invalid: "Invalid",

@@ -2,27 +2,12 @@ import { useState, useEffect } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { getReports } from "../../../api/reports";
 import { getReportMetrics } from "../../../api/analytics";
+import {
+  ACTIVE_STATUS_KEYS,
+  statusBadgeClass,
+  statusLabel,
+} from "../../../shared/reportStatuses";
 import "./HomePage.css";
-
-// Same status mapping as MyReport — the API returns the raw backend values,
-// and citizens see ASSIGNED as "Pending".
-const STATUS_META = {
-  NEW: { label: "New", badgeClass: "status-new" },
-  ASSIGNED: { label: "Pending", badgeClass: "status-assigned" },
-  UNDER_REVIEW: { label: "Under Review", badgeClass: "status-under-review" },
-  ON_HOLD: { label: "On Hold", badgeClass: "status-on-hold" },
-  DISPATCHED: { label: "Dispatched", badgeClass: "status-dispatched" },
-  ONGOING: { label: "Ongoing", badgeClass: "status-ongoing" },
-  RESOLVED: { label: "Resolved", badgeClass: "status-resolved" },
-  CLOSED: { label: "Closed", badgeClass: "status-closed" },
-  INVALID: { label: "Invalid", badgeClass: "status-invalid" },
-};
-
-const normalizeStatus = (status) =>
-  String(status || "").trim().toUpperCase().replace(/[\s-]+/g, "_");
-const getStatusLabel = (status) => STATUS_META[normalizeStatus(status)]?.label || status;
-const getStatusBadgeClass = (status) =>
-  `status-badge ${STATUS_META[normalizeStatus(status)]?.badgeClass || ""}`;
 
 const formatDate = (isoString) => {
   if (!isoString) return "";
@@ -59,7 +44,7 @@ export default function HomePage() {
         if (cancelled) return;
         const by = data.count_by_status || {};
         // "Active" = still in progress: everything except Resolved, Closed, Invalid.
-        const active = ["new", "assigned", "under_review", "on_hold", "dispatched", "ongoing"]
+        const active = ACTIVE_STATUS_KEYS
           .reduce((sum, key) => sum + (Number(by[key]) || 0), 0);
         setStats({
           total: data.total_count,
@@ -241,8 +226,8 @@ export default function HomePage() {
                 <span className="home-report-category">{report.category}</span>
                 <span className="home-report-date">{formatDate(report.created_at)}</span>
                 <span>
-                  <span className={getStatusBadgeClass(report.status)}>
-                    {getStatusLabel(report.status)}
+                  <span className={statusBadgeClass(report.status)}>
+                    {statusLabel(report.status)}
                   </span>
                 </span>
               </div>

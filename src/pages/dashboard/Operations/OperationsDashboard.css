@@ -384,21 +384,13 @@
   background:#e0e7ff;
   color:#4338ca
 }
-.status-under_review {
-  background:#f3e8ff;
-  color:#7e22ce
-}
-.status-on_hold {
-  background:#fef3c7;
-  color:#b45309
-}
-.status-dispatched {
-  background:#cffafe;
-  color:#0e7490
-}
-.status-ongoing {
+.status-in-progress {
   background:#dbeafe;
   color:#1d4ed4
+}
+.status-on-hold {
+  background:#fef3c7;
+  color:#b45309
 }
 .status-resolved {
   background:#d9f5e5;

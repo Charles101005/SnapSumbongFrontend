@@ -17,9 +17,14 @@ import {
 } from "../../../components/shared/icons";
 import { getReportLookups, getReports } from "../../../api/reports";
 import { REPORT_STATUSES, STATUS_VIEWS, useStatusCounts } from "../../../context/statusCountsContext";
+import {
+  ACTIVE_STATUS_KEYS,
+  statusBadgeClass,
+  statusLabel,
+} from "../../../shared/reportStatuses";
 import { formatDueDate, slaBadge } from "../../../utils/sla";
 import { DATE_FILTER_PRESETS, customRangeBounds, resolveRange, sanitizeDateBounds, toISODate, validateCustomRange } from "../../../utils/dates";
-import { normalizeStatusKey as normalize, prettifyStatus } from "../../../utils/format";
+import { normalizeStatusKey as normalize } from "../../../utils/format";
 import { aiFlagReasonLabel, isAiFlagPending } from "../../../utils/aiFlags";
 import { PERMISSIONS } from "../../../shared/constants";
 import { usePermissions } from "../../../hooks/usePermissions";
@@ -31,22 +36,6 @@ import "./OperationsDashboard.css";
 const PAGE_SIZE = 10;
 const valueOf = (item) => item?.value || item;
 const labelOf = (item) => item?.label || item;
-
-// Date presets and their resolution (today / last_7_days / this_month / all /
-// custom) come from utils/dates.js — the same DATE_FILTER_PRESETS list the
-// Dashboard Home and Audit Trail dropdowns render. This page previously kept
-// its own DATE_MODES + resolveDateRange copy of the identical five keys; the
-// shared helper is now the only implementation, so the table, the badge counts
-// and every other filter row can never resolve a preset differently.
-// Presets are evaluated at request time, so "Today" stays correct across a
-// day/month boundary while the tab is open.
-
-const displayStatus = (status, statuses = []) => {
-  const match = statuses.find((s) => valueOf(s) === status || labelOf(s) === status);
-  return match ? labelOf(match) : (status ? prettifyStatus(status) : "—");
-};
-
-const statusClass = (status) => normalize(status);
 
 // Tooltip copy for the table's AI flag pill. The backend sends raw reason
 // codes, so they are resolved to human labels here. Says "advisory" on
@@ -72,7 +61,15 @@ export default function OperationsDashboard() {
   // (a sidebar Status View sets it) and is never written back to it.
   const [searchParams, setSearchParams] = useSearchParams();
   const rawStatus = (searchParams.get("status") || "").trim().toLowerCase();
-  const urlStatus = REPORT_STATUSES.includes(rawStatus) ? rawStatus.toUpperCase() : "";
+  // Retired status deep links (bookmarks, old sidebar history) collapse into
+  // In Progress instead of silently returning zero rows.
+  const LEGACY_STATUS_PARAMS = {
+    under_review: "in_progress",
+    dispatched: "in_progress",
+    ongoing: "in_progress",
+  };
+  const normalizedStatusParam = LEGACY_STATUS_PARAMS[rawStatus] || rawStatus;
+  const urlStatus = REPORT_STATUSES.includes(normalizedStatusParam) ? normalizedStatusParam.toUpperCase() : "";
   const rawSeverity = (searchParams.get("severity") || "").trim().toUpperCase();
   const urlSeverity = /^P[1-5]$/.test(rawSeverity) ? rawSeverity : "";
   const urlOverdue = (searchParams.get("overdue") || "").trim() === "true";
@@ -105,7 +102,7 @@ export default function OperationsDashboard() {
   // Status Views (?status=…) pre-filter the table via the URL. The compact
   // summary bar stays visible in both modes; only the page header adapts.
   const isStatusView = Boolean(urlStatus);
-  const statusView = STATUS_VIEWS.find((v) => v.status === rawStatus);
+  const statusView = STATUS_VIEWS.find((v) => v.status === normalizedStatusParam);
   const [lookups, setLookups] = useState({ categories: [], statuses: [], severities: [] });
   const [reports, setReports] = useState([]);
   const [count, setCount] = useState(0);
@@ -277,7 +274,7 @@ export default function OperationsDashboard() {
 
   const countFor = (...keys) => keys.reduce((sum, key) => sum + Number(statusCounts[normalize(key)] || 0), 0);
   // Active = every open report (not yet Resolved, Closed, or Invalid).
-  const active = countFor("new", "assigned", "under_review", "on_hold", "dispatched", "ongoing");
+  const active = countFor(...ACTIVE_STATUS_KEYS);
   const invalid = countFor("invalid");
   const totalReports = Number(countsTotal || 0);
   // Summary chips show "—" until the shared store has a real answer instead
@@ -378,7 +375,7 @@ export default function OperationsDashboard() {
     <DashboardLayout title={isStatusView ? `Operations - ${statusView?.label || urlStatus}` : `Operations - ${scopeLabel}`}>
       <div className="section-header">
         <h2 className="section-title">
-          {isStatusView ? `${statusView?.label || prettifyStatus(urlStatus)} Reports` : scopeLabel}
+          {isStatusView ? `${statusView?.label || statusLabel(urlStatus)} Reports` : scopeLabel}
           {/* Scope badge: mirrors the server-side row scoping — officers only
               ever receive their assigned rows, so never label that "All". */}
           <span className={`scope-badge scope-${reportScope}`}>
@@ -391,7 +388,7 @@ export default function OperationsDashboard() {
         </h2>
         <p className="section-subtitle">
           {isStatusView
-            ? `Filtered to ${statusView?.label || prettifyStatus(urlStatus)} reports — counts are shown in the sidebar.`
+            ? `Filtered to ${statusView?.label || statusLabel(urlStatus)} reports — counts are shown in the sidebar.`
             : reportScope === "assigned"
               ? "Reports assigned to you — update their status and attach resolution evidence."
               : "Manage and monitor citizen reports for community improvement."}
@@ -406,7 +403,7 @@ export default function OperationsDashboard() {
           <span className="summary-icon summary-icon-total"><ClipboardIcon size={18} /></span>
           <span className="summary-text"><span className="summary-label">TOTAL REPORTS</span><strong>{chipValue(totalReports)}</strong></span>
         </button>
-        <div className="summary-metric summary-metric-static" title="New + Assigned + Under Review + On-Hold + Dispatched + Ongoing">
+        <div className="summary-metric summary-metric-static" title="New + Assigned + In Progress + On-Hold">
           <span className="summary-icon summary-icon-active"><ActivityIcon size={18} /></span>
           <span className="summary-text"><span className="summary-label">ACTIVE</span><strong>{chipValue(active)}</strong></span>
         </div>
@@ -540,7 +537,7 @@ export default function OperationsDashboard() {
                 <td title={report.address || ""}><span className="cell-truncate">{report.address || "—"}</span></td>
                 <td>{new Date(report.created_at).toLocaleDateString()}</td>
                 <td><span className={`sla-badge sla-${sla.tone}`} title={report.due_at ? `Due ${formatDueDate(report.due_at)}` : "No SLA set"}>{sla.text}</span></td>
-                <td><span className={`status-badge status-${statusClass(report.status)}`}>{displayStatus(report.status, statuses)}</span></td><td><span className={`severity-badge severity-${String(report.severity || "").toLowerCase()}`}>{report.severity || "—"}</span></td>
+                <td><span className={statusBadgeClass(report.status)}>{statusLabel(report.status)}</span></td><td><span className={`severity-badge severity-${String(report.severity || "").toLowerCase()}`}>{report.severity || "—"}</span></td>
                 <td>
                   <div className="table-actions">
                     <button

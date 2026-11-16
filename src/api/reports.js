@@ -133,8 +133,12 @@ export const getReportHistoryDetail = async (reportNumber) => {
 // where photo_type is "DURING" or "AFTER" — at least one of each is
 // required when transitioning to Resolved.
 // category_id corrects the citizen's hazard category: only accepted while
-// the report is Under Review, requires a remark in the same payload, and
+// the report is In Progress, requires a remark in the same payload, and
 // recalculates due_at from the report's created_at.
+// activity is an optional handling note (DISPATCHED, WORK_STARTED,
+// WORK_COMPLETED, REFERRED, FOLLOW_UP, NOTE) that does not change the ticket
+// status. activity_remarks is its own note, separate from the status-change
+// remarks.
 export const updateReport = async (reportNumber, payload) => {
     try {
         const response = await api.patch(

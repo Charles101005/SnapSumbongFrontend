@@ -13,31 +13,40 @@ import {
   mapImageAiFlags,
 } from "../../../utils/aiFlags";
 import { severityFromSla, slaDaysForReport } from "../../../utils/sla";
+import { REPORT_ACTIVITY_OPTIONS } from "../../../shared/reportStatuses";
 import "./ReportManagementModal.css";
 
-const FALLBACK_STATUSES = ["New", "Assigned", "Under Review", "On-Hold", "Dispatched", "Ongoing", "Resolved", "Closed", "Invalid"];
+const FALLBACK_STATUSES = ["New", "Assigned", "In Progress", "On-Hold", "Resolved", "Closed", "Invalid"];
 const FALLBACK_SEVERITIES = ["P1", "P2", "P3", "P4", "P5"];
-// Invalid is a triage verdict only offered once the report has reached
-// Under Review (the stage after Assigned); later stages keep it.
-const INVALID_VISIBLE_AFTER = ["UNDER_REVIEW", "ON_HOLD", "DISPATCHED", "RESOLVED", "CLOSED", "INVALID"];
-// Assigned has exactly one next stage: Under Review. The dropdown must
+// Invalid is a triage verdict only offered once handling has begun (In
+// Progress); terminal states keep it for corrections.
+const INVALID_VISIBLE_AFTER = ["IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED", "INVALID"];
+// Assigned has exactly one next stage: In Progress. The dropdown must
 // offer nothing else — not even if next_expected_statuses is missing and
 // the full-list fallback kicks in.
-const ASSIGNED_NEXT_STATUSES = ["UNDER_REVIEW"];
+const ASSIGNED_NEXT_STATUSES = ["IN_PROGRESS"];
+// Last-resort transition matrix if the detail payload predates
+// next_expected_statuses. Mirrors the backend's STATUS_ALLOWED_TRANSITIONS.
+const FALLBACK_NEXT_STATUSES = {
+  NEW: ["ASSIGNED", "INVALID"],
+  ASSIGNED: ["IN_PROGRESS"],
+  IN_PROGRESS: ["ON_HOLD", "RESOLVED", "INVALID"],
+  ON_HOLD: ["IN_PROGRESS", "CLOSED", "INVALID"],
+  RESOLVED: ["CLOSED"],
+  CLOSED: [],
+  INVALID: [],
+};
 // Statuses where an empty severity pre-fills with the SLA-derived verdict:
-// the report has passed (or is passing) real/fake validation at Under Review.
-// Invalid stays exempt — a moderation verdict never earns a triage verdict,
-// and NEW/ASSIGNED reports stay unverdicted until they reach Under Review.
-const SEVERITY_PRE_FILL_AFTER = ["UNDER_REVIEW", "ON_HOLD", "DISPATCHED", "ONGOING", "RESOLVED", "CLOSED"];
+// the report has passed (or is passing) validation at the start of handling.
+// Invalid stays exempt — a moderation verdict never earns a triage verdict.
+const SEVERITY_PRE_FILL_AFTER = ["IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"];
 const MAX_RESOLUTION_PHOTOS = 5; // Matches the backend's STORAGE_CONFIG['MAX_SIGNATURE_COUNT'] (combined DURING + AFTER).
 
 const STATUS_COLORS = {
   new: { bg: "#e0f2fe", text: "#0369a1" },
   assigned: { bg: "#e0e7ff", text: "#4338ca" },
-  under_review: { bg: "#f3e8ff", text: "#7e22ce" },
+  in_progress: { bg: "#dbeafe", text: "#1d4ed4" },
   on_hold: { bg: "#fef3c7", text: "#b45309" },
-  dispatched: { bg: "#cffafe", text: "#0e7490" },
-  ongoing: { bg: "#dbeafe", text: "#1d4ed4" },
   resolved: { bg: "#dcfce7", text: "#15803d" },
   closed: { bg: "#e2e8f0", text: "#334155" },
   invalid: { bg: "#ffe4e6", text: "#9f1239" },
@@ -167,6 +176,7 @@ const toAlertText = (value) => {
 };
 
 const REMARKS_MAX_LENGTH = 500; // Matches TransferReportModal's remark cap.
+const MIN_UPDATE_NOTE_LENGTH = 10; // Matches the citizen description minimum.
 const VALIDATOR_NAME_MAX_LENGTH = 100; // Matches the name-field cap in PersonalDetails.
 
 export default function ReportManagementModal({ reportNumber, lookups, onClose, onSaved }) {
@@ -208,6 +218,8 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   // sent as ai_flag_decision; the original AI reasons are never overwritten.
   const [aiFlagDecision, setAiFlagDecision] = useState("");
   const [aiFlagError, setAiFlagError] = useState("");
+  const [activityType, setActivityType] = useState("");
+  const [activityError, setActivityError] = useState("");
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [mapExpanded, setMapExpanded] = useState(false);
 
@@ -228,6 +240,8 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
     setRemarksError("");
     setAiFlagDecision("");
     setAiFlagError("");
+    setActivityType("");
+    setActivityError("");
     setCategory("");
     setCategorySlaPreview(null);
     setRemarks("");
@@ -289,7 +303,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         if (requestId !== loadRequestRef.current) return;
         setReport(data);
         // Pre-fill an empty severity with the SLA-derived verdict once the
-        // report has reached Under Review (real/fake validation). Existing
+        // report has reached In Progress (handling/validation). Existing
         // severities are kept as-is; New/Assigned stay empty.
         const loadCategoryId = resolveCategoryId(data, lookups?.categories);
         const loadDays = slaDaysForReport(data, loadCategoryId, lookups?.categories);
@@ -303,11 +317,10 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
           (item) => (item.label || item) === data.status || (item.value || item) === data.status
         );
         setStatus(matchingStatus?.value || statusToValue(data.status));
-        // The textarea is input for the NEXT transition, not a display of
-        // the remark already on record — always start empty so a stale
-        // remark can never ride along with (or silently satisfy a gate
-        // for) the next status change. The stored remark stays visible as
-        // the read-only "Previous remark" note above the field.
+        // The update note is input for the NEXT transition, not a display of
+        // the remark already on record — always start empty so a stale note
+        // can never ride along with the next status change. The stored remark
+        // stays visible as the read-only "Previous remark" note.
         setRemarks("");
         // Preselect the current category (category_id, or name-mapped
         // against the lookup list when the payload predates category_id).
@@ -327,6 +340,8 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         setRemarksError("");
         setAiFlagDecision("");
         setAiFlagError("");
+        setActivityType("");
+        setActivityError("");
         setLoadingDetail(false);
       })
       .catch((err) => {
@@ -371,12 +386,12 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   };
 
   // The backend only accepts a category correction while the report sits in
-  // Under Review — the verification stage where a misclassified citizen
+  // In Progress — the handling stage where a misclassified citizen
   // submission gets caught. The gate reads the report's CURRENT status (what
   // the server validates against before applying any transition), not the
   // dropdown's pending choice.
   const originalCategoryId = resolveCategoryId(report, categories);
-  const categoryEditable = statusToValue(report?.status) === "UNDER_REVIEW";
+  const categoryEditable = statusToValue(report?.status) === "IN_PROGRESS";
   const categoryChanged = Boolean(category) && category !== originalCategoryId;
 
   const handleSave = async () => {
@@ -385,6 +400,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
       setSaving(true);
       setError("");
       setSuccess("");
+      setActivityError("");
 
       // The backend rejects a status resubmission that matches the report's
       // current status, and separately rejects remarks/resolution photos sent
@@ -418,11 +434,11 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
       }
 
       // Flagging a report as Invalid (false/troll report) is only legal once
-      // the report has reached Under Review (after Assigned).
+      // handling has begun (In Progress).
       const invalidating = statusChanged && status === "INVALID";
       if (invalidating && !INVALID_VISIBLE_AFTER.includes(currentStatusValue)) {
         setError("");
-        setStatusError("A report can only be flagged Invalid after it has reached Under Review (after Assigned).");
+        setStatusError("A report can only be flagged Invalid after it has reached In Progress (after Assigned).");
         setSaving(false);
         return;
       }
@@ -451,38 +467,95 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         return;
       }
 
-      // The backend (MandatoryRemarksStatusError) requires a detailed remark
-      // when moving a report to On-Hold, Closed, or Invalid — surface that
-      // as a single inline alert above the Remarks field.
-      const remarksMandatory = statusChanged && ["ON_HOLD", "CLOSED", "INVALID"].includes(status);
-      if (remarksMandatory && !remarks.trim()) {
+      // One update note serves the status/category reason and, when selected,
+      // the handling activity. The backend still keeps those in separate audit
+      // fields; this is only the UI collapsing them into one input.
+      const activitySelected = Boolean(activityType);
+      const note = remarks.trim();
+      const resultingStatus = statusChanged ? status : currentStatusValue;
+      const activityAllowed =
+        ["IN_PROGRESS", "ON_HOLD"].includes(currentStatusValue) &&
+        ["IN_PROGRESS", "ON_HOLD"].includes(resultingStatus);
+      const statusReasonRequired =
+        statusChanged && ["ON_HOLD", "CLOSED", "INVALID"].includes(status);
+      const resolutionReasonRequired = statusChanged && status === "RESOLVED";
+      const categoryReasonRequired = categoryChanged;
+      const noteRequired =
+        activitySelected ||
+        statusReasonRequired ||
+        resolutionReasonRequired ||
+        categoryReasonRequired;
+
+      if (activitySelected && !activityAllowed) {
         setError("");
-        setRemarksError("A detailed remark is required when moving a report to this status.");
+        setActivityError(
+          "Activities can only be recorded while the report is In Progress or On-Hold."
+        );
+        setSaving(false);
+        return;
+      }
+      if (noteRequired && !note) {
+        setError("");
+        setRemarksError(
+          statusReasonRequired
+            ? "A detailed reason is required for this status change."
+            : resolutionReasonRequired
+              ? "A resolution note is required when marking the report Resolved."
+              : categoryReasonRequired
+                ? "A detailed reason is required when changing the hazard category."
+                : "A note is required when logging a handling activity."
+        );
+        setSaving(false);
+        return;
+      }
+      if (note && note.length < MIN_UPDATE_NOTE_LENGTH) {
+        setError("");
+        setRemarksError(
+          `Please provide at least ${MIN_UPDATE_NOTE_LENGTH} characters.`
+        );
+        setSaving(false);
+        return;
+      }
+      if (
+        activityAllowed &&
+        !activitySelected &&
+        !statusChanged &&
+        !categoryChanged &&
+        note
+      ) {
+        setError("");
+        setRemarksError(
+          "Choose an activity type to save this note. A note alone does not change the report."
+        );
+        setSaving(false);
+        return;
+      }
+      if (
+        activitySelected &&
+        activityType === "REFERRED" &&
+        resultingStatus !== "ON_HOLD"
+      ) {
+        setError("");
+        setActivityError(
+          "A referral must be recorded while the report is On-Hold. Set the status to On-Hold in this save."
+        );
         setSaving(false);
         return;
       }
 
-      // A category correction is a remark-driven fix: the officer must state
-      // why the citizen's pick is being overridden (mirrors the backend's
-      // MandatoryCategoryRemarksError) — shown above the Remarks field.
-      if (categoryChanged && !remarks.trim()) {
-        setError("");
-        setRemarksError("A detailed remark is required when changing the hazard category.");
-        setSaving(false);
-        return;
-      }
-
-      // Severity is the triage verdict made during verification — it is
-      // picked while the report sits in Under Review and must exist before
-      // the report advances to On-Hold or Dispatched (flagging Invalid
-      // stays exempt: that is a moderation verdict, not a triage one).
-      const leavingReview =
-        currentStatusValue === "UNDER_REVIEW" &&
+      // Severity is the triage verdict made when handling starts — it is
+      // decided as the report enters In Progress and must exist before the
+      // report advances to On-Hold or Resolved (flagging Invalid stays
+      // exempt: that is a moderation verdict, not a triage one).
+      const enteringHandling =
+        currentStatusValue === "ASSIGNED" && status === "IN_PROGRESS";
+      const leavingHandling =
+        currentStatusValue === "IN_PROGRESS" &&
         statusChanged &&
-        ["ON_HOLD", "DISPATCHED"].includes(status);
-      if (leavingReview && !(severity || report?.severity)) {
+        ["ON_HOLD", "RESOLVED"].includes(status);
+      if ((enteringHandling || leavingHandling) && !(severity || report?.severity)) {
         setError("");
-        setSeverityError("Severity couldn't be derived from the response time — set P1-P5 before moving this report out of Under Review.");
+        setSeverityError("Severity couldn't be derived from the response time — set P1-P5 before the report starts or leaves In Progress.");
         setSaving(false);
         return;
       }
@@ -490,12 +563,21 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
       const payload = {};
       if (statusChanged) {
         payload.status = status;
-        if (remarks) payload.remarks = remarks;
         if (resolving) payload.validated_by_name = validatorName.trim();
       }
       // The review decision rides with the status change; the backend keeps
       // the raw screening reasons and records the decision in the audit trail.
       if (aiFlagDecision) payload.ai_flag_decision = aiFlagDecision;
+
+      // The unified note feeds the status/category reason and the activity
+      // note. The backend keeps them in separate audit fields.
+      if ((statusChanged || categoryChanged) && note) {
+        payload.remarks = note;
+      }
+      if (activitySelected) {
+        payload.activity = activityType;
+        payload.activity_remarks = note;
+      }
 
       let resolutionImages;
       // Photos are only sent on the -> Resolved transition; stale selections
@@ -519,15 +601,14 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
       if (severity && severity !== (report.severity || "") && status !== "INVALID") {
         payload.severity = severity;
       }
-      // Category-only saves are legal (no status change), but always carry
-      // the remark explaining the correction — the backend requires it.
+      // Category-only saves are legal (no status change); the unified note
+      // above already carries the required explanation.
       if (categoryChanged) {
         payload.category_id = Number(category);
-        if (remarks) payload.remarks = remarks;
       }
 
       if (Object.keys(payload).length === 0) {
-        setError("No changes to save — update the category, status, severity, or remarks first.");
+        setError("No changes to save — update the status, severity, category, or note first.");
         setSaving(false);
         return;
       }
@@ -541,7 +622,17 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
       // The category gate can race (report advanced since the modal opened) —
       // surface that under the category field instead of the top banner.
       if (err?.error_code === "CATEGORY_CHANGE_NOT_PERMITTED") {
-        setCategoryError(err.detail || "The hazard category can only be changed while the report is Under Review.");
+        setCategoryError(err.detail || "The hazard category can only be changed while the report is In Progress.");
+        setError("");
+      } else if (
+        ["MANDATORY_REMARKS_STATUS", "MANDATORY_CATEGORY_REMARKS"].includes(err?.error_code)
+      ) {
+        setRemarksError(err.detail || "A detailed reason is required for this change.");
+        setError("");
+      } else if (
+        ["ACTIVITY_REMARKS_REQUIRED", "ACTIVITY_REMARKS_WITHOUT_ACTIVITY", "REFERRAL_REQUIRES_ON_HOLD", "INVALID_REPORT_ACTIVITY", "REPORT_ACTIVITY_NOT_PERMITTED"].includes(err?.error_code)
+      ) {
+        setActivityError(err.detail || "Unable to record the handling activity.");
         setError("");
       } else if (
         ["AI_FLAG_REVIEW_REQUIRED", "AI_FLAG_DECISION_STATUS_MISMATCH", "INVALID_AI_FLAG_DECISION"].includes(err?.error_code)
@@ -562,33 +653,47 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   };
 
   const activeStatusLabel = useMemo(() => {
-    const match = statuses.find((item) => statusValue(item) === status);
+    const match = statuses.find(
+      (item) => statusToValue(statusValue(item)) === status
+    );
     return match ? statusLabel(match) : status;
   }, [statuses, status]);
 
   // UI transition matrix: the dropdown offers only the report's current
-  // status plus the backend's next_expected_statuses (e.g. Under Review
-  // can go On-Hold or Dispatched; Closed is only reachable from On-Hold
+  // status plus the backend's next_expected_statuses (e.g. In Progress
+  // can go On-Hold or Resolved; Closed is only reachable from On-Hold
   // or Resolved). Falls back to the full list when the field is absent.
   const statusOptions = useMemo(() => {
     const currentValue = statusToValue(report?.status);
     if (currentValue === "ASSIGNED") {
       const assignedFlow = ["ASSIGNED", ...ASSIGNED_NEXT_STATUSES];
-      return statuses.filter((item) => assignedFlow.includes(statusValue(item)));
+      return statuses.filter((item) =>
+        assignedFlow.includes(statusToValue(statusValue(item)))
+      );
     }
     const invalidAllowed = INVALID_VISIBLE_AFTER.includes(currentValue);
-    const hideInvalid = (item) => statusValue(item) === "INVALID" && !invalidAllowed;
-    const nextLabels = report?.next_expected_statuses;
-    if (!Array.isArray(nextLabels)) return statuses.filter((item) => !hideInvalid(item));
+    const hideInvalid = (item) =>
+      statusToValue(statusValue(item)) === "INVALID" && !invalidAllowed;
+    const nextLabels = Array.isArray(report?.next_expected_statuses)
+      ? report.next_expected_statuses
+      : (FALLBACK_NEXT_STATUSES[currentValue] || []);
     const currentOption =
-      statuses.find((item) => statusValue(item) === currentValue) ||
-      { value: currentValue, label: report?.status || currentValue };
+      statuses.find(
+        (item) => statusToValue(statusValue(item)) === currentValue
+      ) || { value: currentValue, label: report?.status || currentValue };
     const nextOptions = nextLabels
       .map((label) => {
         const value = statusToValue(label);
-        return statuses.find((item) => statusValue(item) === value) || { value, label };
+        return (
+          statuses.find(
+            (item) => statusToValue(statusValue(item)) === value
+          ) || { value, label }
+        );
       })
-      .filter((item) => statusValue(item) !== currentValue && !hideInvalid(item));
+      .filter(
+        (item) =>
+          statusToValue(statusValue(item)) !== currentValue && !hideInvalid(item)
+      );
     return [currentOption, ...nextOptions];
   }, [report, statuses]);
 
@@ -602,17 +707,97 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   // On-Hold transfers, staff force-closes).
   const isResolvingTransition = status === "RESOLVED" && statusToValue(report?.status) !== "RESOLVED";
 
+  // One update note replaces the old separate Remarks field. It feeds the
+  // status/category reason and, when an activity is selected, the activity
+  // note. The backend still keeps those in separate audit fields.
+  const reportStatusValue = statusToValue(report?.status);
+  const resultingStatusValue = status || reportStatusValue;
+  const statusChangedValue = Boolean(status) && status !== reportStatusValue;
+  const activityAllowed =
+    ["IN_PROGRESS", "ON_HOLD"].includes(reportStatusValue) &&
+    ["IN_PROGRESS", "ON_HOLD"].includes(resultingStatusValue);
+  const activitySelected = Boolean(activityType);
+  const statusReasonRequired =
+    statusChangedValue && ["ON_HOLD", "CLOSED", "INVALID"].includes(status);
+  const resolutionReasonRequired = statusChangedValue && status === "RESOLVED";
+  const categoryReasonRequired = categoryChanged;
+  const noteRequired =
+    activitySelected ||
+    statusReasonRequired ||
+    resolutionReasonRequired ||
+    categoryReasonRequired;
+  const showNoteSection =
+    Boolean(report) && (activityAllowed || statusChangedValue || categoryChanged);
+
+  let noteLabel = "Update note";
+  if (statusReasonRequired) {
+    noteLabel =
+      status === "ON_HOLD"
+        ? "Reason for placing On-Hold"
+        : status === "CLOSED"
+          ? "Reason for closing"
+          : "Reason for marking Invalid";
+  } else if (categoryReasonRequired) {
+    noteLabel = "Reason for category correction";
+  } else if (statusChangedValue && status === "RESOLVED") {
+    noteLabel = "Resolution note";
+  } else if (activityAllowed && !statusChangedValue) {
+    noteLabel = "Activity note";
+  }
+  if (noteRequired) noteLabel += " *";
+
+  let noteHint = "";
+  if (activitySelected && (statusReasonRequired || categoryReasonRequired)) {
+    noteHint =
+      "This note is used for the status/category reason and the handling activity.";
+  } else if (statusReasonRequired && categoryReasonRequired) {
+    noteHint = "Required for both the status change and the category correction.";
+  } else if (statusReasonRequired) {
+    noteHint =
+      "Required for this status change. It appears in the citizen update and the status email.";
+  } else if (categoryReasonRequired) {
+    noteHint = "Required when correcting the citizen's hazard category.";
+  } else if (statusChangedValue && status === "RESOLVED") {
+    noteHint =
+      "Required when marking the report Resolved. The DURING/AFTER photos and validator name are also required.";
+  } else if (activitySelected && statusChangedValue) {
+    noteHint = "This note is used for both the status change and the handling activity.";
+  } else if (activityAllowed && !statusChangedValue) {
+    noteHint = activitySelected
+      ? "Recorded in the activity history. It does not change the report status."
+      : "Choose an activity type to save this note. A note alone does not change the report.";
+  } else if (statusChangedValue) {
+    noteHint = "Optional note for this status change.";
+  }
+
+  let notePlaceholder = "Provide a note for this update...";
+  if (statusReasonRequired) {
+    notePlaceholder =
+      status === "ON_HOLD"
+        ? "Explain what the report is waiting for..."
+        : status === "CLOSED"
+          ? "Explain why the report is being closed..."
+          : "Explain why the report is invalid...";
+  } else if (categoryReasonRequired) {
+    notePlaceholder = "Explain why the citizen's category is being corrected...";
+  } else if (statusChangedValue && status === "RESOLVED") {
+    notePlaceholder = "Describe the completed work...";
+  } else if (activityAllowed) {
+    notePlaceholder = "What happened on site or with the concerned office?";
+  }
+
   // Pending AI flag + a chosen status that leaves triage = mandatory review.
-  // Moving back to Under Review leaves the flag PENDING and needs no answer.
+  // Moving back to In Progress from On-Hold leaves the flag PENDING and
+  // needs no answer.
   const aiFlagPending = isAiFlagPending(report);
   const aiFlagReviewRequired =
     aiFlagPending &&
     Boolean(status) &&
     status !== statusToValue(report?.status) &&
     isAiFlagReviewRequiredFor(status);
-  // Invalid isn't offered from every stage (e.g. Ongoing must resolve or be
-  // put on hold first). Mirror the status dropdown exactly so the review can
-  // never select a target the workflow doesn't allow.
+  // Invalid isn't offered from every stage (e.g. Resolved must close, and
+  // terminal reports cannot be re-flagged). Mirror the status dropdown
+  // exactly so the review can never select a target the workflow forbids.
   const aiInvalidAvailable = statusOptions.some(
     (item) => statusValue(item) === "INVALID"
   );
@@ -623,7 +808,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   if (!aiInvalidAvailable) {
     aiReviewNote = "Invalid is not available from this stage, so the flag can only be cleared.";
   } else if (status === "INVALID") {
-    aiReviewNote = "Saving marks the report Invalid and records the flag as confirmed. A remark is still required.";
+    aiReviewNote = "Saving marks the report Invalid and records the flag as confirmed. A reason is still required in the Handling update section.";
   } else if (aiFlagDecision === AI_FLAG_DECISION.CLEARED) {
     aiReviewNote = "Saving clears the flag and keeps the report in its normal workflow.";
   } else if (aiFlagDecision === AI_FLAG_DECISION.CONFIRMED) {
@@ -640,6 +825,8 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   const chooseAiFlagInvalid = () => {
     setAiFlagDecision(AI_FLAG_DECISION.CONFIRMED);
     setStatus("INVALID");
+    setActivityType("");
+    setActivityError("");
     setAiFlagError("");
     setSeverityError("");
     setStatusError("");
@@ -744,6 +931,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                           });
                           setSeverityError("");
                           setCategoryError("");
+                          setRemarksError("");
                           setError("");
                           setSuccess("");
                         }}
@@ -760,8 +948,8 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                       </select>
                       {categoryChanged && !remarks.trim() && (
                         <p className="mgmt-validation-hint">
-                          A remark is required — explain why the citizen's category
-                          is being corrected (see Remarks below).
+                          A reason is required — explain why the citizen's category
+                          is being corrected (see Handling update below).
                         </p>
                       )}
                       {categoryChanged && categorySlaPreview && (
@@ -784,7 +972,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                       </span>
                       <p className="mgmt-info-hint">
                         The hazard category can only be changed while the report
-                        is Under Review.
+                        is In Progress.
                       </p>
                     </>
                   )}
@@ -822,11 +1010,11 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                     )}
                     {statusToValue(report.status) === "ASSIGNED" && !(severity || report?.severity) && (
                       <p className="mgmt-info-hint">
-                        Optional here — severity is decided during Under Review.
+                        Optional here — severity is decided when handling starts (In Progress).
                       </p>
                     )}
-                    {statusToValue(report.status) === "UNDER_REVIEW" &&
-                      ["ON_HOLD", "DISPATCHED"].includes(status) &&
+                    {statusToValue(report.status) === "IN_PROGRESS" &&
+                      ["ON_HOLD", "RESOLVED"].includes(status) &&
                       !severity &&
                       !derivedSeverity && (
                       <p className="mgmt-validation-hint">
@@ -847,6 +1035,25 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                         // Every save rule depends on the chosen status —
                         // switching it clears all inline feedback.
                         setStatus(nextStatus);
+                        // Activities are only valid while the report is
+                        // already handling and will remain in handling.
+                        const nextActivityAllowed =
+                          ["IN_PROGRESS", "ON_HOLD"].includes(reportStatusValue) &&
+                          ["IN_PROGRESS", "ON_HOLD"].includes(nextStatus);
+                        if (!nextActivityAllowed) {
+                          setActivityType("");
+                          setActivityError("");
+                        }
+                        // If the unified note section will disappear, clear
+                        // the draft so it cannot leak into another transition.
+                        const nextStatusChanged =
+                          Boolean(nextStatus) && nextStatus !== reportStatusValue;
+                        const nextShowNoteSection =
+                          nextActivityAllowed || nextStatusChanged || categoryChanged;
+                        if (!nextShowNoteSection) {
+                          setRemarks("");
+                          setRemarksError("");
+                        }
                         // Keep the AI review answer paired with the target:
                         // Invalid implies CONFIRMED, every other leaving-triage
                         // target can be either answer, and a target that keeps
@@ -864,7 +1071,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                           setAiFlagDecision("");
                         }
                         setAiFlagError("");
-                        // Reaching Under Review (or a later stage) pre-fills
+                        // Reaching In Progress (or a later stage) pre-fills
                         // an empty severity with the SLA-derived verdict.
                         if (
                           SEVERITY_PRE_FILL_AFTER.includes(statusToValue(e.target.value)) &&
@@ -875,6 +1082,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                         }
                         setSeverityError("");
                         setStatusError("");
+                        setActivityError("");
                         setCategoryError("");
                         setPhotosError("");
                         setValidatorError("");
@@ -885,20 +1093,22 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                       aria-invalid={Boolean(statusError)}
                     >
                       {statusOptions.map((item) => (
-                        <option key={statusValue(item)} value={statusValue(item)}>{statusLabel(item)}</option>
+                        <option key={statusToValue(statusValue(item))} value={statusToValue(statusValue(item))}>
+                          {statusLabel(item)}
+                        </option>
                       ))}
                     </select>
                     {status === "CLOSED" && statusToValue(report.status) !== "CLOSED" && (
                       <p className="mgmt-validation-hint">
-                        Closing requires a remark — state the reason (e.g., not under
-                        SnapSumbong department jurisdiction, referred to another office). If the works
+                        Closing requires a reason in the Handling update section — state why
+                        (e.g., not under SnapSumbong department jurisdiction, referred to another office). If the works
                         were done, leave it Resolved so the reporter can confirm.
                       </p>
                     )}
                     {status === "INVALID" && statusToValue(report.status) !== "INVALID" && (
                       <p className="mgmt-validation-hint">
                         Marking a report Invalid flags it as false or not a valid
-                        hazard report — a remark is required, the report is excluded
+                        hazard report — a reason is required in the Handling update section; the report is excluded
                         from closed/overdue counts, and it can be cited as evidence
                         when warning or banning the reporter.
                       </p>
@@ -1126,35 +1336,99 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
               </div>
             )}
 
-            <div className="mgmt-section">
-              <span className="mgmt-label">Remarks</span>
-              {report.remarks && (
-                <p className="mgmt-previous-remark">
-                  <span className="mgmt-previous-remark-label">Previous remark on record</span>
-                  <span className="mgmt-previous-remark-text">{report.remarks}</span>
-                </p>
-              )}
-              {remarksError && <FieldAlert message={remarksError} />}
-              <textarea
-                className="mgmt-textarea"
-                rows="4"
-                value={remarks}
-                maxLength={REMARKS_MAX_LENGTH}
-                onChange={(e) => { setRemarks(e.target.value); setRemarksError(""); setError(""); setSuccess(""); }}
-                placeholder="Provide remarks about the hazard..."
-                aria-invalid={Boolean(remarksError)}
-                aria-describedby="mgmt-remarks-count"
-              />
-              <p className="mgmt-char-count" id="mgmt-remarks-count">
-                {remarks.length}/{REMARKS_MAX_LENGTH}
-              </p>
-            </div>
+            {showNoteSection && (
+              <section className="mgmt-activity" aria-label="Handling update">
+                <div className="mgmt-activity-head">
+                  <div>
+                    <span className="mgmt-activity-title">Handling update</span>
+                    <p className="mgmt-activity-sub">
+                      One note for this update. It is recorded with the status change and/or activity history.
+                    </p>
+                  </div>
+                  <span className="mgmt-activity-hint">
+                    {noteRequired ? "Required" : "Optional"}
+                  </span>
+                </div>
+
+                <div className="mgmt-activity-row">
+                  {activityAllowed && (
+                    <div className="mgmt-field mgmt-activity-type">
+                      <span className="mgmt-label">Activity type</span>
+                      <select
+                        className="mgmt-activity-select"
+                        value={activityType}
+                        aria-invalid={Boolean(activityError)}
+                        onChange={(event) => {
+                          setActivityType(event.target.value);
+                          setActivityError("");
+                          setRemarksError("");
+                          setError("");
+                          setSuccess("");
+                        }}
+                      >
+                        <option value="">No activity update</option>
+                        {REPORT_ACTIVITY_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="mgmt-field mgmt-activity-note">
+                    <span className="mgmt-label">{noteLabel}</span>
+                    {remarksError && <FieldAlert message={remarksError} />}
+                    <textarea
+                      className="mgmt-activity-textarea"
+                      maxLength={REMARKS_MAX_LENGTH}
+                      minLength={MIN_UPDATE_NOTE_LENGTH}
+                      value={remarks}
+                      placeholder={notePlaceholder}
+                      aria-invalid={Boolean(remarksError)}
+                      onChange={(event) => {
+                        setRemarks(event.target.value);
+                        setRemarksError("");
+                        setActivityError("");
+                        setError("");
+                        setSuccess("");
+                      }}
+                    />
+                    <span className="mgmt-activity-count">
+                      {remarks.length}/{REMARKS_MAX_LENGTH} · min {MIN_UPDATE_NOTE_LENGTH}
+                    </span>
+                  </div>
+                </div>
+
+                {report.remarks && (
+                  <p className="mgmt-previous-remark">
+                    <span className="mgmt-previous-remark-label">Previous remark on record</span>
+                    <span className="mgmt-previous-remark-text">{report.remarks}</span>
+                  </p>
+                )}
+
+                {noteHint && <p className="mgmt-info-hint">{noteHint}</p>}
+                {activityError && <FieldAlert message={activityError} />}
+                {activityType === "REFERRED" && resultingStatusValue !== "ON_HOLD" && (
+                  <p className="mgmt-validation-hint">
+                    A referral is a pause condition. Set the status to On-Hold in this save.
+                  </p>
+                )}
+                {activityType === "WORK_COMPLETED" && (
+                  <p className="mgmt-info-hint">
+                    {resultingStatusValue === "ON_HOLD"
+                      ? "Work completed — resume to In Progress, then save this activity before marking Resolved."
+                      : "Work completed — save this activity, then mark the report Resolved when the DURING/AFTER evidence is ready."}
+                  </p>
+                )}
+              </section>
+            )}
 
             {error && <FieldAlert message={toAlertText(error)} />}
             {success && <FieldAlert message={success} variant="success" />}
             <div className="mgmt-actions">
               <button className="btn-discard-pill" onClick={onClose} disabled={saving}>Close</button>
-              <button className="btn-save-pill" onClick={handleSave} disabled={saving}>{saving ? "Saving..." : "Save All Updates"}</button>
+              <button className="btn-save-pill" onClick={handleSave} disabled={saving}>{saving ? "Saving..." : "Save Changes"}</button>
             </div>
           </>
         )}

@@ -1,68 +1,34 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import MapAutoResize from '../../../components/shared/MapAutoResize';
 import Pagination from '../../../components/shared/Pagination';
+import ReportTimeline from '../../../components/shared/ReportTimeline';
 import './MyReport.css';
 import { getReports, getReportDetail, getHazardCategories, confirmReportResolution } from '../../../api/reports';
 import { getReportMetrics } from '../../../api/analytics';
 import { hazardMarkerIcon } from '../../../utils/leafletHelpers';
 import { toISODate, validateCustomRange } from '../../../utils/dates';
 import { formatDueDateLong, slaBadge } from '../../../utils/sla';
+import {
+  ACTIVE_STATUS_KEYS,
+  REPORT_STATUS_META,
+  REPORT_STATUS_ORDER,
+  activityLabel,
+  isInvalidStatus,
+  normalizeStatus,
+  statusBadgeClass,
+  statusDescription,
+  statusLabel,
+} from '../../../shared/reportStatuses';
+import { buildReportTimeline } from '../../../shared/reportTimeline';
 
 const ROWS_PER_PAGE = 5; // Matches the backend's SmallListPagination page size.
 
-// Mirrors HazardReports.Status on the backend. The API returns these raw
-// values, so we map them to a display label and a badge class here.
-// Citizens see ASSIGNED as "Pending" (the default status of a fresh report);
-// the staff dashboard keeps the backend's own "Assigned" label.
-const STATUS_META = {
-  NEW: { label: 'New', badgeClass: 'status-new' },
-  ASSIGNED: { label: 'Pending', badgeClass: 'status-assigned' },
-  UNDER_REVIEW: { label: 'Under Review', badgeClass: 'status-under-review' },
-  ON_HOLD: { label: 'On Hold', badgeClass: 'status-on-hold' },
-  DISPATCHED: { label: 'Dispatched', badgeClass: 'status-dispatched' },
-  ONGOING: { label: 'Ongoing', badgeClass: 'status-ongoing' },
-  RESOLVED: { label: 'Resolved', badgeClass: 'status-resolved' },
-  CLOSED: { label: 'Closed', badgeClass: 'status-closed' },
-  INVALID: { label: 'Invalid', badgeClass: 'status-invalid' },
-};
-const STATUS_OPTIONS = Object.entries(STATUS_META).map(([value, meta]) => ({
-  value,
-  label: meta.label,
+const STATUS_OPTIONS = REPORT_STATUS_ORDER.map((status) => ({
+  value: status,
+  label: REPORT_STATUS_META[status].label,
 }));
-
-// Fixed 4-step resolution timeline. Each backend status maps to a step index
-// so every report always shows the same four milestones.
-const STATUS_TO_STEP = {
-  NEW: 0,
-  ASSIGNED: 0,
-  UNDER_REVIEW: 1,
-  ON_HOLD: 1,
-  DISPATCHED: 2,
-  ONGOING: 3,
-  RESOLVED: 4,
-  CLOSED: 4,
-  INVALID: 4,
-};
-
-const TIMELINE_STEPS = [
-  // `expected` is the status a step waits on when it has no history yet
-  // (mirrors the backend's main statuses per phase).
-  { expected: 'Assigned', pendingIcon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6' },
-  { expected: 'Under Review', pendingIcon: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M21 21l-4.35-4.35' },
-  { expected: 'Dispatched', pendingIcon: 'M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.1-2.1z' },
-  { expected: 'Ongoing', pendingIcon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18a6 6 0 1 1 0-12 6 6 0 0 1 0 12zm0-11a1 1 0 1 0 0 2 1 1 0 0 0 0-2z' },
-  { expected: 'Resolved', pendingIcon: 'M22 11.08V12a10 10 0 1 1-5.93-9.14 M22 4 12 14.01l-3-3' },
-];
-
-const normalizeStatus = (status) => String(status || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
-const getStatusLabel = (status) => STATUS_META[normalizeStatus(status)]?.label || status;
-// Timeline step labels use the backend's own casing for On-Hold.
-const getTimelineStatusLabel = (status) =>
-  normalizeStatus(status) === 'ON_HOLD' ? 'On-Hold' : getStatusLabel(status);
-const getStatusBadgeClass = (status) =>
-  `status-badge ${STATUS_META[normalizeStatus(status)]?.badgeClass || ''}`;
 
 const formatDate = (isoString) => {
   if (!isoString) return '';
@@ -195,7 +161,7 @@ export default function MyReport() {
         if (cancelled) return;
         const by = data.count_by_status || {};
         // "Active" = still in progress: everything except Resolved, Closed, Invalid.
-        const active = ['new', 'assigned', 'under_review', 'on_hold', 'dispatched', 'ongoing']
+        const active = ACTIVE_STATUS_KEYS
           .reduce((sum, key) => sum + (Number(by[key]) || 0), 0);
         setStats({
           total: data.total_count,
@@ -322,44 +288,25 @@ export default function MyReport() {
 
   // --- DETAIL VIEW ---
   if (selectedReportRow) {
-    // Fixed 4-step timeline: every step always renders, with the label
-    // reflecting the actual status recorded for that step.
+    // Five fixed milestones: Submitted -> Assigned -> In Progress -> Resolved
+    // -> Closed. On-Hold pauses In Progress; Invalid is an off-track terminal
+    // outcome, so the track stops at the last milestone actually reached.
     const timelineEntries = selectedReportDetail?.status_timeline || [];
-    const currentStatus = selectedReportDetail?.status;
-    const currentStep = STATUS_TO_STEP[normalizeStatus(currentStatus)] ?? 0;
+    const currentStatus = selectedReportDetail?.status || selectedReportRow?.status;
+    const createdAt =
+      selectedReportRow?.created_at || selectedReportDetail?.created_at || '';
+
+    const timeline = buildReportTimeline({
+      status: currentStatus,
+      entries: timelineEntries,
+      createdAt,
+      collapseValidation: true,
+    });
+    const invalidEntry = timeline.invalidEntry;
+
     // SLA state for the status card's expected-resolution row. Null while the
     // detail is still loading (the card only renders with the detail anyway).
     const sla = selectedReportDetail ? slaBadge(selectedReportDetail) : null;
-    const steps = TIMELINE_STEPS.map((step, idx) => {
-      // Entries are chronological (backend orders audit logs by created_at).
-      const phaseEntries = timelineEntries.filter(
-        (item) => STATUS_TO_STEP[normalizeStatus(item.status)] === idx
-      );
-      const latestPhaseEntry = phaseEntries[phaseEntries.length - 1];
-      // The current step always shows the report's live status; completed
-      // steps show their most recent recorded status.
-      const targetStatus = idx === currentStep ? currentStatus : latestPhaseEntry?.status;
-      const entry =
-        [...phaseEntries]
-          .reverse()
-          .find((item) => normalizeStatus(item.status) === normalizeStatus(targetStatus)) ||
-        latestPhaseEntry;
-
-      // Honesty fix: a step behind the current position with no history was
-      // jumped over (e.g. Under Review -> On-Hold -> Closed skips Dispatched).
-      // Render it muted as "Not needed" instead of a phantom checkmark.
-      const skipped = idx < currentStep && phaseEntries.length === 0;
-
-      return {
-        ...step,
-        label: getTimelineStatusLabel(targetStatus || step.expected),
-        date: entry?.created_at || '',
-        skipped,
-        // The audit-log entry backing this step; powers the "View Details"
-        // dialog (null when the phase was reached without recorded history).
-        entry: entry || null,
-      };
-    });
 
     return (
       <div className="reports-detail-container">
@@ -378,8 +325,8 @@ export default function MyReport() {
               <div className="card report-status-card">
                 <div className="status-card-top">
                   <span className="status-card-caption">Report Status</span>
-                  <span className={getStatusBadgeClass(selectedReportDetail.status)}>
-                    {getStatusLabel(selectedReportDetail.status)}
+                  <span className={statusBadgeClass(selectedReportDetail.status)}>
+                    {statusLabel(selectedReportDetail.status)}
                   </span>
                 </div>
                 <div className="status-header-info">
@@ -392,7 +339,10 @@ export default function MyReport() {
                   </div>
                   <div>
                     <span className="report-id-sub">Report ID: {selectedReportDetail.report_number}</span>
-                    <h2>{getStatusLabel(selectedReportDetail.status)}</h2>
+                    <h2>{statusLabel(selectedReportDetail.status)}</h2>
+                    <p className="status-description">
+                      {statusDescription(selectedReportDetail.status)}
+                    </p>
                   </div>
                 </div>
 
@@ -422,46 +372,15 @@ export default function MyReport() {
               {/* Resolution Timeline */}
               <div className="card timeline-card">
                 <h3>RESOLUTION TIMELINE</h3>
-                <div className="timeline-stepper" style={{ '--tl-progress': currentStep }}>
-                  {steps.map((step, idx) => {
-                    const reached = idx <= currentStep;
-                    // Reached steps with recorded history open the status
-                    // details dialog; skipped ("Not needed") and upcoming
-                    // ("Pending") steps have nothing to show and stay inert.
-                    const clickable = reached && !step.skipped && !!step.entry;
-                    return (
-                      <button
-                        key={step.expected}
-                        type="button"
-                        className={`timeline-step ${step.skipped ? 'skipped' : reached ? 'completed' : 'upcoming'}${clickable ? ' clickable' : ''}`}
-                        onClick={clickable ? () => setTimelineStepDetail(step) : undefined}
-                        disabled={!clickable}
-                        aria-haspopup="dialog"
-                      >
-                        <span className="step-node">
-                          {step.skipped ? (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
-                              <line x1="6" y1="12" x2="18" y2="12" />
-                            </svg>
-                          ) : reached ? (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          ) : (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d={step.pendingIcon} />
-                            </svg>
-                          )}
-                        </span>
-                        <span className="step-label">{step.label}</span>
-                        <span className="step-date">
-                          {step.skipped ? 'Not needed' : reached ? formatDate(step.date) || '—' : 'Pending'}
-                        </span>
-                        {clickable && <span className="step-view-hint">View Details</span>}
-                      </button>
-                    );
-                  })}
-                </div>
+                <ReportTimeline
+                  status={currentStatus}
+                  entries={timelineEntries}
+                  createdAt={createdAt}
+                  timeline={timeline}
+                  interactive
+                  collapseValidation
+                  onStepClick={(step) => setTimelineStepDetail(step)}
+                />
                 {selectedReportDetail.remarks && (
                   <div className="remarks-box">
                     <span className="remarks-title">REMARKS:</span>
@@ -618,6 +537,18 @@ export default function MyReport() {
                       ? `You confirmed the resolution on ${formatDate(selectedReportDetail.confirmed_at)}. Thank you for helping keep your community safe!`
                       : 'The LGU closed this report — for example, it may not be under jurisdiction of the SnapSumbong department or was referred to another office.'}
                   </p>
+                </div>
+              )}
+              {/* Invalid outcome: terminal off-track state */}
+              {isInvalidStatus(selectedReportDetail.status) && (
+                <div className="card invalid-report-card">
+                  <h3>Report Marked Invalid</h3>
+                  <p>{statusDescription(selectedReportDetail.status)}</p>
+                  {invalidEntry?.remarks && (
+                    <p className="invalid-report-reason">
+                      <strong>Reason:</strong> {invalidEntry.remarks}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -823,8 +754,8 @@ export default function MyReport() {
                     <td data-label="Category">{report.category}</td>
                     <td data-label="Date Submitted">{formatDate(report.created_at)}</td>
                     <td data-label="Status">
-                      <span className={getStatusBadgeClass(report.status)}>
-                        {getStatusLabel(report.status)}
+                      <span className={statusBadgeClass(report.status)}>
+                        {statusLabel(report.status)}
                       </span>
                     </td>
                     <td data-label="">
@@ -1000,33 +931,42 @@ const TIMELINE_ACTION_LABELS = {
   CREATE: 'Report created',
   STATUS_CHANGE: 'Status updated',
   TRANSFER: 'Report transferred',
+  ACTIVITY_NOTE: 'Report activity recorded',
 };
 
-// Status-change details for one resolution-timeline step. Mirrors the
-// officers' "Activity Details" dialog but only exposes what the reporter
-// may see: status, timestamp, the actor's role (never a name/email), a
-// plain-language summary, and that change's own remarks.
+// Details for one resolution-timeline milestone. In Progress can carry many
+// entries (validation, dispatch, work updates, pause/resume), so this dialog
+// renders a list instead of a single status change. Only what the reporter
+// may see is exposed: status/activity, timestamp, the actor's role (never a
+// name/email), a plain-language summary, and that entry's own remarks.
 function TimelineDetailsModal({ step, onClose }) {
-  const entry = step.entry || {};
-  const performer = !entry.performed_by_role
-    ? 'System'
-    : entry.performed_by_role === 'Citizen'
-      ? 'You'
-      : entry.performed_by_role;
-
-  const summary = entry.action === 'CREATE'
-    ? 'Report submitted.'
-    : entry.action === 'TRANSFER'
-      ? 'Report reassigned to another officer.'
-      : entry.from_status || entry.to_status
-        ? `Status changed${entry.from_status ? ` from ${entry.from_status}` : ''} to ${entry.to_status || step.label}.`
-        : `Report status updated to ${step.label}.`;
+  const entries = step.entries?.length
+    ? step.entries
+    : step.entry
+      ? [step.entry]
+      : [];
 
   useEffect(() => {
     const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
+
+  const entrySummary = (entry) => {
+    if (entry.action === 'CREATE') {
+      return step.key === 'assigned'
+        ? 'Report assigned automatically at submission.'
+        : 'Report submitted.';
+    }
+    if (entry.action === 'TRANSFER') return 'Report reassigned to another officer.';
+    if (entry.action === 'ACTIVITY_NOTE' || entry.is_activity) {
+      return entry.activity_label || activityLabel(entry) || 'Report activity recorded.';
+    }
+    if (entry.from_status || entry.to_status) {
+      return `Status changed${entry.from_status ? ` from ${entry.from_status}` : ''} to ${entry.to_status || step.label}.`;
+    }
+    return `Report status updated to ${step.label}.`;
+  };
 
   return (
     <div className="tl-details-overlay" onClick={onClose}>
@@ -1041,8 +981,14 @@ function TimelineDetailsModal({ step, onClose }) {
           <div className="tl-details-heading">
             <span className="tl-details-icon" aria-hidden="true">i</span>
             <div>
-              <h3 id="tl-details-title">Status Details</h3>
-              <p>How your report reached this stage</p>
+              <h3 id="tl-details-title">
+                {step.key === 'in_progress' ? 'Handling Activity' : 'Status Details'}
+              </h3>
+              <p>
+                {step.key === 'in_progress'
+                  ? 'Validation, dispatch, and field updates for this report'
+                  : 'How your report reached this stage'}
+              </p>
             </div>
           </div>
           <button className="tl-details-x" type="button" onClick={onClose} aria-label="Close details">
@@ -1052,29 +998,56 @@ function TimelineDetailsModal({ step, onClose }) {
 
         <div className="tl-details-body">
           <div className="tl-details-field">
-            <span className="tl-details-label">Status</span>
+            <span className="tl-details-label">Milestone</span>
             <span className="tl-details-value">{step.label}</span>
           </div>
-          <div className="tl-details-field">
-            <span className="tl-details-label">Date &amp; Time</span>
-            <span className="tl-details-value">{formatDateTime(entry.created_at || step.date) || '—'}</span>
-          </div>
-          <div className="tl-details-field">
-            <span className="tl-details-label">Performed by</span>
-            <span className="tl-details-value">{performer}</span>
-          </div>
-          <div className="tl-details-field">
-            <span className="tl-details-label">Action</span>
-            <span className="tl-details-value">{TIMELINE_ACTION_LABELS[entry.action] || 'Status updated'}</span>
-          </div>
-          <div className="tl-details-field tl-details-field-wide">
-            <span className="tl-details-label">What changed</span>
-            <span className="tl-details-value">{summary}</span>
-          </div>
-          {entry.remarks && (
-            <div className="tl-details-field tl-details-field-wide tl-details-remarks">
-              <span className="tl-details-label">Remarks</span>
-              <span className="tl-details-value">{entry.remarks}</span>
+
+          {entries.length === 0 ? (
+            <p className="tl-details-empty">No further details were recorded for this stage.</p>
+          ) : (
+            <div className="tl-details-entry-list">
+              {entries.map((entry, index) => {
+                const performer = !entry.performed_by_role
+                  ? 'System'
+                  : entry.performed_by_role === 'Citizen'
+                    ? 'You'
+                    : entry.performed_by_role;
+                const title =
+                  entry.activity_label ||
+                  (entry.action === 'CREATE' ? step.label : '') ||
+                  (entry.action === 'ACTIVITY_NOTE' ? activityLabel(entry) : '') ||
+                  entry.to_status ||
+                  entry.status ||
+                  step.label;
+                return (
+                  <article className="tl-details-entry" key={`${entry.created_at}-${index}`}>
+                    <div className="tl-details-entry-head">
+                      <strong>{title}</strong>
+                      <span>{formatDateTime(entry.created_at) || '—'}</span>
+                    </div>
+                    <div className="tl-details-field">
+                      <span className="tl-details-label">Performed by</span>
+                      <span className="tl-details-value">{performer}</span>
+                    </div>
+                    <div className="tl-details-field">
+                      <span className="tl-details-label">Action</span>
+                      <span className="tl-details-value">
+                        {TIMELINE_ACTION_LABELS[entry.action] || 'Status updated'}
+                      </span>
+                    </div>
+                    <div className="tl-details-field tl-details-field-wide">
+                      <span className="tl-details-label">What changed</span>
+                      <span className="tl-details-value">{entrySummary(entry)}</span>
+                    </div>
+                    {entry.remarks && (
+                      <div className="tl-details-field tl-details-field-wide tl-details-remarks">
+                        <span className="tl-details-label">Remarks</span>
+                        <span className="tl-details-value">{entry.remarks}</span>
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
             </div>
           )}
         </div>

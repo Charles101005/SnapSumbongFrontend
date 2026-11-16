@@ -272,10 +272,8 @@
 
 .status-new { background: #ede9fe; color: #6d28d9; }
 .status-assigned { background: #e0edff; color: #1d4ed8; }
-.status-under-review { background: #f3e8ff; color: #7e22ce; }
+.status-in-progress { background: #dbeafe; color: #1d4ed8; }
 .status-on-hold { background: #fef3c7; color: #b45309; }
-.status-dispatched { background: #cffafe; color: #0e7490; }
-.status-ongoing { background: #dbeafe; color: #1d4ed4; }
 .status-resolved { background: #dcfce7; color: #15803d; }
   .status-closed { background: #e2e8f0; color: #334155; }
   .status-invalid { background: #ffe4e6; color: #9f1239; }
@@ -401,6 +399,14 @@
   margin: 2px 0 0 0;
   font-size: calc(1.25rem * var(--font-scale));
   font-weight: 800;
+}
+
+.status-description {
+  margin: 6px 0 0;
+  max-width: 62ch;
+  font-size: calc(0.8125rem * var(--font-scale));
+  line-height: 1.55;
+  color: #64748b;
 }
 
 /* Expected resolution row (citizen detail view): a dedicated, full-width
@@ -551,6 +557,43 @@
   color: #ffffff;
 }
 
+/* Current milestone (report still being worked on). A ring, not a checkmark,
+   so "In Progress" never looks finished. */
+.timeline-step.current .step-node {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+/* On-Hold keeps the In Progress milestone in place but marks it paused. */
+.timeline-step.paused .step-node {
+  background: #fffbeb;
+  border-color: #f59e0b;
+  color: #b45309;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.14);
+}
+
+.timeline-step.paused .step-date {
+  color: #b45309;
+  font-weight: 700;
+  font-style: normal;
+}
+
+/* Invalid short-circuits the track: later milestones were never reached. */
+.timeline-step.halted .step-node {
+  background: #fff1f2;
+  border-style: dashed;
+  border-color: #fda4af;
+  color: #be123c;
+}
+
+.timeline-step.halted .step-label,
+.timeline-step.halted .step-date {
+  color: #be123c;
+  font-style: italic;
+}
+
 .step-node svg { width: 14px; height: 14px; }
 
 .timeline-step.upcoming .step-node {
@@ -565,8 +608,8 @@
   font-style: italic;
 }
 
-/* Jumped-over phase (e.g. Under Review -> On-Hold -> Closed skips
-   Dispatched): muted hollow node instead of a phantom checkmark. */
+/* Jumped-over phase (e.g. On-Hold -> Closed skips Resolved): muted hollow
+   node instead of a phantom checkmark. */
 .timeline-step.skipped .step-node {
   background: #f8fafc;
   border-style: dashed;
@@ -631,6 +674,49 @@
   cursor: default;
   /* Keep skipped/upcoming labels exactly as styled by their own rules. */
   opacity: 1;
+}
+
+/* Temporary pause notice: On-Hold is an off-track state, not a milestone. */
+.timeline-pause-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: -4px 0 18px;
+  padding: 12px 14px;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.timeline-pause-icon {
+  flex-shrink: 0;
+  color: #b45309;
+}
+
+.timeline-pause-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.timeline-pause-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: calc(0.8125rem * var(--font-scale));
+  line-height: 1.45;
+}
+
+.timeline-pause-copy strong {
+  color: #92400e;
+}
+
+.timeline-pause-date {
+  font-size: calc(0.6875rem * var(--font-scale));
+  font-weight: 700;
+  color: #b45309;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .step-view-hint {
@@ -1292,6 +1378,36 @@
   margin-bottom: 0;
 }
 
+/* Invalid outcome: a terminal, off-track state rather than a milestone. */
+.invalid-report-card {
+  border: 1px solid #fecdd3;
+  background: #fff1f2;
+}
+
+.invalid-report-card h3 {
+  font-size: calc(0.875rem * var(--font-scale));
+  font-weight: 700;
+  color: #9f1239;
+  margin: 0 0 8px 0;
+}
+
+.invalid-report-card p {
+  font-size: calc(0.8125rem * var(--font-scale));
+  line-height: 1.5;
+  color: #881337;
+  margin: 0 0 10px 0;
+}
+
+.invalid-report-card p:last-child {
+  margin-bottom: 0;
+}
+
+.invalid-report-reason {
+  background: #ffe4e6;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
 .btn-confirm-resolution {
   display: block;
   width: 100%;
@@ -1587,6 +1703,55 @@
   padding: 10px 12px;
 }
 
+.tl-details-entry-list {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tl-details-entry {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.tl-details-entry-head {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.tl-details-entry-head strong {
+  font-size: calc(0.875rem * var(--font-scale));
+  color: #0f172a;
+}
+
+.tl-details-entry-head span {
+  font-size: calc(0.6875rem * var(--font-scale));
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.tl-details-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 14px;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: calc(0.8125rem * var(--font-scale));
+  text-align: center;
+}
+
 .tl-details-footer {
   display: flex;
   justify-content: flex-end;
@@ -1621,6 +1786,10 @@
   .tl-details-body {
     grid-template-columns: 1fr;
     padding: 16px 18px 4px;
+  }
+
+  .tl-details-entry {
+    grid-template-columns: 1fr;
   }
 
   .tl-details-footer {
