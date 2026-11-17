@@ -37,12 +37,13 @@ export default function ReportTimeline({
   onStepClick,
   collapseValidation = false,
   showPauseBanner = true,
+  showReopenBanner = true,
   ariaLabel = "Resolution timeline",
 }) {
   const timeline =
     providedTimeline ||
     buildReportTimeline({ status, entries, createdAt, collapseValidation });
-  const { currentStep, steps, invalid, paused, pauseEntry } = timeline;
+  const { currentStep, steps, invalid, paused, pauseEntry, reopenEntry } = timeline;
 
   return (
     <div className="report-timeline" role="group" aria-label={ariaLabel}>
@@ -140,6 +141,29 @@ export default function ReportTimeline({
           );
         })}
       </div>
+
+      {showReopenBanner && reopenEntry && (
+        <div className="report-timeline-reopen" role="status">
+          <span className="report-timeline-reopen-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a9 9 0 1 1-3-6.7" />
+              <polyline points="21 3 21 9 15 9" />
+            </svg>
+          </span>
+          <span className="report-timeline-reopen-copy">
+            <strong>Report reopened</strong>
+            <span>
+              {reopenEntry?.remarks ||
+                "The report was reopened for further handling."}
+            </span>
+            {reopenEntry?.created_at && (
+              <span className="report-timeline-reopen-date">
+                Since {formatDateTime(reopenEntry.created_at)}
+              </span>
+            )}
+          </span>
+        </div>
+      )}
 
       {showPauseBanner && paused && (
         <div className="report-timeline-pause" role="status">

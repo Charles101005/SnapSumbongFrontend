@@ -274,6 +274,40 @@ body {
   color: #ffffff;
 }
 
+/* Status Views grouping: open work, completed outcomes, then the off-track
+   Invalid outcome. The divider/label carry the distinction, so it does not
+   rely on color alone. */
+.sidebar-status-divider {
+  flex-shrink: 0;
+  height: 1px;
+  margin: 0.55rem 0.75rem;
+  background-color: var(--color-border);
+}
+
+.sidebar-status-exception-label {
+  display: block;
+  padding: 0.35rem 0.75rem 0.1rem;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-placeholder);
+}
+
+/* Matches the .status-invalid badge palette so the Invalid count reads the
+   same in the sidebar as it does in the tables and summary chips. */
+.sidebar-count-badge.is-invalid {
+  background-color: #ffe4e6;
+  color: #9f1239;
+}
+
+.sidebar-subnav-item.active .sidebar-count-badge.is-invalid {
+  background-color: #9f1239;
+  color: #ffffff;
+}
+
 .sidebar-bottom {
   padding: 1rem 1.25rem;
   border-top: 1px solid var(--color-border);
@@ -532,8 +566,8 @@ body {
 }
 
 .status-assigned {
-  background-color: #e0e7ff;
-  color: #4338ca;
+  background-color: #ede9fe;
+  color: #6d28d9;
 }
 
 .status-in-progress {

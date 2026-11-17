@@ -188,3 +188,19 @@ export const confirmReportResolution = async (reportNumber) => {
         throw error.response?.data || error;
     }
 };
+
+// POST /reports/:report_number/reopen/
+// Reporter-only: moves a RESOLVED report back to IN_PROGRESS with a mandatory
+// reason. Closed reports are final and cannot be reopened. Staff cannot use
+// this endpoint.
+export const reopenReport = async (reportNumber, payload) => {
+    try {
+        const response = await api.post(
+            `reports/${encodeURIComponent(reportNumber)}/reopen/`,
+            payload
+        );
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error;
+    }
+};

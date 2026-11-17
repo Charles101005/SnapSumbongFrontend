@@ -148,10 +148,10 @@ function App() {
            the settings page. */
         <FontScaleProvider>
             <AuthProvider>
-                {/* Shared status-count store — mounted above the routes so the
-                    sidebar badges and summary chips keep their data across
-                    navigation instead of re-fetching (and flashing "—") on every
-                    page change. */}
+                {/* Shared live status-count store — mounted above the routes
+                    so the sidebar badges keep their current counts across
+                    navigation instead of re-fetching (and flashing "—") on
+                    every page change. */}
                 <StatusCountsProvider>
                     <AppRoutes />
                 </StatusCountsProvider>

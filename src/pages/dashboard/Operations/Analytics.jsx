@@ -29,6 +29,7 @@ import {
 import { getAnalyticsOverview, getHandlerWorkload } from "../../../api/analytics";
 import { getReports } from "../../../api/reports";
 import { REPORT_STATUSES } from "../../../context/statusCountsContext";
+import { foldStatusCounts } from "../../../shared/reportStatuses";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { useAuth } from "../../../context/authContext";
 import { formatDate, round1 } from "../../../utils/format";
@@ -49,7 +50,7 @@ const SEVERITY_ORDER = ["P1", "P2", "P3", "P4", "P5"];
 const SEVERITY_COLORS = { P1: "#dc2626", P2: "#f97316", P3: "#ef4444", P4: "#3b82f6", P5: "#94a3b8" };
 const STATUS_COLORS = {
   new: "#0369a1",
-  assigned: "#4338ca",
+  assigned: "#6d28d9",
   in_progress: "#1d4ed4",
   on_hold: "#b45309",
   resolved: "#15803d",
@@ -301,7 +302,7 @@ export default function Analytics() {
   const spikes = useMemo(() => detectSpikes(currentSeries), [currentSeries]);
 
   const sevCounts = useMemo(() => overview?.intake?.by_severity || {}, [overview]);
-  const statusMixRaw = useMemo(() => overview?.intake?.by_status || {}, [overview]);
+  const statusMixRaw = useMemo(() => foldStatusCounts(overview?.intake?.by_status || {}), [overview]);
   const delivery = overview?.delivery;
   const sla = overview?.sla;
   const prevDelivery = prevOverview?.delivery;

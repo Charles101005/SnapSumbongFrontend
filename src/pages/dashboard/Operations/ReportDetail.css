@@ -162,7 +162,7 @@
 }
 
 .status-new { background: #e0f2fe; color: #0369a1; }
-.status-assigned { background: #e0e7ff; color: #4338ca; }
+.status-assigned { background: #ede9fe; color: #6d28d9; }
 .status-in-progress { background: #dbeafe; color: #1d4ed4; }
 .status-on-hold { background: #fef3c7; color: #b45309; }
 .status-resolved { background: #dcfce7; color: #15803d; }
@@ -326,7 +326,7 @@
 }
 
 .status-step-new { color: #0284c7; }
-.status-step-assigned { color: #4f46e5; }
+.status-step-assigned { color: #6d28d9; }
 .status-step-in-progress { color: #1d4ed4; }
 .status-step-on-hold { color: #d97706; }
 .status-step-resolved { color: #16a34a; }
@@ -383,6 +383,24 @@
 .timeline-activity-badge {
   background: #dbeafe;
   color: #1d4ed8;
+}
+
+/* Activity labels (dispatch, referral, validation) are much wider than a
+   status chip. Let them wrap inside their grid card instead of spilling into
+   the next column. */
+.timeline-status-badge,
+.timeline-action-badge {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+  text-align: left;
+}
+
+/* The action badge is inline by default; inline-block makes max-width
+   effective so a long AI/action label also stays inside its card. */
+.timeline-action-badge {
+  display: inline-block;
 }
 
 .timeline-view-details {

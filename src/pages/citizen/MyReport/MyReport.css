@@ -271,7 +271,7 @@
 }
 
 .status-new { background: #ede9fe; color: #6d28d9; }
-.status-assigned { background: #e0edff; color: #1d4ed8; }
+.status-assigned { background: #ede9fe; color: #6d28d9; }
 .status-in-progress { background: #dbeafe; color: #1d4ed8; }
 .status-on-hold { background: #fef3c7; color: #b45309; }
 .status-resolved { background: #dcfce7; color: #15803d; }
@@ -1378,6 +1378,12 @@
   margin-bottom: 0;
 }
 
+.closure-status-card .closure-final-note {
+  margin-top: 8px;
+  font-weight: 600;
+  color: #475569;
+}
+
 /* Invalid outcome: a terminal, off-track state rather than a milestone. */
 .invalid-report-card {
   border: 1px solid #fecdd3;
@@ -1537,6 +1543,10 @@
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
 }
 
+.confirm-modal-card--wide {
+  max-width: 480px;
+}
+
 .confirm-modal-card h3 {
   font-size: calc(1rem * var(--font-scale));
   font-weight: 700;
@@ -1561,8 +1571,119 @@
   gap: 10px;
 }
 
-.confirm-modal-actions .btn-confirm-resolution {
+.confirm-modal-actions .btn-confirm-resolution,
+.confirm-modal-actions .btn-reopen-report {
   width: auto;
+}
+
+.resolution-choice-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.resolution-choice-button {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+.resolution-choice-actions .btn-reopen-report {
+  background: #fff7ed;
+  color: #b45309;
+  border: 1px solid #f59e0b;
+}
+
+.resolution-choice-actions .btn-reopen-report:hover:not(:disabled) {
+  background: #ffedd5;
+}
+
+.resolution-choice-actions .resolution-choice-cancel {
+  padding: 6px 0;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.resolution-choice-actions .resolution-choice-cancel:hover:not(:disabled) {
+  background: transparent;
+  color: #334155;
+}
+
+.btn-reopen-report {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  background: #d97706;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: calc(0.8125rem * var(--font-scale));
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-reopen-report:hover:not(:disabled) {
+  background: #b45309;
+}
+
+.btn-reopen-report:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.reopen-reason-field {
+  margin-bottom: 16px;
+}
+
+.reopen-reason-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: calc(0.8125rem * var(--font-scale));
+  font-weight: 600;
+  color: #334155;
+}
+
+.reopen-reason-field .form-error-banner {
+  margin-bottom: 8px;
+}
+
+.reopen-reason-textarea {
+  display: block;
+  width: 100%;
+  min-height: 110px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+  font-size: calc(0.8125rem * var(--font-scale));
+  line-height: 1.5;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.reopen-reason-textarea:focus {
+  outline: 2px solid #93c5fd;
+  outline-offset: 1px;
+  border-color: #2563eb;
+}
+
+.reopen-reason-textarea[aria-invalid="true"] {
+  border-color: #dc2626;
+}
+
+.reopen-reason-count {
+  display: block;
+  margin-top: 4px;
+  text-align: right;
+  font-size: calc(0.6875rem * var(--font-scale));
+  color: #64748b;
 }
 
 .btn-modal-cancel {

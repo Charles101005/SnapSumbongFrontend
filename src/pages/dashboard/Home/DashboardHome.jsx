@@ -22,6 +22,7 @@ import { usePermissions } from "../../../hooks/usePermissions";
 import { PERMISSIONS } from "../../../shared/constants";
 import {
   ACTIVE_STATUS_KEYS,
+  foldStatusCounts,
   isTerminalStatus,
   statusBadgeClass,
   statusLabel,
@@ -109,7 +110,7 @@ export default function DashboardHome() {
         const overview = metricsRes.value || {};
         setMetrics({
           total_count: overview.intake?.total ?? null,
-          count_by_status: overview.intake?.by_status || {},
+          count_by_status: foldStatusCounts(overview.intake?.by_status || {}),
         });
       } else {
         errs.metrics = "Report metrics are unavailable right now.";

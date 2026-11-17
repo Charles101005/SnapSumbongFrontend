@@ -18,12 +18,14 @@ import "./ReportManagementModal.css";
 
 const FALLBACK_STATUSES = ["New", "Assigned", "In Progress", "On-Hold", "Resolved", "Closed", "Invalid"];
 const FALLBACK_SEVERITIES = ["P1", "P2", "P3", "P4", "P5"];
-// Invalid is a triage verdict only offered once handling has begun (In
-// Progress); terminal states keep it for corrections.
+// Invalid is normally a triage verdict only offered once handling has begun
+// (In Progress); terminal states keep it for corrections. A pending AI flag is
+// the one exception: an Assigned report may confirm the flag and go Invalid.
 const INVALID_VISIBLE_AFTER = ["IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED", "INVALID"];
-// Assigned has exactly one next stage: In Progress. The dropdown must
-// offer nothing else — not even if next_expected_statuses is missing and
-// the full-list fallback kicks in.
+// Assigned normally has exactly one next stage: In Progress. When an AI
+// screening flag is still pending, Invalid is also offered so the reviewer can
+// confirm a fake report without first moving it into handling. The backend
+// enforces the same exception.
 const ASSIGNED_NEXT_STATUSES = ["IN_PROGRESS"];
 // Last-resort transition matrix if the detail payload predates
 // next_expected_statuses. Mirrors the backend's STATUS_ALLOWED_TRANSITIONS.
@@ -44,7 +46,7 @@ const MAX_RESOLUTION_PHOTOS = 5; // Matches the backend's STORAGE_CONFIG['MAX_SI
 
 const STATUS_COLORS = {
   new: { bg: "#e0f2fe", text: "#0369a1" },
-  assigned: { bg: "#e0e7ff", text: "#4338ca" },
+  assigned: { bg: "#ede9fe", text: "#6d28d9" },
   in_progress: { bg: "#dbeafe", text: "#1d4ed4" },
   on_hold: { bg: "#fef3c7", text: "#b45309" },
   resolved: { bg: "#dcfce7", text: "#15803d" },
@@ -214,7 +216,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   const [validatorError, setValidatorError] = useState("");
   const [remarksError, setRemarksError] = useState("");
   // Officer's answer to a pending AI screening flag: CLEARED (valid) or
-  // CONFIRMED (invalid). Required when a flagged report leaves triage, and
+  // CONFIRMED (invalid). Required when a flagged report enters handling, and
   // sent as ai_flag_decision; the original AI reasons are never overwritten.
   const [aiFlagDecision, setAiFlagDecision] = useState("");
   const [aiFlagError, setAiFlagError] = useState("");
@@ -433,21 +435,35 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
         return;
       }
 
-      // Flagging a report as Invalid (false/troll report) is only legal once
-      // handling has begun (In Progress).
+      // A pending AI flag can be confirmed as fake while the report is still
+      // Assigned, sending it straight to Invalid. Every other Invalid verdict
+      // remains limited to reports that have already entered handling.
+      const aiFlagPending = isAiFlagPending(report);
+      const aiConfirmedInvalidAtAssigned =
+        currentStatusValue === "ASSIGNED" &&
+        aiFlagPending &&
+        aiFlagDecision === AI_FLAG_DECISION.CONFIRMED;
       const invalidating = statusChanged && status === "INVALID";
-      if (invalidating && !INVALID_VISIBLE_AFTER.includes(currentStatusValue)) {
+      if (
+        invalidating &&
+        !INVALID_VISIBLE_AFTER.includes(currentStatusValue) &&
+        !aiConfirmedInvalidAtAssigned
+      ) {
         setError("");
-        setStatusError("A report can only be flagged Invalid after it has reached In Progress (after Assigned).");
+        setStatusError(
+          aiFlagPending
+            ? "Confirm the AI flag as invalid to mark an Assigned report Invalid."
+            : "A report can only be flagged Invalid after it has reached In Progress (after Assigned)."
+        );
         setSaving(false);
         return;
       }
 
       // AI screening flags are advisory, but the officer must answer the
-      // review question whenever a flagged report leaves triage. CONFIRMED
+      // review question before a flagged report enters handling. CONFIRMED
       // only pairs with Invalid; CLEARED cannot accompany an Invalid verdict.
       const aiFlagReviewRequired =
-        isAiFlagPending(report) && statusChanged && isAiFlagReviewRequiredFor(status);
+        aiFlagPending && statusChanged && isAiFlagReviewRequiredFor(status);
       if (aiFlagReviewRequired && !aiFlagDecision) {
         setError("");
         setAiFlagError("Answer whether this report is valid before changing its status.");
@@ -666,7 +682,9 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
   const statusOptions = useMemo(() => {
     const currentValue = statusToValue(report?.status);
     if (currentValue === "ASSIGNED") {
-      const assignedFlow = ["ASSIGNED", ...ASSIGNED_NEXT_STATUSES];
+      const assignedFlow = isAiFlagPending(report)
+        ? ["ASSIGNED", ...ASSIGNED_NEXT_STATUSES, "INVALID"]
+        : ["ASSIGNED", ...ASSIGNED_NEXT_STATUSES];
       return statuses.filter((item) =>
         assignedFlow.includes(statusToValue(statusValue(item)))
       );
@@ -786,9 +804,9 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
     notePlaceholder = "What happened on site or with the concerned office?";
   }
 
-  // Pending AI flag + a chosen status that leaves triage = mandatory review.
-  // Moving back to In Progress from On-Hold leaves the flag PENDING and
-  // needs no answer.
+  // Pending AI flag + a chosen transition that requires the review =
+  // mandatory answer. In Progress is included so a flagged report cannot
+  // enter handling unreviewed.
   const aiFlagPending = isAiFlagPending(report);
   const aiFlagReviewRequired =
     aiFlagPending &&
@@ -1055,9 +1073,9 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                           setRemarksError("");
                         }
                         // Keep the AI review answer paired with the target:
-                        // Invalid implies CONFIRMED, every other leaving-triage
-                        // target can be either answer, and a target that keeps
-                        // the report in triage needs no answer at all.
+                        // Invalid implies CONFIRMED, every other review-gated
+                        // target can be either answer, and a target that stays
+                        // at the current status needs no answer at all.
                         if (aiFlagPending) {
                           const nextRequired =
                             nextStatus !== statusToValue(report.status) &&
@@ -1116,7 +1134,7 @@ export default function ReportManagementModal({ reportNumber, lookups, onClose, 
                     {aiFlagPending && !aiFlagReviewRequired && (
                       <p className="mgmt-info-hint">
                         This report has a pending AI screening flag — answer
-                        "Is this report valid?" before it leaves triage.
+                        "Is this report valid?" before it moves to In Progress.
                       </p>
                     )}
                   </div>

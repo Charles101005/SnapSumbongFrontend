@@ -117,6 +117,23 @@ export function buildReportTimeline({
     .reverse()
     .find((item) => normalizeStatus(item.status) === REPORT_STATUS.ON_HOLD);
 
+  // A reopened report returns to In Progress. New reopens are allowed only
+  // from Resolved; the Closed → In Progress case stays in the lookup so
+  // historical entries from before that rule still render their banner.
+  const activeHandling =
+    currentStatusKey === REPORT_STATUS.IN_PROGRESS ||
+    currentStatusKey === REPORT_STATUS.ON_HOLD;
+  const reopenEntry = activeHandling
+    ? [...entries].reverse().find((item) => {
+        const from = normalizeStatus(item.from_status);
+        const to = normalizeStatus(item.to_status);
+        return (
+          [REPORT_STATUS.RESOLVED, REPORT_STATUS.CLOSED].includes(from) &&
+          to === REPORT_STATUS.IN_PROGRESS
+        );
+      }) || null
+    : null;
+
   return {
     invalid,
     paused,
@@ -124,5 +141,6 @@ export function buildReportTimeline({
     steps,
     invalidEntry,
     pauseEntry,
+    reopenEntry,
   };
 }

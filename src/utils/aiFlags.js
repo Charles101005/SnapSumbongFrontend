@@ -36,11 +36,12 @@ export const AI_FLAG_DECISION = Object.freeze({
   CONFIRMED: "CONFIRMED",
 });
 
-// Transitions that leave triage (the In Progress handling stage) and therefore
-// force the officer to answer "Is this report valid?" — mirrors the backend's
-// AI_FLAG_REVIEW_REQUIRED_TARGETS. Moving back to In Progress from On-Hold
-// keeps the flag pending and needs no answer.
+// Transitions that require the officer to answer the advisory AI screening
+// question. In Progress is included deliberately: an AI-flagged report must be
+// reviewed before it enters handling, not only when it later leaves it. This
+// mirrors the backend's AI_FLAG_REVIEW_REQUIRED_TARGETS.
 export const AI_FLAG_REVIEW_REQUIRED_TARGETS = Object.freeze([
+  "IN_PROGRESS",
   "ON_HOLD",
   "RESOLVED",
   "CLOSED",

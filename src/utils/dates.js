@@ -16,7 +16,7 @@ export const notAfterToday = (iso) => !iso || iso <= toISODate(new Date());
 // Strict YYYY-MM-DD check for incoming query params (?range=/&from=/&to=).
 // Deep links are untrusted input — shared URLs and Analytics drill-downs both
 // write them — so anything malformed is dropped before it can seed a filter
-// (or a badge count range) with garbage.
+// (or a summary count range) with garbage.
 export const validISODate = (value) => (/^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "");
 
 // Sanitise a custom From → To pair read from a URL (deep link / shared link).
@@ -28,8 +28,8 @@ export const validISODate = (value) => (/^\d{4}-\d{2}-\d{2}$/.test(value) ? valu
 //     so from_date > to_date can never reach the API as an empty result.
 //     Deliberately silent — a deep link isn't a user action; the interactive
 //     path reports through validateCustomRange below instead.
-// Every URL consumer must call this — the Operations table's filters and
-// StatusCountsProvider's badge counts — or a repaired URL would make the two
+// Every URL consumer must call this — the Operations table's filters and the
+// summary strip's date window — or a repaired URL would make the two
 // disagree. -> { from, to }
 export const sanitizeDateBounds = (from, to) => {
   const today = toISODate(new Date());

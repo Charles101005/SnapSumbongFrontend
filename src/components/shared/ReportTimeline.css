@@ -187,6 +187,49 @@
   text-underline-offset: 2px;
 }
 
+/* Reopened report: the track moved back to In Progress after a closure. */
+.report-timeline-reopen {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.report-timeline-reopen-icon {
+  flex-shrink: 0;
+  color: #1d4ed8;
+}
+
+.report-timeline-reopen-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.report-timeline-reopen-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: calc(0.8125rem * var(--font-scale));
+  line-height: 1.45;
+}
+
+.report-timeline-reopen-copy strong {
+  color: #1e40af;
+}
+
+.report-timeline-reopen-date {
+  font-size: calc(0.6875rem * var(--font-scale));
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #1d4ed8;
+}
+
 /* Temporary pause notice: On-Hold is an off-track state, not a milestone. */
 .report-timeline-pause {
   display: flex;

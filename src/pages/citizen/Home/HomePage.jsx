@@ -4,6 +4,7 @@ import { getReports } from "../../../api/reports";
 import { getReportMetrics } from "../../../api/analytics";
 import {
   ACTIVE_STATUS_KEYS,
+  foldStatusCounts,
   statusBadgeClass,
   statusLabel,
 } from "../../../shared/reportStatuses";
@@ -42,7 +43,7 @@ export default function HomePage() {
       try {
         const data = await getReportMetrics();
         if (cancelled) return;
-        const by = data.count_by_status || {};
+        const by = foldStatusCounts(data.count_by_status || {});
         // "Active" = still in progress: everything except Resolved, Closed, Invalid.
         const active = ACTIVE_STATUS_KEYS
           .reduce((sum, key) => sum + (Number(by[key]) || 0), 0);

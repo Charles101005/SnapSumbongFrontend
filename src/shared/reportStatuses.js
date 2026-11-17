@@ -127,6 +127,20 @@ export const normalizeStatusOrLegacy = (status) => {
   return LEGACY_STATUS_CODES[code] || code;
 };
 
+// Fold a status -> count payload into the seven canonical status keys.
+// Retired statuses (Under Review / Dispatched / Ongoing) still appear in some
+// historical payloads; they represent In Progress, so their counts are summed
+// there instead of being dropped. Unknown keys are ignored.
+export const foldStatusCounts = (counts) => {
+  const totals = Object.fromEntries(REPORT_STATUS_KEYS.map((key) => [key, 0]));
+  for (const [status, count] of Object.entries(counts || {})) {
+    const key = normalizeStatusOrLegacy(status).toLowerCase();
+    if (!REPORT_STATUS_KEYS.includes(key)) continue;
+    totals[key] += Number(count) || 0;
+  }
+  return totals;
+};
+
 export const statusMeta = (status) =>
   REPORT_STATUS_META[normalizeStatusOrLegacy(status)] || null;
 

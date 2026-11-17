@@ -5,7 +5,7 @@ import MapAutoResize from '../../../components/shared/MapAutoResize';
 import Pagination from '../../../components/shared/Pagination';
 import ReportTimeline from '../../../components/shared/ReportTimeline';
 import './MyReport.css';
-import { getReports, getReportDetail, getHazardCategories, confirmReportResolution } from '../../../api/reports';
+import { getReports, getReportDetail, getHazardCategories, confirmReportResolution, reopenReport } from '../../../api/reports';
 import { getReportMetrics } from '../../../api/analytics';
 import { hazardMarkerIcon } from '../../../utils/leafletHelpers';
 import { toISODate, validateCustomRange } from '../../../utils/dates';
@@ -15,6 +15,7 @@ import {
   REPORT_STATUS_META,
   REPORT_STATUS_ORDER,
   activityLabel,
+  foldStatusCounts,
   isInvalidStatus,
   normalizeStatus,
   statusBadgeClass,
@@ -24,6 +25,8 @@ import {
 import { buildReportTimeline } from '../../../shared/reportTimeline';
 
 const ROWS_PER_PAGE = 5; // Matches the backend's SmallListPagination page size.
+const MIN_REOPEN_REASON_LENGTH = 10;
+const MAX_REOPEN_REASON_LENGTH = 500;
 
 const STATUS_OPTIONS = REPORT_STATUS_ORDER.map((status) => ({
   value: status,
@@ -77,17 +80,20 @@ export default function MyReport() {
   // dialog is open (null = closed).
   const [timelineStepDetail, setTimelineStepDetail] = useState(null);
 
-  // --- Citizen confirmation (close a resolved report) ---
-  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
-  const [confirmSubmitting, setConfirmSubmitting] = useState(false);
-  const [confirmError, setConfirmError] = useState('');
-  // Centered success popup shown after a confirmed closure; dismissed by
-  // tapping outside it (or Escape), which returns to the list view.
+  // --- Citizen resolution action: confirm & close, or reopen ---
+  const [resolutionModalOpen, setResolutionModalOpen] = useState(false);
+  const [resolutionSubmitting, setResolutionSubmitting] = useState(false);
+  const [resolutionError, setResolutionError] = useState('');
+  const [reopenReason, setReopenReason] = useState('');
+  const [reopenReasonError, setReopenReasonError] = useState('');
+  // Centered success popup shown after a confirmed closure or reopen;
+  // dismissed by tapping outside it (or Escape), which returns to the list.
   const [successPopupOpen, setSuccessPopupOpen] = useState(false);
+  const [successAction, setSuccessAction] = useState('closed');
 
-  // Bumped after a successful confirmation so the list/stats effects refetch
-  // (the report just moved Resolved -> Closed; view-only state changes don't
-  // re-run those effects on their own).
+  // Bumped after a successful resolution action so the list/stats effects
+  // refetch (the report moved Resolved -> Closed, or Closed/Resolved -> In
+  // Progress; view-only state changes don't re-run those effects on their own).
   const [refreshTick, setRefreshTick] = useState(0);
 
   // Temporary control states (bound to form controls)
@@ -159,7 +165,7 @@ export default function MyReport() {
       try {
         const data = await getReportMetrics();
         if (cancelled) return;
-        const by = data.count_by_status || {};
+        const by = foldStatusCounts(data.count_by_status || {});
         // "Active" = still in progress: everything except Resolved, Closed, Invalid.
         const active = ACTIVE_STATUS_KEYS
           .reduce((sum, key) => sum + (Number(by[key]) || 0), 0);
@@ -241,31 +247,86 @@ export default function MyReport() {
     setSelectedReportDetail(null);
     setDetailError('');
     setTimelineStepDetail(null);
-    setConfirmModalOpen(false);
-    setConfirmError('');
+    setResolutionModalOpen(false);
+    setResolutionError('');
+    setReopenReason('');
+    setReopenReasonError('');
   };
 
   // Closing the success popup (tap outside / Escape) returns to the list
-  // and refetches it — the report just moved Resolved -> Closed.
+  // and refetches it — the report just moved to Closed or back In Progress.
   const dismissSuccessPopup = () => {
     setSuccessPopupOpen(false);
     handleBackToList();
     setRefreshTick((tick) => tick + 1);
   };
 
+  const openResolutionModal = () => {
+    setResolutionError('');
+    setReopenReason('');
+    setReopenReasonError('');
+    setResolutionModalOpen(true);
+  };
+
+  const closeResolutionModal = () => {
+    if (resolutionSubmitting) return;
+    setResolutionModalOpen(false);
+    setResolutionError('');
+    setReopenReason('');
+    setReopenReasonError('');
+  };
+
   // citizen step: confirm the completed works to close the report.
   const handleConfirmResolution = async () => {
-    if (!selectedReportRow || confirmSubmitting) return;
-    setConfirmSubmitting(true);
-    setConfirmError('');
+    if (!selectedReportRow || resolutionSubmitting) return;
+    setResolutionSubmitting(true);
+    setResolutionError('');
     try {
       await confirmReportResolution(selectedReportRow.report_number);
-      setConfirmModalOpen(false);
+      setResolutionModalOpen(false);
+      setSuccessAction('closed');
       setSuccessPopupOpen(true);
     } catch (err) {
-      setConfirmError(err?.detail || err?.message || 'Unable to confirm the resolution. Please try again.');
+      setResolutionError(
+        err?.detail || err?.message || 'Unable to confirm the resolution. Please try again.'
+      );
     } finally {
-      setConfirmSubmitting(false);
+      setResolutionSubmitting(false);
+    }
+  };
+
+  // citizen step: reopen a resolved report when the hazard persists.
+  const handleReopenReport = async () => {
+    if (!selectedReportRow || resolutionSubmitting) return;
+    const reason = reopenReason.trim();
+    if (reason.length < MIN_REOPEN_REASON_LENGTH) {
+      setReopenReasonError(
+        `Please provide at least ${MIN_REOPEN_REASON_LENGTH} characters.`
+      );
+      return;
+    }
+
+    setResolutionSubmitting(true);
+    setResolutionError('');
+    setReopenReasonError('');
+    try {
+      await reopenReport(selectedReportRow.report_number, { remarks: reason });
+      setResolutionModalOpen(false);
+      setSuccessAction('reopened');
+      setSuccessPopupOpen(true);
+    } catch (err) {
+      const reasonMessage = Array.isArray(err?.remarks) ? err.remarks[0] : '';
+      if (err?.error_code === 'REOPEN_REMARKS_REQUIRED' || reasonMessage) {
+        setReopenReasonError(
+          err?.detail || reasonMessage || 'Please provide a reason for reopening.'
+        );
+      } else {
+        setResolutionError(
+          err?.detail || err?.message || 'Unable to reopen the report. Please try again.'
+        );
+      }
+    } finally {
+      setResolutionSubmitting(false);
     }
   };
 
@@ -303,6 +364,11 @@ export default function MyReport() {
       collapseValidation: true,
     });
     const invalidEntry = timeline.invalidEntry;
+    const currentStatusKey = normalizeStatus(currentStatus);
+    const hasResolutionPhotos = Boolean(
+      selectedReportDetail?.resolution_image_urls?.length
+    );
+    const showResolutionPhotos = ['RESOLVED', 'CLOSED'].includes(currentStatusKey);
 
     // SLA state for the status card's expected-resolution row. Null while the
     // detail is still loading (the card only renders with the detail anyway).
@@ -484,7 +550,7 @@ export default function MyReport() {
             <div className="detail-side-column">
               <div className="card resolution-proof-card">
                 <h3>LGU Resolution Proof</h3>
-                {selectedReportDetail.resolution_image_urls && selectedReportDetail.resolution_image_urls.length > 0 ? (
+                {showResolutionPhotos && hasResolutionPhotos ? (
                   <div className="photo-grid resolution-proof-grid">
                     {selectedReportDetail.resolution_image_urls.map((src, i) => (
                       <img
@@ -502,40 +568,52 @@ export default function MyReport() {
                       <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z" />
                       <circle cx="12" cy="13" r="4" />
                     </svg>
-                    <p>Photo of the repair will appear here once the case is marked 'Resolved'</p>
+                    <p>
+                      {!showResolutionPhotos && hasResolutionPhotos
+                        ? 'The report was reopened. Previous repair photos will be replaced when the case is resolved again.'
+                        : "Photo of the repair will appear here once the case is marked 'Resolved'"}
+                    </p>
                   </div>
                 )}
               </div>
 
-              {/* Citizen confirmation: close a resolved report */}
+              {/* Citizen resolution action: confirm & close, or reopen */}
               {normalizeStatus(selectedReportDetail.status) === 'RESOLVED' && (
                 <div className="card confirm-resolution-card">
-                  <h3>Close this Report</h3>
+                  <h3>Resolution Review</h3>
                   <p>
-                    The responsible authorities have resolved this hazard. Review the repair photos above, then confirm below to close this report.
+                    The responsible authorities have resolved this hazard. Review the repair photos above, then confirm the repair or reopen the report if the hazard is still present.
                   </p>
                   <button
                     type="button"
                     className="btn-confirm-resolution"
-                    onClick={() => { setConfirmError(''); setConfirmModalOpen(true); }}
+                    onClick={openResolutionModal}
                   >
-                    Confirm & Close Report
+                    Review Resolution
                   </button>
                 </div>
               )}
 
-              {/* Closure status: citizen-confirmed vs closed by the LGU */}
+              {/* Closure status: citizen-confirmed, auto-closed, or LGU-closed.
+                  Closed is final; a recurring hazard needs a new report. */}
               {normalizeStatus(selectedReportDetail.status) === 'CLOSED' && (
                 <div className="card closure-status-card">
                   <h3>
                     {selectedReportDetail.confirmed_at
                       ? 'Report Confirmed & Closed'
-                      : 'Report Closed by LGU'}
+                      : selectedReportDetail.auto_closed_at
+                        ? 'Report Automatically Closed'
+                        : 'Report Closed by LGU'}
                   </h3>
                   <p>
                     {selectedReportDetail.confirmed_at
                       ? `You confirmed the resolution on ${formatDate(selectedReportDetail.confirmed_at)}. Thank you for helping keep your community safe!`
-                      : 'The LGU closed this report — for example, it may not be under jurisdiction of the SnapSumbong department or was referred to another office.'}
+                      : selectedReportDetail.auto_closed_at
+                        ? `No confirmation was received within 7 days of the resolution, so this report was closed automatically on ${formatDate(selectedReportDetail.auto_closed_at)}.`
+                        : 'The LGU closed this report — for example, it may not be under jurisdiction of the SnapSumbong department or was referred to another office.'}
+                  </p>
+                  <p className="closure-final-note">
+                    Closed reports are final. If the hazard returns, please submit a new report.
                   </p>
                 </div>
               )}
@@ -572,16 +650,33 @@ export default function MyReport() {
           />
         )}
 
-        {confirmModalOpen && (
-          <ConfirmResolutionModal
-            submitting={confirmSubmitting}
-            error={confirmError}
+        {resolutionModalOpen && (
+          <ResolutionActionModal
+            submitting={resolutionSubmitting}
+            error={resolutionError}
+            reason={reopenReason}
+            reasonError={reopenReasonError}
+            onReasonChange={(value) => {
+              setReopenReason(value);
+              setReopenReasonError('');
+              setResolutionError('');
+            }}
             onConfirm={handleConfirmResolution}
-            onClose={() => { if (!confirmSubmitting) setConfirmModalOpen(false); }}
+            onReopen={handleReopenReport}
+            onClose={closeResolutionModal}
           />
         )}
 
-        {successPopupOpen && <SuccessPopup onDismiss={dismissSuccessPopup} />}
+        {successPopupOpen && (
+          <SuccessPopup
+            message={
+              successAction === 'reopened'
+                ? 'Report reopened. The LGU will continue working on it.'
+                : 'Thank you! Your report has been closed successfully.'
+            }
+            onDismiss={dismissSuccessPopup}
+          />
+        )}
 
         {timelineStepDetail && (
           <TimelineDetailsModal
@@ -884,42 +979,146 @@ function MapModal({ latitude, longitude, onClose }) {
   );
 }
 
-function ConfirmResolutionModal({ submitting, error, onConfirm, onClose }) {
+function ResolutionActionModal({
+  submitting,
+  error,
+  reason,
+  reasonError,
+  onReasonChange,
+  onConfirm,
+  onReopen,
+  onClose,
+}) {
+  const [step, setStep] = useState('choose');
+
+  const handleBack = () => {
+    if (submitting) return;
+    if (step === 'reopen') {
+      setStep('choose');
+      return;
+    }
+    onClose();
+  };
+
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && !submitting) onClose();
+      if (e.key !== 'Escape' || submitting) return;
+      if (step === 'reopen') {
+        setStep('choose');
+      } else {
+        onClose();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [submitting, onClose]);
+  }, [submitting, step, onClose]);
+
+  const handleBackdrop = () => {
+    if (submitting) return;
+    if (step === 'reopen') {
+      setStep('choose');
+      return;
+    }
+    onClose();
+  };
 
   return (
-    <div
-      className="confirm-modal-overlay"
-      onClick={() => { if (!submitting) onClose(); }}
-    >
+    <div className="confirm-modal-overlay" onClick={handleBackdrop}>
       <div
-        className="confirm-modal-card"
-        role="alertdialog"
+        className={`confirm-modal-card${step === 'reopen' ? ' confirm-modal-card--wide' : ''}`}
+        role="dialog"
         aria-modal="true"
-        aria-labelledby="confirm-resolution-title"
+        aria-labelledby="resolution-action-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 id="confirm-resolution-title">Report Resolved</h3>
-        <p>
-          The reported hazard has been successfully resolved and verified by the responsible authorities. As a result, this report has been marked as Closed. Thank you for helping keep the community safe.
-        </p>
-        {error && <div className="form-error-banner">{error}</div>}
-        <div className="confirm-modal-actions">
-          <button
-            type="button"
-            className="btn-confirm-resolution"
-            onClick={onConfirm}
-            disabled={submitting}
-          >
-            {submitting ? 'Confirming...' : 'Ok'}
-          </button>
-        </div>
+        {step === 'choose' ? (
+          <>
+            <h3 id="resolution-action-title">Is the hazard resolved?</h3>
+            <p>
+              The responsible authorities marked this report resolved. Confirm
+              the repair is complete, or reopen the report if the hazard is
+              still present.
+            </p>
+            {error && <div className="form-error-banner">{error}</div>}
+            <div className="resolution-choice-actions">
+              <button
+                type="button"
+                className="btn-confirm-resolution resolution-choice-button"
+                onClick={onConfirm}
+                disabled={submitting}
+              >
+                {submitting ? 'Confirming...' : 'Yes, Confirm & Close'}
+              </button>
+              <button
+                type="button"
+                className="btn-modal-cancel btn-reopen-report resolution-choice-button"
+                onClick={() => setStep('reopen')}
+                disabled={submitting}
+              >
+                No, Reopen Report
+              </button>
+              <button
+                type="button"
+                className="btn-modal-cancel resolution-choice-button resolution-choice-cancel"
+                onClick={onClose}
+                disabled={submitting}
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <h3 id="resolution-action-title">Reopen Report</h3>
+            <p>
+              Tell the LGU why this report still needs attention. The report will return to In Progress.
+            </p>
+            {error && <div className="form-error-banner">{error}</div>}
+            <div className="reopen-reason-field">
+              <label className="reopen-reason-label" htmlFor="reopen-reason">
+                Reason for reopening *
+              </label>
+              {reasonError && (
+                <div className="form-error-banner" role="alert">
+                  {reasonError}
+                </div>
+              )}
+              <textarea
+                id="reopen-reason"
+                className="reopen-reason-textarea"
+                value={reason}
+                maxLength={MAX_REOPEN_REASON_LENGTH}
+                minLength={MIN_REOPEN_REASON_LENGTH}
+                placeholder="Explain what is still wrong..."
+                aria-invalid={Boolean(reasonError)}
+                autoFocus
+                onChange={(e) => onReasonChange(e.target.value)}
+              />
+              <span className="reopen-reason-count">
+                {reason.length}/{MAX_REOPEN_REASON_LENGTH} · min{' '}
+                {MIN_REOPEN_REASON_LENGTH}
+              </span>
+            </div>
+            <div className="confirm-modal-actions">
+              <button
+                type="button"
+                className="btn-modal-cancel"
+                onClick={handleBack}
+                disabled={submitting}
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                className="btn-confirm-resolution btn-reopen-report"
+                onClick={onReopen}
+                disabled={submitting}
+              >
+                {submitting ? 'Reopening...' : 'Reopen Report'}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1065,7 +1264,7 @@ function TimelineDetailsModal({ step, onClose }) {
 // Centered success popup shown after the citizen confirms a closure.
 // Dismissed by tapping anywhere outside the card (or pressing Escape),
 // which returns to the My Reports list via onDismiss.
-function SuccessPopup({ onDismiss }) {
+function SuccessPopup({ message, onDismiss }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onDismiss();
@@ -1087,7 +1286,7 @@ function SuccessPopup({ onDismiss }) {
             <polyline points="20 6 9 17 4 12" />
           </svg>
         </div>
-        <p>Thank you! Your report has been closed successfully.</p>
+        <p>{message}</p>
         <span className="success-popup-hint">Tap anywhere to continue</span>
       </div>
     </div>

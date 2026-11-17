@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { getCurrentUser, getProfile } from "../../api/accounts";
 import { useAuth } from "../../context/authContext";
 import { STATUS_VIEWS, useStatusCounts } from "../../context/statusCountsContext";
+import { normalizeStatusOrLegacy } from "../../shared/reportStatuses";
 import { useCanAnalytics } from "../../hooks/useCanAnalytics";
 import { usePermissions } from "../../hooks/usePermissions";
 import "./Sidebar.css";
@@ -143,17 +144,25 @@ export default function Sidebar() {
 
   const toggleSection = (section) =>
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
-  const statusParam = (new URLSearchParams(location.search).get("status") || "").toLowerCase();
+  // Retired Status View links (?status=under_review/dispatched/ongoing) still
+  // resolve to the merged In Progress view, so an old bookmark keeps the
+  // matching sidebar entry highlighted.
+  const statusParam = normalizeStatusOrLegacy(
+    new URLSearchParams(location.search).get("status") || ""
+  ).toLowerCase();
   const activeStatus = STATUS_VIEWS.some((view) => view.status === statusParam) ? statusParam : "";
   const isOverviewActive = isActive("/dashboard/operations") && !activeStatus;
   // Status Views deep-link the shared table via /dashboard/operations?status=….
-  // Merge ?status= into whatever the URL already carries: hardcoding the query
-  // here used to silently drop the date range, severity and overdue filters the
-  // user had applied, which then made the badge count disagree with the rows it
-  // opened.
+  // Merge ?status= into whatever the URL already carries so severity/overdue
+  // filters survive. When no date window is present the link opens at All Time:
+  // the sidebar badge is a live, unscoped count, so the rows it opens should
+  // describe the same set. An explicit date filter is preserved.
   const statusViewHref = (status) => {
     const next = new URLSearchParams(location.search);
     next.set("status", status);
+    if (!next.has("range") && !next.has("from") && !next.has("to")) {
+      next.set("range", "all");
+    }
     const query = next.toString();
     return { pathname: "/dashboard/operations", search: query ? `?${query}` : "" };
   };
@@ -252,18 +261,31 @@ export default function Sidebar() {
                 Analytics
               </Link>
               <div className="sidebar-subnav-group">
-                <span className="sidebar-subnav-label">Status Views</span>
+                <span className="sidebar-subnav-label" title="Live totals across all reports">Status Views</span>
                 {STATUS_VIEWS.map((view) => {
                   const count = statusCountsLoaded ? statusCounts[view.key] : null;
+                  const isInvalid = view.status === "invalid";
                   return (
-                    <Link
-                      key={view.status}
-                      to={statusViewHref(view.status)}
-                      className={`sidebar-subnav-item with-badge ${isActive("/dashboard/operations") && activeStatus === view.status ? "active" : ""}`}
-                    >
-                      <span>{view.label}</span>
-                      <span className={`sidebar-count-badge${count === 0 ? " is-zero" : ""}`}>{statusCountsLoaded ? statusCounts[view.key] : "—"}</span>
-                    </Link>
+                    <Fragment key={view.status}>
+                      {view.status === "resolved" && (
+                        <div className="sidebar-status-divider" role="separator" />
+                      )}
+                      {isInvalid && (
+                        <>
+                          <div className="sidebar-status-divider" role="separator" />
+                          <span className="sidebar-subnav-label sidebar-status-exception-label">Exception</span>
+                        </>
+                      )}
+                      <Link
+                        to={statusViewHref(view.status)}
+                        className={`sidebar-subnav-item with-badge ${isActive("/dashboard/operations") && activeStatus === view.status ? "active" : ""}`}
+                        data-status={view.status}
+                        title={isInvalid ? "Reports determined to be false, misleading, or spam." : undefined}
+                      >
+                        <span>{view.label}</span>
+                        <span className={`sidebar-count-badge${count === 0 ? " is-zero" : ""}${isInvalid && count > 0 ? " is-invalid" : ""}`}>{statusCountsLoaded ? statusCounts[view.key] : "—"}</span>
+                      </Link>
+                    </Fragment>
                   );
                 })}
               </div>

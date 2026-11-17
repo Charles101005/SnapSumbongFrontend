@@ -320,7 +320,7 @@ html[data-text-scale="xl"] .dh-bottom-grid {
   white-space: nowrap;
 }
 .dash-home .status-new { background: #e0f2fe; color: #0369a1; }
-.dash-home .status-assigned { background: #e0e7ff; color: #4338ca; }
+.dash-home .status-assigned { background: #ede9fe; color: #6d28d9; }
 .dash-home .status-in-progress { background: #dbeafe; color: #1d4ed4; }
 .dash-home .status-on-hold { background: #fef3c7; color: #b45309; }
 .dash-home .status-resolved { background: #d9f5e5; color: #24975d; }

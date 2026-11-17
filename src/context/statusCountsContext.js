@@ -19,13 +19,13 @@ export const STATUS_VIEWS = REPORT_STATUS_ORDER.map((status) => ({
   status: status.toLowerCase(),
 }));
 
-// One shared store for every status count in the staff dashboard. The sidebar
-// badges and the Operations summary chips used to fetch their own copies from
-// two different endpoints on two different timers, which is how a badge could
-// disagree with the chips, and both could disagree with the table. See
-// StatusCountsProvider for the fetching and refresh rules; this file stays
-// context + constants only (mirrors authContext.js) so StatusCountsProvider.jsx
-// can export a component alone and keep react-refresh happy.
+// One shared store for the live sidebar Status View badges. The Operations
+// summary strip reads its own date-scoped copy of the same shape so its chips
+// can stay aligned with the table's Date filter; the sidebar deliberately
+// shows current, unscoped counts. See StatusCountsProvider for the fetching
+// and refresh rules; this file stays context + constants only (mirrors
+// authContext.js) so StatusCountsProvider.jsx can export a component alone and
+// keep react-refresh happy.
 export const StatusCountsContext = createContext(null);
 
 export function useStatusCounts() {

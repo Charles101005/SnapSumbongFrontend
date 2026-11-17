@@ -16,9 +16,12 @@ import {
   SearchIcon,
 } from "../../../components/shared/icons";
 import { getReportLookups, getReports } from "../../../api/reports";
+import { getStatusCounts } from "../../../api/analytics";
 import { REPORT_STATUSES, STATUS_VIEWS, useStatusCounts } from "../../../context/statusCountsContext";
 import {
   ACTIVE_STATUS_KEYS,
+  foldStatusCounts,
+  normalizeStatusOrLegacy,
   statusBadgeClass,
   statusLabel,
 } from "../../../shared/reportStatuses";
@@ -62,13 +65,10 @@ export default function OperationsDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawStatus = (searchParams.get("status") || "").trim().toLowerCase();
   // Retired status deep links (bookmarks, old sidebar history) collapse into
-  // In Progress instead of silently returning zero rows.
-  const LEGACY_STATUS_PARAMS = {
-    under_review: "in_progress",
-    dispatched: "in_progress",
-    ongoing: "in_progress",
-  };
-  const normalizedStatusParam = LEGACY_STATUS_PARAMS[rawStatus] || rawStatus;
+  // In Progress instead of silently returning zero rows. The legacy mapping
+  // lives in the shared status catalog so the sidebar highlight and this table
+  // always agree on what a retired link points at.
+  const normalizedStatusParam = normalizeStatusOrLegacy(rawStatus).toLowerCase();
   const urlStatus = REPORT_STATUSES.includes(normalizedStatusParam) ? normalizedStatusParam.toUpperCase() : "";
   const rawSeverity = (searchParams.get("severity") || "").trim().toUpperCase();
   const urlSeverity = /^P[1-5]$/.test(rawSeverity) ? rawSeverity : "";
@@ -79,18 +79,18 @@ export default function OperationsDashboard() {
   // Sanitised at derivation, not in the deep-link block below: the useState
   // seeds for filters/draft run on the FIRST render, where that block never
   // fires (prevDeepLink starts equal to deepLink). Same rules as the date
-  // inputs and StatusCountsProvider — drop future dates, repair an inverted
-  // pair (From wins, To moves) — so every consumer of this URL resolves the
-  // identical window. See sanitizeDateBounds.
+  // inputs and the summary strip's date window — drop future dates, repair an
+  // inverted pair (From wins, To moves) — so every consumer of this URL
+  // resolves the identical window. See sanitizeDateBounds.
   const { from: urlFrom, to: urlTo } = sanitizeDateBounds(
     searchParams.get("from") || "",
     searchParams.get("to") || ""
   );
-  // Default period is Today (the clean URL has no range param); an explicit
-  // ?range=… or bare ?from=/?to= deep-link overrides it. StatusCountsProvider
-  // resolves the very same URL with the very same rule, so the badge counts
-  // and this table always describe the same window.
-  const urlDateMode = urlRange || (urlFrom || urlTo ? "custom" : "today");
+  // Default period is Today for the Overview; Status Views default to All Time
+  // so the rows they open describe the same set as the live sidebar badge. An
+  // explicit ?range=… or bare ?from=/?to= deep-link overrides either default.
+  // The table and its summary strip both resolve this window from the filters.
+  const urlDateMode = urlRange || (urlFrom || urlTo ? "custom" : urlStatus ? "all" : "today");
   // Per-report deep link (?report=…&action=manage). Dashboard rows link here
   // so "Manage"/"View" open the exact report instead of dumping the user on
   // the unfiltered overview. `action=manage` asks for the Update dialog, but
@@ -116,6 +116,10 @@ export default function OperationsDashboard() {
   // — the same refreshTick pattern MyReport uses, which keeps the loader out
   // of the effect's dependency list.
   const [refreshTick, setRefreshTick] = useState(0);
+  // Date-scoped counts for the summary strip below. The sidebar badges come
+  // from StatusCountsProvider and are intentionally live/unscoped; these are
+  // separate so the chips can keep matching the table's date window.
+  const [summary, setSummary] = useState({ counts: {}, total: 0, loaded: false });
   // Report number whose Update modal is open, or null when closed. Seeded
   // from ?report= so a deep link opens on the first render too.
   const [editingReport, setEditingReport] = useState(openInEditor ? urlReport : null);
@@ -126,20 +130,13 @@ export default function OperationsDashboard() {
     urlReport && !openInEditor ? urlReport : null
   );
 
-  // Shared status counts: the sidebar Status Views badges and the summary
-  // chips below read one store (see StatusCountsProvider), so the two can
-  // never disagree and both refresh off the same triggers.
-  const {
-    counts: statusCounts,
-    total: countsTotal,
-    overdue: overdueCount,
-    loaded: countsLoaded,
-    refresh: refreshCounts,
-  } = useStatusCounts();
+  // Sidebar badges come from the shared live store (unscoped, current counts).
+  // The summary chips below have their own date-scoped copy (see the effect
+  // after the table fetch) so they stay aligned with the table.
+  const { overdue: overdueCount, refresh: refreshCounts } = useStatusCounts();
   // Single post-mutation refresh for every modal on this page: bump the tick
-  // so the table refetches and tell the counts store to refetch, so the
-  // table, chips and sidebar badges all land on the new numbers together
-  // (they used to wait up to 60s for the badge poll).
+  // so the table and summary strip refetch, and tell the counts store to
+  // refetch the sidebar badges (they used to wait up to 60s for the poll).
   const reloadAll = () => {
     setRefreshTick((tick) => tick + 1);
     refreshCounts();
@@ -148,14 +145,15 @@ export default function OperationsDashboard() {
   // Adjust state when the deep-link params change (sidebar click, Analytics
   // drill-down, or browser navigation) — see react.dev "adjusting some state
   // when a prop changes". Only the fields whose URL value actually changed are
-  // applied, so a plain ?status= navigation leaves the other filters alone.
-  const deepLink = `${urlStatus}|${urlSeverity}|${urlOverdue ? "1" : "0"}|${urlRange}|${urlFrom}|${urlTo}|${urlReport}|${urlReportAction}`;
+  // applied; switching into or out of a Status View can also switch the
+  // default date window (All Time vs Today).
+  const deepLink = `${urlStatus}|${urlSeverity}|${urlOverdue ? "1" : "0"}|${urlDateMode}|${urlFrom}|${urlTo}|${urlReport}|${urlReportAction}`;
   const [prevDeepLink, setPrevDeepLink] = useState(deepLink);
   if (prevDeepLink !== deepLink) {
-    const [prevStatus, prevSeverity, prevOverdue, prevRange, prevFrom, prevTo, prevReport, prevReportAction] = prevDeepLink.split("|");
+    const [prevStatus, prevSeverity, prevOverdue, prevDateMode, prevFrom, prevTo, prevReport, prevReportAction] = prevDeepLink.split("|");
     setPrevDeepLink(deepLink);
     setPage(1);
-    const dateChanged = `${urlRange}|${urlFrom}|${urlTo}` !== `${prevRange}|${prevFrom}|${prevTo}`;
+    const dateChanged = `${urlDateMode}|${urlFrom}|${urlTo}` !== `${prevDateMode}|${prevFrom}|${prevTo}`;
     const applyUrl = (current) => {
       const next = { ...current };
       if (urlStatus !== prevStatus) next.status = urlStatus;
@@ -214,8 +212,8 @@ export default function OperationsDashboard() {
       setError("");
       try {
         // Resolve the date range from the selected preset or custom inputs —
-        // the shared resolver, so this table and the badge counts (which read
-        // the same URL) can never interpret a preset differently.
+        // the shared resolver, so this table and its summary strip can never
+        // interpret a preset differently.
         const { from: fromDate, to: toDate } = resolveRange(filters.dateMode, new Date(), { from: filters.fromDate, to: filters.toDate });
         const reportData = await getReports({
           q: filters.search || undefined,
@@ -256,10 +254,41 @@ export default function OperationsDashboard() {
     };
   }, [page, filters, refreshTick]);
 
+  // The summary strip keeps its own copy of the status counts so it can stay
+  // date-scoped to the table. The shared store above is deliberately unscoped
+  // (live sidebar badges), so reusing it here would make the chips disagree
+  // with the rows whenever a Date filter is applied.
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { from: fromDate, to: toDate } = resolveRange(
+          filters.dateMode,
+          new Date(),
+          { from: filters.fromDate, to: filters.toDate }
+        );
+        const data = await getStatusCounts({ from: fromDate, to: toDate });
+        if (cancelled) return;
+        setSummary({
+          counts: foldStatusCounts(data.byStatus),
+          total: Number(data.total || 0),
+          loaded: true,
+        });
+      } catch {
+        // Keep the last known summary. The table's error banner already covers
+        // a failed refresh; a metrics outage should not blank the chips.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.dateMode, filters.fromDate, filters.toDate, refreshTick]);
+
   // Filter-dropdown lookups load once per mount. Status counts deliberately
-  // do NOT come from here anymore: StatusCountsProvider owns them (one request
-  // for all nine buckets instead of the old request-per-status fan-out), and
-  // its data has to outlive this page to keep the sidebar badges stable.
+  // do NOT come from here anymore: StatusCountsProvider owns the live sidebar
+  // badges, while this page keeps its own date-scoped summary copy above.
   useEffect(() => {
     let cancelled = false;
     getReportLookups()
@@ -272,15 +301,15 @@ export default function OperationsDashboard() {
     };
   }, []);
 
-  const countFor = (...keys) => keys.reduce((sum, key) => sum + Number(statusCounts[normalize(key)] || 0), 0);
+  const countFor = (...keys) => keys.reduce((sum, key) => sum + Number(summary.counts[normalize(key)] || 0), 0);
   // Active = every open report (not yet Resolved, Closed, or Invalid).
   const active = countFor(...ACTIVE_STATUS_KEYS);
   const invalid = countFor("invalid");
-  const totalReports = Number(countsTotal || 0);
-  // Summary chips show "—" until the shared store has a real answer instead
-  // of the old fabricated 0, and hold the last known number through a failed
-  // refresh (the store's failure rule).
-  const chipValue = (value) => (countsLoaded ? value : "—");
+  const totalReports = Number(summary.total || 0);
+  // Summary chips show "—" until the scoped summary has a real answer instead
+  // of a fabricated 0, and keep the last known number through a failed
+  // refresh.
+  const chipValue = (value) => (summary.loaded ? value : "—");
   const categories = lookups.categories || [];
   const statuses = lookups.statuses || [];
   const severities = lookups.severities || [];
@@ -304,9 +333,11 @@ export default function OperationsDashboard() {
     put("severity", source.severity || "");
     if (source.overdue) next.set("overdue", "true");
     else next.delete("overdue");
-    // Today is the default period, so it needs no param; every other mode
-    // (including an explicit All Time) is written back for shareable URLs.
-    if (source.dateMode && source.dateMode !== "today") put("range", source.dateMode);
+    // Today is the Overview default; All Time is the Status View default. Only
+    // non-default modes need a param, so the clean URL keeps meaning the same
+    // thing on both pages.
+    const defaultDateMode = isStatusView ? "all" : "today";
+    if (source.dateMode && source.dateMode !== defaultDateMode) put("range", source.dateMode);
     else next.delete("range");
     const custom = source.dateMode === "custom";
     put("from", custom ? source.fromDate || "" : "");
@@ -333,8 +364,9 @@ export default function OperationsDashboard() {
   };
   const reset = () => {
     // Status Views keep their locked status on reset — clearing it would
-    // silently kick the user back to the Overview.
-    const empty = { category: "", severity: "", status: isStatusView ? urlStatus : "", search: "", dateMode: "today", fromDate: "", toDate: "", overdue: false };
+    // silently kick the user back to the Overview. Their default date window
+    // is All Time, matching the live badge count; the Overview resets to Today.
+    const empty = { category: "", severity: "", status: isStatusView ? urlStatus : "", search: "", dateMode: isStatusView ? "all" : "today", fromDate: "", toDate: "", overdue: false };
     setPage(1); setDraft(empty); setFilters(empty);
     syncParamsFrom(empty);
   };
