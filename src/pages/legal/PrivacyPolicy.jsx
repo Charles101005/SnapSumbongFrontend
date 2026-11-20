@@ -12,8 +12,8 @@ const sections = [
           stored, and protected when using the Road Hazard Reporting and Monitoring System.
         </p>
         <p>
-          This policy is implemented in accordance with the Data Privacy Act of 2012 (Republic
-          Act No. 10173) and its Implementing Rules and Regulations.
+          The policies and practices described in the Privacy Policy apply to all users of the system, including citizens reporting road hazards and authorized LGU personnel managing these reports.
+          It was drafted following the principles of the Data Privacy Act of 2012 (Republic Act No. 10173) and its Implementing Rules and Regulations (IRR).
         </p>
       </>
     ),
